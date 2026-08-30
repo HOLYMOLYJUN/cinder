@@ -1,0 +1,21 @@
+{
+  "name": "cinder-party",
+  "version": "0.1.0",
+  "description": "잿불 — 방(room) 서버. Cloudflare Workers + Durable Objects.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "partyserver": "^0.5.10"
+  },
+  "devDependencies": {
+    "wrangler": "^4.127.1"
+  },
+  "private": true,
+  "type": "module"
+}

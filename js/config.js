@@ -31,6 +31,34 @@ const CFG = {
   SAVE_KEY: 'jaetbul.save.v1',
 };
 
+/* ---------- 방(room) 서버 ----------
+   친구와 같은 방에 들어가 주고받는 것. 게임 규칙과는 아무 상관이 없다.
+
+   HOST 가 비어 있으면 채팅이 통째로 꺼진다 — 그리고 그게 기본값이다.
+   index.html 을 더블클릭해서 열었을 때(file://)도, 아티팩트 한 장으로
+   구웠을 때도 네트워크는 어차피 막혀 있다. 꺼진 채로 게임이 멀쩡한 것이
+   정상 동작이지 예외가 아니다.
+
+   배포한 뒤 여기에 워커 주소를 적으면 그때부터 켜진다:
+     HOST: 'https://cinder-party.<계정>.workers.dev'                     */
+
+const NET = {
+  HOST:  '',                 // 배포 전에는 비워 둔다
+  PARTY: 'cinder-room',      // wrangler.jsonc 의 바인딩 이름을 kebab-case 로
+  PROTO: 1,                  // 프로토콜 판 번호 — 서버와 같아야 한다
+
+  MAX_TEXT: 200,             // 한 줄 길이 (서버도 같은 값으로 자른다)
+  MAX_NAME: 16,
+
+  PING_MS:  25000,           // 이 간격으로 한 마디 보내 연결을 살려 둔다
+  DEAD_MS:  60000,           // 이만큼 아무것도 안 오면 죽은 것으로 보고 다시 붙는다
+  RETRY_BASE: 800,           // 재시도 간격의 시작
+  RETRY_MAX: 15000,          // 그 상한
+
+  KEY: 'jaetbul.chat.v1',    // 방 이름과 별명을 담는 칸.
+                             // 기억(save)·이어하기(run)와 수명이 다르므로 따로 둔다
+};
+
 /* ---------- 타일 ---------- */
 
 const T = { WALL: 0, FLOOR: 1, STAIRS: 2, CAMP: 3, SHOP: 4, DOOR: 5 };

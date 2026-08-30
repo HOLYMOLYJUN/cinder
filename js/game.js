@@ -1155,9 +1155,21 @@ function currentIntent() {
 }
 
 function onKeyDown(e) {
+  /* 확성기에 글자를 치는 중이면 게임은 물러선다.
+     이걸 빼면 "wasd"라고 치는 동안 캐릭터가 네 칸 움직이고,
+     "1"을 치면 물약이 사라진다. 채팅을 붙일 때 제일 먼저 터지는 곳이다. */
+  if (typeof Chat !== 'undefined' && Chat.typing()) return;
+
   // event.key 가 아니라 event.code 를 쓴다.
   // key 를 쓰면 한글 입력 상태에서 Z 가 'ㅋ' 으로 들어와 조작이 먹통이 된다.
   const code = e.code;
+
+  // 확성기 여닫기. 게임 중에도 되어야 하므로 다른 창들보다 앞에 둔다.
+  if (code === 'KeyC') {
+    if (typeof Chat !== 'undefined') Chat.toggle();
+    e.preventDefault();
+    return;
+  }
 
   if (KEY_MOD[code]) { held.add(code); modUsed.delete(code); }
 
@@ -1357,6 +1369,8 @@ window.addEventListener('DOMContentLoaded', () => {
   UI.renderHeroPick();
   Sound.init();
   Render.init(document.getElementById('view'));
+  Net.init();
+  Chat.init();
 
   updateRecordText(loadData());
 

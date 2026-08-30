@@ -32,6 +32,8 @@ const JS_FILES = [
   'js/achievements.js',
   'js/render.js',
   'js/ui.js',
+  'js/net.js',
+  'js/chat.js',
   'js/resume.js',
   'js/game.js',
 ];

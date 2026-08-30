@@ -835,3 +835,116 @@ ul li::before, .chip::before { border-radius: 0 !important; }
 
 /* 픽셀 그림은 어떤 크기로 늘려도 뭉개지지 않게 */
 img.cx-thumb, img.heart { image-rendering: pixelated; }
+
+/* ===== 확성기 =====
+   던전 위에 떠 있되 화면을 막지 않는다 — 채팅을 열어 둔 채로 계속 오를 수 있어야
+   확성기다. 그래서 모달이 아니라 구석에 붙는 판이고, 창 크기의 절반을 넘지 않는다. */
+
+.chat-tab {
+  position: absolute; right: 12px; bottom: 12px; z-index: 40;
+  padding: 7px 12px;
+  background: var(--panel); color: var(--ink-soft);
+  border: 2px solid var(--line); border-radius: 0;
+  font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.chat-tab:hover { color: var(--ink); border-color: var(--ember-dim); }
+
+.chat-badge {
+  display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 4px;
+  background: var(--ember); color: #1A1109;
+  font-size: 11px; font-weight: 700; text-align: center;
+}
+
+.chat {
+  position: absolute; right: 12px; bottom: 12px; z-index: 41;
+  display: flex; flex-direction: column;
+  width: 300px; max-width: calc(100% - 24px);
+  max-height: min(52%, 380px);
+  background: var(--panel); border: 2px solid var(--line);
+}
+
+.chat-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  background: var(--panel-2); border-bottom: 2px solid var(--line);
+  font-size: 12px; color: var(--muted);
+}
+.chat-where { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 붙어 있는지 한 눈에. 글자를 읽지 않아도 색으로 안다. */
+.chat-dot { width: 8px; height: 8px; background: var(--muted); flex: none; }
+.chat-dot.on   { background: #8FBF7F; }
+.chat-dot.wait { background: var(--ember); animation: chat-blink 1s steps(2, end) infinite; }
+@keyframes chat-blink { 50% { opacity: .25; } }
+
+.chat-x {
+  background: none; border: none; color: var(--muted);
+  font: inherit; font-size: 13px; cursor: pointer; padding: 0 2px;
+}
+.chat-x:hover { color: var(--ink); }
+
+/* ---------- 들어가기 전 ---------- */
+.chat-join { padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.chat-join label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--muted);
+}
+.chat-row { display: flex; gap: 8px; }
+.chat-note { margin: 2px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
+
+.chat input {
+  flex: 1; min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg); color: var(--ink);
+  border: 2px solid var(--line); border-radius: 0;
+  font: inherit; font-size: 12.5px;
+}
+.chat input:focus { outline: none; border-color: var(--ember-dim); }
+
+.chat button:not(.chat-x) {
+  padding: 6px 12px;
+  background: var(--ember-dim); color: #1A1109;
+  border: 2px solid var(--ember-dim); border-radius: 0;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.chat button:not(.chat-x):hover { background: var(--ember); border-color: var(--ember); }
+.chat button.ghost {
+  background: none; color: var(--muted); border-color: var(--line);
+  font-weight: 400;
+}
+.chat button.ghost:hover { background: none; color: var(--ink); border-color: var(--ember-dim); }
+
+/* ---------- 들어간 뒤 ---------- */
+.chat-live { display: flex; flex-direction: column; min-height: 0; }
+
+.chat-lines {
+  flex: 1; min-height: 90px;
+  overflow-y: auto; scrollbar-width: thin;
+  padding: 8px 10px;
+  font-size: 12.5px; line-height: 1.65;
+}
+
+.chat-line { margin-bottom: 3px; color: var(--ink-soft); word-break: break-word; }
+.chat-line b { color: var(--muted); font-weight: 600; margin-right: 6px; }
+.chat-line b::after { content: ''; }
+.chat-line.mine { color: var(--ink); }
+.chat-line.mine b { color: var(--ember-dim); }
+.chat-line.sys { color: var(--muted); font-size: 11.5px; }
+
+.chat-form { display: flex; gap: 6px; padding: 8px; border-top: 2px solid var(--line); }
+.chat-leave {
+  margin: 0 8px 8px; padding: 4px 8px !important;
+  font-size: 11.5px !important; align-self: flex-start;
+}
+
+/* 좁은 화면에서는 아래에 붙는 판으로. 폭을 다 쓴다 —
+   폰에서 300px 짜리 판은 던전과 겹쳐서 둘 다 못 읽는다. */
+@media (max-width: 560px) {
+  .chat {
+    right: 0; left: 0; bottom: 0;
+    width: auto; max-width: none;
+    max-height: 58%;
+    border-width: 2px 0 0;
+  }
+  .chat-tab { right: 8px; bottom: 8px; }
+}

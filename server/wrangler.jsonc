@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cinder-party",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+
+  "observability": { "enabled": true },
+
+  // 방 하나 = Durable Object 인스턴스 하나.
+  // 바인딩 이름은 routePartykitRequest 가 kebab-case 로 바꿔 URL 에 쓴다:
+  //   CinderRoom  ->  /parties/cinder-room/<방이름>
+  "durable_objects": {
+    "bindings": [
+      { "name": "CinderRoom", "class_name": "CinderRoom" }
+    ]
+  },
+
+  // new_classes 가 아니라 new_sqlite_classes 여야 한다.
+  // 무료 플랜에서는 SQLite 백엔드 DO 만 쓸 수 있고,
+  // 옛날 글을 따라 new_classes 로 적으면 배포가 거절된다.
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CinderRoom"] }
+  ],
+
+  "vars": {
+    // 게임이 올라간 주소를 쉼표로 적는다. 스킴과 포트까지 정확히 —
+    // 여기 없는 곳에서 온 연결은 403 으로 끊는다.
+    // localhost 와 127.0.0.1 은 언제나 허용되므로 개발 중에는 비워도 된다.
+    //   예: "https://cinder.vercel.app,https://cinder-git-main-you.vercel.app"
+    "ALLOWED_ORIGINS": ""
+  }
+}

@@ -236,6 +236,40 @@
 
   </div>
 
+  <!-- ===== 확성기 =====
+       NET.HOST 를 비워 두면 chat.js 가 이 둘을 끝까지 숨겨 둔다.
+       배포 전이나 file:// 로 열었을 때는 없는 기능이어야 한다. -->
+  <button id="chat-tab" class="chat-tab hidden" aria-label="확성기 열기">
+    확성기<span id="chat-badge" class="chat-badge hidden"></span>
+  </button>
+
+  <div id="chat" class="chat hidden" role="region" aria-label="확성기">
+    <div class="chat-head">
+      <span class="chat-dot" id="chat-dot"></span>
+      <span class="chat-where" id="chat-where">꺼짐</span>
+      <button class="chat-x" id="chat-close" aria-label="닫기">✕</button>
+    </div>
+
+    <div class="chat-join" id="chat-join">
+      <label>별명 <input id="chat-name" maxlength="16" autocomplete="off" spellcheck="false"></label>
+      <label>방 <input id="chat-room" maxlength="32" autocomplete="off" spellcheck="false" placeholder="ember-3721"></label>
+      <div class="chat-row">
+        <button id="chat-enter">들어가기</button>
+        <button id="chat-dice" class="ghost">새 방</button>
+      </div>
+      <p class="chat-note">방 이름이 곧 열쇠입니다. 친구에게 그대로 불러 주세요.</p>
+    </div>
+
+    <div class="chat-live hidden" id="chat-live">
+      <div class="chat-lines" id="chat-lines" aria-live="polite"></div>
+      <form class="chat-form" id="chat-form">
+        <input id="chat-text" maxlength="200" autocomplete="off" placeholder="말하기">
+        <button type="submit">보내기</button>
+      </form>
+      <button id="chat-leave" class="ghost chat-leave">나가기</button>
+    </div>
+  </div>
+
 </div>
 
 <script src="js/config.js"></script>
@@ -253,6 +287,8 @@
 <script src="js/achievements.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/net.js"></script>
+<script src="js/chat.js"></script>
 <script src="js/resume.js"></script>
 <script src="js/game.js"></script>
 </body>
