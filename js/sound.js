@@ -283,6 +283,43 @@ const Sound = {
      음악이라기보다 공기. 낮은 드론 하나와 이따금 튀는 불씨 소리.
      층이 오를수록 드론이 낮아진다 — 조여드는 느낌이 공짜로 생긴다. */
 
+  /* 옥상 바람.
+
+     드론은 좁은 데서 조여드는 소리라 사방이 트인 옥상에는 안 맞는다.
+     짧은 잡음을 반복 재생하면서 필터를 아주 느리게 흔든다 — 그게 바람으로 들린다. */
+  startWind() {
+    if (this.wind || !this.ctx) return;
+    const len = Math.floor(this.ctx.sampleRate * 2);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 460; f.Q.value = 0.7;
+    const g = this.ctx.createGain(); g.gain.value = 0.0001;
+    src.connect(f); f.connect(g); g.connect(this.master);
+
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'sine'; lfo.frequency.value = 0.09;      // 열 몇 초에 한 번 부는 결
+    const amt = this.ctx.createGain(); amt.gain.value = 250;
+    lfo.connect(amt); amt.connect(f.frequency);
+    lfo.start(); src.start();
+    g.gain.exponentialRampToValueAtTime(0.07, this.now() + 3);
+    this.wind = { src, f, g, lfo };
+  },
+
+  stopWind() {
+    if (!this.wind) return;
+    const w = this.wind; this.wind = null;
+    const t = this.now();
+    w.g.gain.cancelScheduledValues(t);
+    w.g.gain.setValueAtTime(Math.max(0.0001, w.g.gain.value), t);
+    w.g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    setTimeout(() => { try { w.src.stop(); w.lfo.stop(); } catch (e) {} }, 1400);
+  },
+
   setFloor(depth) {
     if (!this.ctx) return;
     const base = 58 * Math.pow(2, -(depth - 1) / 26);
@@ -309,7 +346,23 @@ const Sound = {
     // 램프는 "직전에 예약된 값"에서 출발한다. .value 만 건드려 놓고 램프를 걸면
     // 출발점이 없어서 두 번째 층부터 아무 일도 일어나지 않는다.
     // 그래서 지금 값을 명시적으로 못박은 뒤 이어 붙인다.
+    // 맨 위층은 밖이다. 드론을 접고 바람으로 갈아탄다.
+    const roof = depth >= CFG.TOP_FLOOR;
     const t = this.now();
+    if (roof) {
+      this.startWind();
+      const g = this.drone.g.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.exponentialRampToValueAtTime(0.0001, t + 2.5);
+    } else {
+      this.stopWind();
+      const g = this.drone.g.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.exponentialRampToValueAtTime(0.05, t + 1.5);
+    }
+
     this.droneHz = base;
     for (const [osc, mul] of [[this.drone.a, 1], [this.drone.b, 1.503]]) {   // 살짝 어긋나게
       const f = osc.frequency;

@@ -582,8 +582,11 @@ canvas#view {
 
 /* ---------- 결말 ---------- */
 
+/* 결말 화면은 완전히 덮지 않는다.
+   여기까지 온 사람이 서 있는 곳은 옥상이고, 그게 뒤로 계속 보여야
+   "탑 꼭대기에서 고르는 중"이 유지된다. */
 #ending-screen {
-  background: radial-gradient(ellipse at 50% 40%, #14100A 0%, #060504 70%);
+  background: radial-gradient(ellipse at 50% 40%, rgba(20,16,10,.82) 0%, rgba(6,5,4,.93) 70%);
   z-index: 55;
 }
 .ending-inner { width: calc(100% - 40px); max-width: 520px; text-align: center; }
@@ -614,7 +617,8 @@ canvas#view {
 
 /* ---------- 결과 ---------- */
 
-#result-screen { background: rgba(7,5,4,.94); z-index: 50; }
+/* 같은 이유로 결과 화면도 조금 비친다 — 불을 붙였다면 뒤에서 새벽이 온다 */
+#result-screen { background: rgba(7,5,4,.88); z-index: 50; }
 .result-inner { text-align: center; padding: 30px; max-width: 420px; }
 .result-title {
   font-family: "Gowun Batang", serif;
@@ -1581,6 +1585,43 @@ const Sound = {
      음악이라기보다 공기. 낮은 드론 하나와 이따금 튀는 불씨 소리.
      층이 오를수록 드론이 낮아진다 — 조여드는 느낌이 공짜로 생긴다. */
 
+  /* 옥상 바람.
+
+     드론은 좁은 데서 조여드는 소리라 사방이 트인 옥상에는 안 맞는다.
+     짧은 잡음을 반복 재생하면서 필터를 아주 느리게 흔든다 — 그게 바람으로 들린다. */
+  startWind() {
+    if (this.wind || !this.ctx) return;
+    const len = Math.floor(this.ctx.sampleRate * 2);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 460; f.Q.value = 0.7;
+    const g = this.ctx.createGain(); g.gain.value = 0.0001;
+    src.connect(f); f.connect(g); g.connect(this.master);
+
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'sine'; lfo.frequency.value = 0.09;      // 열 몇 초에 한 번 부는 결
+    const amt = this.ctx.createGain(); amt.gain.value = 250;
+    lfo.connect(amt); amt.connect(f.frequency);
+    lfo.start(); src.start();
+    g.gain.exponentialRampToValueAtTime(0.07, this.now() + 3);
+    this.wind = { src, f, g, lfo };
+  },
+
+  stopWind() {
+    if (!this.wind) return;
+    const w = this.wind; this.wind = null;
+    const t = this.now();
+    w.g.gain.cancelScheduledValues(t);
+    w.g.gain.setValueAtTime(Math.max(0.0001, w.g.gain.value), t);
+    w.g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    setTimeout(() => { try { w.src.stop(); w.lfo.stop(); } catch (e) {} }, 1400);
+  },
+
   setFloor(depth) {
     if (!this.ctx) return;
     const base = 58 * Math.pow(2, -(depth - 1) / 26);
@@ -1607,7 +1648,23 @@ const Sound = {
     // 램프는 "직전에 예약된 값"에서 출발한다. .value 만 건드려 놓고 램프를 걸면
     // 출발점이 없어서 두 번째 층부터 아무 일도 일어나지 않는다.
     // 그래서 지금 값을 명시적으로 못박은 뒤 이어 붙인다.
+    // 맨 위층은 밖이다. 드론을 접고 바람으로 갈아탄다.
+    const roof = depth >= CFG.TOP_FLOOR;
     const t = this.now();
+    if (roof) {
+      this.startWind();
+      const g = this.drone.g.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.exponentialRampToValueAtTime(0.0001, t + 2.5);
+    } else {
+      this.stopWind();
+      const g = this.drone.g.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.exponentialRampToValueAtTime(0.05, t + 1.5);
+    }
+
     this.droneHz = base;
     for (const [osc, mul] of [[this.drone.a, 1], [this.drone.b, 1.503]]) {   // 살짝 어긋나게
       const f = osc.frequency;
@@ -1838,6 +1895,45 @@ function hall(tiles, from, to, fixed, horizontal) {
     const y = horizontal ? fixed : v;
     if (tiles[y] && tiles[y][x] === T.WALL) tiles[y][x] = T.FLOOR;
   }
+}
+
+/* =========================================================
+   옥상 — 탑의 맨 윗면
+
+   여기만 방과 복도로 만들지 않는다. 열네 층을 좁은 통로로 올라온 끝이
+   또 방 하나면 "도착했다"가 안 생긴다. 사방이 트인 넓은 단 하나여야 한다.
+
+   모서리를 깎아 팔각에 가깝게 만든다. 사각형이면 그냥 큰 방으로 보인다.
+   ========================================================= */
+function makeRoof(depth) {
+  const w = 34, h = 22;
+  const tiles = [], explored = [];
+  for (let y = 0; y < h; y++) {
+    tiles.push(new Array(w).fill(T.WALL));
+    explored.push(new Array(w).fill(false));
+  }
+
+  // 화면(28x18)보다 확실히 작아야 난간 너머가 사방으로 보인다.
+  const rx = 8, ry = 5, rw = 18, rh = 12, cut = 4;
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      const dx = Math.min(x - rx, rx + rw - 1 - x);
+      const dy = Math.min(y - ry, ry + rh - 1 - y);
+      if (dx + dy < cut) continue;                 // 네 모서리를 잘라낸다
+      tiles[y][x] = T.FLOOR;
+    }
+  }
+
+  const room = { x: rx, y: ry, w: rw, h: rh,
+                 cx: rx + (rw >> 1), cy: ry + (rh >> 1) };
+  const map = { w, h, tiles, explored, rooms: [room], depth, roof: true };
+
+  // 올라온 자리는 아래쪽 가장자리. 주인은 한가운데 앉아 있다.
+  map.start  = { x: room.cx, y: ry + rh - 2 };
+  map.stairs = { x: room.cx, y: room.cy };
+  map.stairsRoom = room;
+  map.torches = [];
+  return map;
 }
 
 function randomTileIn(room) {
@@ -2850,11 +2946,17 @@ const Render = {
     const x0 = Math.floor(camX) - 1, x1 = Math.ceil(camX + CFG.VIEW_W) + 1;
     const y0 = Math.floor(camY) - 1, y1 = Math.ceil(camY + CFG.VIEW_H) + 1;
 
+    // 옥상에서는 난간 너머가 벽이 아니라 아득한 아래다.
+    // 타일보다 먼저 화면 전체에 깔아 두고, 그 위에 단을 얹는다.
+    if (map.roof) this.drawBelow(ctx, camX, camY);
+
     /* ----- 바닥과 벽 ----- */
     for (let y = Math.max(0, y0); y < Math.min(map.h, y1); y++) {
       for (let x = Math.max(0, x0); x < Math.min(map.w, x1); x++) {
         const seen = map.explored[y][x];
         if (!seen) continue;
+        // 옥상 바깥은 벽이 아니라 허공이다. 단 가장자리 한 겹만 난간으로 남긴다.
+        if (map.roof && map.tiles[y][x] === T.WALL && !this.isParapet(map, x, y)) continue;
         const lit = isVisible(visible, map, x, y);
         const t = map.tiles[y][x];
         const px = x * TS, py = y * TS;
@@ -3241,6 +3343,104 @@ const Render = {
       const ex = cx + Math.sin(t * 3 + i * 2.1) * TS * 0.18;
       ctx.fillRect(Math.round(ex), Math.round(base - TS * 0.7 - p * TS * 0.9), 2, 2);
     }
+    ctx.restore();
+  },
+
+  /* 난간인가 — 바닥에 맞닿은 벽 한 겹만 난간으로 그린다.
+     그 바깥까지 벽으로 그리면 옥상이 아니라 그냥 큰 방이 된다. */
+  dawnAt: 0,                     // 새벽이 시작된 시각 (0 이면 아직 밤)
+  lightDawn() { this.dawnAt = performance.now(); },
+
+  isParapet(map, x, y) {
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      if (tileAt(map, x + dx, y + dy) === T.FLOOR) return true;
+    }
+    return false;
+  },
+
+  /* 난간 너머.
+
+     위에서 내려다보는 시점이라 여기 보이는 것은 하늘이 아니다 — 별은 카메라 위에 있다.
+     보이는 것은 구름 바다와 그 아래 아득한 어둠이고, 그래서 높이가 느껴진다.
+
+     구름은 4px 덩어리로 찍는다. 부드러운 그라데이션으로 깔면
+     도트 타일 옆에서 혼자 매끈해 보여 붕 뜬다. */
+  drawBelow(ctx, camX, camY) {
+    const TS = CFG.TILE;
+    const W = this.canvas.width, H = this.canvas.height;
+    const t = performance.now() / 1000;
+    // 불을 붙이면 밤이 새벽으로 넘어간다. 한 번에 갈아치우지 않고 몇 초에 걸쳐 —
+    // 결말은 사건이 아니라 변화라서, 순간이동하면 무슨 일이 있었는지 못 본다.
+    const dawn = this.dawnAt ? clamp((performance.now() - this.dawnAt) / 2600, 0, 1) : 0;
+
+    // 화면 좌표로 되돌린다 (바깥에서 translate 가 걸려 있다)
+    const ox = camX * TS, oy = camY * TS;
+    ctx.save();
+    ctx.translate(ox, oy);
+
+    const night = [5, 7, 14], morning = [58, 38, 34];
+    const bg = night.map((v, i) => Math.round(v + (morning[i] - v) * dawn));
+    ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+    ctx.fillRect(0, 0, W, H);
+
+    // 불을 붙인 뒤에는 저 아래 숲이 초록으로 돌아온다.
+    // 화면 전체에 흩뿌린다 — 위에서 내려다보는 시점이라 땅은 사방에 있고,
+    // 어차피 단에 가려져서 실제로 보이는 것은 난간 바깥뿐이다.
+    // 구름보다 먼저 그린다. 구름은 그 위를 흐르는 것이므로.
+    const B = 4;
+    const rnd = k => Math.abs(Math.sin(k * 12.9898) * 43758.5453) % 1;
+    if (dawn > 0) {
+      const S = B * 3;                             // 덩어리가 잘아지면 숲이 아니라 이끼로 보인다
+      for (let y = 0; y < H; y += S) {
+        for (let x = 0; x < W; x += S) {
+          const a1 = rnd(x * 0.37 + y * 1.71 + 91);
+          if (a1 > 0.74) continue;
+          const g = 108 + Math.round(a1 * 58);
+          ctx.fillStyle = `rgba(${Math.round(g * 0.5)},${g},${Math.round(g * 0.52)},${(0.5 + a1 * 0.35) * dawn})`;
+          ctx.fillRect(x, y, S, S);
+        }
+      }
+      // 먼 것은 공기에 씻겨 옅어진다. 이 한 겹이 있어야
+      // 발밑의 이끼가 아니라 아주 멀리 있는 숲으로 읽힌다.
+      ctx.fillStyle = `rgba(${bg[0] + 44},${bg[1] + 28},${bg[2] + 22},${0.44 * dawn})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 구름 띠. 가로로 길고 납작해야 구름으로 읽힌다 —
+    // 세로로 찍으면 눈발이 된다. 층마다 흐르는 속도가 다르고,
+    // 아래로 갈수록 느려서 그것만으로 거리가 생긴다.
+    const span = W + 320;
+    const bands = [
+      { y: 0.10, h: 40, sp: 34, a: 0.20, n: 14, seed: 11 },
+      { y: 0.33, h: 52, sp: 21, a: 0.16, n: 16, seed: 131 },
+      { y: 0.58, h: 46, sp: 12, a: 0.12, n: 14, seed: 257 },
+      { y: 0.82, h: 38, sp: 6,  a: 0.09, n: 12, seed: 389 },
+    ];
+    for (const b of bands) {
+      const shift = (t * b.sp) % span;
+      for (let i = 0; i < b.n; i++) {
+        const a1 = rnd(i + b.seed), a2 = rnd(i * 7 + b.seed), a3 = rnd(i * 13 + b.seed);
+        const wpx = Math.round((44 + a1 * 150) / B) * B;
+        const x = Math.round(((i / b.n) * span + a2 * 90 - shift + span) % span / B) * B - 160;
+        const y = Math.round((H * b.y + (a3 - 0.5) * b.h) / B) * B;
+        const hpx = B * (1 + Math.round(a1 * 1.6));
+        const c = dawn > 0.45 ? '255,196,146' : '146,164,198';
+        ctx.fillStyle = `rgba(${c},${b.a * (0.55 + a3 * 0.8)})`;
+        ctx.fillRect(x, y, wpx, hpx);
+        // 아래로 한 겹 더 얇게 — 덩어리에 두께가 생긴다
+        ctx.fillStyle = `rgba(${c},${b.a * 0.4})`;
+        ctx.fillRect(x + B * 2, y + hpx, Math.max(B, wpx - B * 4), B);
+      }
+    }
+
+    // 단 가까이는 어둡고 멀수록 옅다. 아래가 아득하다는 느낌은
+    // 구름 그림이 아니라 이 어둠이 만든다.
+    const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.18, W / 2, H / 2, H * 0.95);
+    vg.addColorStop(0, 'rgba(0,0,0,.62)');
+    vg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
     ctx.restore();
   },
 
@@ -4108,6 +4308,7 @@ function startRun() {
   state.burn = 0;
   state.level = 1;
   state.xp = 0;
+  Render.dawnAt = 0;      // 다시 밤부터
 
   // 되찾은 기억은 판을 넘어 남는다
   const save = loadData() || {};
@@ -4144,13 +4345,18 @@ function enterFloor(depth) {
 
   // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
   // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
-  const wantVault = !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
-  const map = makeFloor(depth, wantVault);
+  // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
+  const isRoof = depth >= CFG.TOP_FLOOR;
+  const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
+  const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
   state.floorTag = tag;
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
   applyFov();
+  // 열네 층을 일곱 칸짜리 불빛으로 올라온 끝에, 처음으로 끝까지 보인다.
+  // 이게 도착했다는 신호 노릇을 한다 — 문장보다 먼저 몸이 안다.
+  if (isRoof) state.fovRadius = 40;
 
   // 플레이어 배치
   const p = state.player;
@@ -4179,6 +4385,7 @@ function enterFloor(depth) {
     // 1층은 조작을 익히는 층이라 눈에 띄게 적게 넣는다
     let base = depth === 1 ? 3 : 3 + Math.floor(depth * 0.62);
     if (bossDef) base = Math.round(base * 0.45);        // 보스층은 잡몹을 줄인다
+    if (isRoof)  base = Math.round(base * 0.28);        // 옥상은 주인과의 자리다
     const count = Math.max(2, Math.round(base * (tag.monsterMul || 1)));
     for (let i = 0; i < count; i++) {
       const spot = findSpawnSpot(map, p);
@@ -4304,6 +4511,7 @@ function refreshFov() {
 // 불씨의 이중성 — 밝히면 멀리 보이지만 몬스터도 당신을 더 멀리서 알아챈다.
 // 「끄던 손」을 되찾아야 조절할 수 있다.
 function applyFov() {
+  if (state.map && state.map.roof) { state.fovRadius = 40; return; }
   const tagAdd = (state.floorTag && state.floorTag.fovAdd) || 0;
   state.fovRadius = clamp(CFG.FOV_RADIUS + tagAdd + state.ember * 2, 3, 12);
 }
@@ -4473,6 +4681,24 @@ function drinkPotion() {
   Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
   UI.log('물약을 마셨습니다. 체력 ' + heal + ' 회복.', 'good');
   spendPlayerTurn();
+}
+
+/* 결말까지 건너뛰기 (개발용, `]`).
+   누를 때마다 다음 단으로 간다. 한 번에 결말 화면까지 보내지 않는 것은
+   옥상에 올라서는 순간과 주인이 무너지는 순간이 각각 봐야 할 연출이기 때문이다. */
+function jumpToEnding() {
+  if (!state.player || !state.player.alive) { startRun(); return; }
+  if (state.depth !== CFG.TOP_FLOOR) {
+    UI.hideResult(); UI.hideEnding(); UI.hideGearCompare(); UI.hideShop();
+    enterFloor(CFG.TOP_FLOOR);
+    return;
+  }
+  if (state.boss && state.boss.alive) {
+    UI.log('[개발용] 주인을 건너뜁니다.', 'sys');
+    hurtMonster(state.boss, state.boss.hp + 999, COLORS.ember);
+    return;
+  }
+  UI.showEnding();
 }
 
 /* =========================================================
@@ -5082,16 +5308,21 @@ function chooseEnding(which) {
   state.awaitingInput = false;
 
   Sound.play(which === 'light' ? 'endLight' : 'endLeave');
+
+  /* 고른 다음 결과표로 바로 덮으면, 방금 고른 것이 무엇을 바꿨는지 못 본다.
+     선택창만 걷고 옥상을 잠시 그대로 둔다 — 불을 붙였으면 난간 너머로 새벽이 번지고,
+     붙이지 않았으면 아무 일도 일어나지 않는다. 그 "아무 일도"가 이쪽 결말의 내용이다. */
   if (which === 'light') {
-    UI.showResult('불이 다시 켜졌다',
+    Render.lightDawn();
+    setTimeout(() => UI.showResult('불이 다시 켜졌다',
       '당신은 남은 것을 전부 태웠습니다.\n' +
       '세상이 밝아집니다.\n\n' +
-      '그리고 탑은 다시, 다음 공물을 기다립니다.', rows);
+      '그리고 탑은 다시, 다음 공물을 기다립니다.', rows), 3400);
   } else {
-    UI.showResult('불을 든 채로',
+    setTimeout(() => UI.showResult('불을 든 채로',
       '당신은 불씨를 손에 쥔 채 내려갑니다.\n' +
       '어둠은 그대로입니다.\n\n' +
-      '그러나 더는 아무도 태워지지 않습니다.', rows);
+      '그러나 더는 아무도 태워지지 않습니다.', rows), 1900);
   }
 
   const save = persist({
@@ -5204,6 +5435,10 @@ function onKeyDown(e) {
     e.preventDefault();
     return;
   }
+
+  // 개발용. 결말 연출을 보려고 열네 층을 다시 오를 수는 없다.
+  // 한 번 누를 때마다 한 단씩 — 옥상 → 주인이 쓰러짐 → 결말 선택.
+  if (code === 'BracketRight') { jumpToEnding(); e.preventDefault(); return; }
 
   if (UI.intro.active) {
     UI.skipIntro();

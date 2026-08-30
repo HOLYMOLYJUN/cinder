@@ -192,6 +192,45 @@ function hall(tiles, from, to, fixed, horizontal) {
   }
 }
 
+/* =========================================================
+   옥상 — 탑의 맨 윗면
+
+   여기만 방과 복도로 만들지 않는다. 열네 층을 좁은 통로로 올라온 끝이
+   또 방 하나면 "도착했다"가 안 생긴다. 사방이 트인 넓은 단 하나여야 한다.
+
+   모서리를 깎아 팔각에 가깝게 만든다. 사각형이면 그냥 큰 방으로 보인다.
+   ========================================================= */
+function makeRoof(depth) {
+  const w = 34, h = 22;
+  const tiles = [], explored = [];
+  for (let y = 0; y < h; y++) {
+    tiles.push(new Array(w).fill(T.WALL));
+    explored.push(new Array(w).fill(false));
+  }
+
+  // 화면(28x18)보다 확실히 작아야 난간 너머가 사방으로 보인다.
+  const rx = 8, ry = 5, rw = 18, rh = 12, cut = 4;
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      const dx = Math.min(x - rx, rx + rw - 1 - x);
+      const dy = Math.min(y - ry, ry + rh - 1 - y);
+      if (dx + dy < cut) continue;                 // 네 모서리를 잘라낸다
+      tiles[y][x] = T.FLOOR;
+    }
+  }
+
+  const room = { x: rx, y: ry, w: rw, h: rh,
+                 cx: rx + (rw >> 1), cy: ry + (rh >> 1) };
+  const map = { w, h, tiles, explored, rooms: [room], depth, roof: true };
+
+  // 올라온 자리는 아래쪽 가장자리. 주인은 한가운데 앉아 있다.
+  map.start  = { x: room.cx, y: ry + rh - 2 };
+  map.stairs = { x: room.cx, y: room.cy };
+  map.stairsRoom = room;
+  map.torches = [];
+  return map;
+}
+
 function randomTileIn(room) {
   return {
     x: randInt(room.x + 1, room.x + room.w - 2),

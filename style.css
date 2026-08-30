@@ -576,8 +576,11 @@ canvas#view {
 
 /* ---------- 결말 ---------- */
 
+/* 결말 화면은 완전히 덮지 않는다.
+   여기까지 온 사람이 서 있는 곳은 옥상이고, 그게 뒤로 계속 보여야
+   "탑 꼭대기에서 고르는 중"이 유지된다. */
 #ending-screen {
-  background: radial-gradient(ellipse at 50% 40%, #14100A 0%, #060504 70%);
+  background: radial-gradient(ellipse at 50% 40%, rgba(20,16,10,.82) 0%, rgba(6,5,4,.93) 70%);
   z-index: 55;
 }
 .ending-inner { width: calc(100% - 40px); max-width: 520px; text-align: center; }
@@ -608,7 +611,8 @@ canvas#view {
 
 /* ---------- 결과 ---------- */
 
-#result-screen { background: rgba(7,5,4,.94); z-index: 50; }
+/* 같은 이유로 결과 화면도 조금 비친다 — 불을 붙였다면 뒤에서 새벽이 온다 */
+#result-screen { background: rgba(7,5,4,.88); z-index: 50; }
 .result-inner { text-align: center; padding: 30px; max-width: 420px; }
 .result-title {
   font-family: "Gowun Batang", serif;

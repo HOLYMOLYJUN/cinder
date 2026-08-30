@@ -72,6 +72,7 @@ function startRun() {
   state.burn = 0;
   state.level = 1;
   state.xp = 0;
+  Render.dawnAt = 0;      // 다시 밤부터
 
   // 되찾은 기억은 판을 넘어 남는다
   const save = loadData() || {};
@@ -108,13 +109,18 @@ function enterFloor(depth) {
 
   // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
   // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
-  const wantVault = !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
-  const map = makeFloor(depth, wantVault);
+  // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
+  const isRoof = depth >= CFG.TOP_FLOOR;
+  const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
+  const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
   state.floorTag = tag;
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
   applyFov();
+  // 열네 층을 일곱 칸짜리 불빛으로 올라온 끝에, 처음으로 끝까지 보인다.
+  // 이게 도착했다는 신호 노릇을 한다 — 문장보다 먼저 몸이 안다.
+  if (isRoof) state.fovRadius = 40;
 
   // 플레이어 배치
   const p = state.player;
@@ -143,6 +149,7 @@ function enterFloor(depth) {
     // 1층은 조작을 익히는 층이라 눈에 띄게 적게 넣는다
     let base = depth === 1 ? 3 : 3 + Math.floor(depth * 0.62);
     if (bossDef) base = Math.round(base * 0.45);        // 보스층은 잡몹을 줄인다
+    if (isRoof)  base = Math.round(base * 0.28);        // 옥상은 주인과의 자리다
     const count = Math.max(2, Math.round(base * (tag.monsterMul || 1)));
     for (let i = 0; i < count; i++) {
       const spot = findSpawnSpot(map, p);
@@ -268,6 +275,7 @@ function refreshFov() {
 // 불씨의 이중성 — 밝히면 멀리 보이지만 몬스터도 당신을 더 멀리서 알아챈다.
 // 「끄던 손」을 되찾아야 조절할 수 있다.
 function applyFov() {
+  if (state.map && state.map.roof) { state.fovRadius = 40; return; }
   const tagAdd = (state.floorTag && state.floorTag.fovAdd) || 0;
   state.fovRadius = clamp(CFG.FOV_RADIUS + tagAdd + state.ember * 2, 3, 12);
 }
@@ -437,6 +445,24 @@ function drinkPotion() {
   Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
   UI.log('물약을 마셨습니다. 체력 ' + heal + ' 회복.', 'good');
   spendPlayerTurn();
+}
+
+/* 결말까지 건너뛰기 (개발용, `]`).
+   누를 때마다 다음 단으로 간다. 한 번에 결말 화면까지 보내지 않는 것은
+   옥상에 올라서는 순간과 주인이 무너지는 순간이 각각 봐야 할 연출이기 때문이다. */
+function jumpToEnding() {
+  if (!state.player || !state.player.alive) { startRun(); return; }
+  if (state.depth !== CFG.TOP_FLOOR) {
+    UI.hideResult(); UI.hideEnding(); UI.hideGearCompare(); UI.hideShop();
+    enterFloor(CFG.TOP_FLOOR);
+    return;
+  }
+  if (state.boss && state.boss.alive) {
+    UI.log('[개발용] 주인을 건너뜁니다.', 'sys');
+    hurtMonster(state.boss, state.boss.hp + 999, COLORS.ember);
+    return;
+  }
+  UI.showEnding();
 }
 
 /* =========================================================
@@ -1046,16 +1072,21 @@ function chooseEnding(which) {
   state.awaitingInput = false;
 
   Sound.play(which === 'light' ? 'endLight' : 'endLeave');
+
+  /* 고른 다음 결과표로 바로 덮으면, 방금 고른 것이 무엇을 바꿨는지 못 본다.
+     선택창만 걷고 옥상을 잠시 그대로 둔다 — 불을 붙였으면 난간 너머로 새벽이 번지고,
+     붙이지 않았으면 아무 일도 일어나지 않는다. 그 "아무 일도"가 이쪽 결말의 내용이다. */
   if (which === 'light') {
-    UI.showResult('불이 다시 켜졌다',
+    Render.lightDawn();
+    setTimeout(() => UI.showResult('불이 다시 켜졌다',
       '당신은 남은 것을 전부 태웠습니다.\n' +
       '세상이 밝아집니다.\n\n' +
-      '그리고 탑은 다시, 다음 공물을 기다립니다.', rows);
+      '그리고 탑은 다시, 다음 공물을 기다립니다.', rows), 3400);
   } else {
-    UI.showResult('불을 든 채로',
+    setTimeout(() => UI.showResult('불을 든 채로',
       '당신은 불씨를 손에 쥔 채 내려갑니다.\n' +
       '어둠은 그대로입니다.\n\n' +
-      '그러나 더는 아무도 태워지지 않습니다.', rows);
+      '그러나 더는 아무도 태워지지 않습니다.', rows), 1900);
   }
 
   const save = persist({
@@ -1168,6 +1199,10 @@ function onKeyDown(e) {
     e.preventDefault();
     return;
   }
+
+  // 개발용. 결말 연출을 보려고 열네 층을 다시 오를 수는 없다.
+  // 한 번 누를 때마다 한 단씩 — 옥상 → 주인이 쓰러짐 → 결말 선택.
+  if (code === 'BracketRight') { jumpToEnding(); e.preventDefault(); return; }
 
   if (UI.intro.active) {
     UI.skipIntro();

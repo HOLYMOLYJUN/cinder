@@ -173,11 +173,17 @@ const Render = {
     const x0 = Math.floor(camX) - 1, x1 = Math.ceil(camX + CFG.VIEW_W) + 1;
     const y0 = Math.floor(camY) - 1, y1 = Math.ceil(camY + CFG.VIEW_H) + 1;
 
+    // 옥상에서는 난간 너머가 벽이 아니라 아득한 아래다.
+    // 타일보다 먼저 화면 전체에 깔아 두고, 그 위에 단을 얹는다.
+    if (map.roof) this.drawBelow(ctx, camX, camY);
+
     /* ----- 바닥과 벽 ----- */
     for (let y = Math.max(0, y0); y < Math.min(map.h, y1); y++) {
       for (let x = Math.max(0, x0); x < Math.min(map.w, x1); x++) {
         const seen = map.explored[y][x];
         if (!seen) continue;
+        // 옥상 바깥은 벽이 아니라 허공이다. 단 가장자리 한 겹만 난간으로 남긴다.
+        if (map.roof && map.tiles[y][x] === T.WALL && !this.isParapet(map, x, y)) continue;
         const lit = isVisible(visible, map, x, y);
         const t = map.tiles[y][x];
         const px = x * TS, py = y * TS;
@@ -564,6 +570,104 @@ const Render = {
       const ex = cx + Math.sin(t * 3 + i * 2.1) * TS * 0.18;
       ctx.fillRect(Math.round(ex), Math.round(base - TS * 0.7 - p * TS * 0.9), 2, 2);
     }
+    ctx.restore();
+  },
+
+  /* 난간인가 — 바닥에 맞닿은 벽 한 겹만 난간으로 그린다.
+     그 바깥까지 벽으로 그리면 옥상이 아니라 그냥 큰 방이 된다. */
+  dawnAt: 0,                     // 새벽이 시작된 시각 (0 이면 아직 밤)
+  lightDawn() { this.dawnAt = performance.now(); },
+
+  isParapet(map, x, y) {
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      if (tileAt(map, x + dx, y + dy) === T.FLOOR) return true;
+    }
+    return false;
+  },
+
+  /* 난간 너머.
+
+     위에서 내려다보는 시점이라 여기 보이는 것은 하늘이 아니다 — 별은 카메라 위에 있다.
+     보이는 것은 구름 바다와 그 아래 아득한 어둠이고, 그래서 높이가 느껴진다.
+
+     구름은 4px 덩어리로 찍는다. 부드러운 그라데이션으로 깔면
+     도트 타일 옆에서 혼자 매끈해 보여 붕 뜬다. */
+  drawBelow(ctx, camX, camY) {
+    const TS = CFG.TILE;
+    const W = this.canvas.width, H = this.canvas.height;
+    const t = performance.now() / 1000;
+    // 불을 붙이면 밤이 새벽으로 넘어간다. 한 번에 갈아치우지 않고 몇 초에 걸쳐 —
+    // 결말은 사건이 아니라 변화라서, 순간이동하면 무슨 일이 있었는지 못 본다.
+    const dawn = this.dawnAt ? clamp((performance.now() - this.dawnAt) / 2600, 0, 1) : 0;
+
+    // 화면 좌표로 되돌린다 (바깥에서 translate 가 걸려 있다)
+    const ox = camX * TS, oy = camY * TS;
+    ctx.save();
+    ctx.translate(ox, oy);
+
+    const night = [5, 7, 14], morning = [58, 38, 34];
+    const bg = night.map((v, i) => Math.round(v + (morning[i] - v) * dawn));
+    ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+    ctx.fillRect(0, 0, W, H);
+
+    // 불을 붙인 뒤에는 저 아래 숲이 초록으로 돌아온다.
+    // 화면 전체에 흩뿌린다 — 위에서 내려다보는 시점이라 땅은 사방에 있고,
+    // 어차피 단에 가려져서 실제로 보이는 것은 난간 바깥뿐이다.
+    // 구름보다 먼저 그린다. 구름은 그 위를 흐르는 것이므로.
+    const B = 4;
+    const rnd = k => Math.abs(Math.sin(k * 12.9898) * 43758.5453) % 1;
+    if (dawn > 0) {
+      const S = B * 3;                             // 덩어리가 잘아지면 숲이 아니라 이끼로 보인다
+      for (let y = 0; y < H; y += S) {
+        for (let x = 0; x < W; x += S) {
+          const a1 = rnd(x * 0.37 + y * 1.71 + 91);
+          if (a1 > 0.74) continue;
+          const g = 108 + Math.round(a1 * 58);
+          ctx.fillStyle = `rgba(${Math.round(g * 0.5)},${g},${Math.round(g * 0.52)},${(0.5 + a1 * 0.35) * dawn})`;
+          ctx.fillRect(x, y, S, S);
+        }
+      }
+      // 먼 것은 공기에 씻겨 옅어진다. 이 한 겹이 있어야
+      // 발밑의 이끼가 아니라 아주 멀리 있는 숲으로 읽힌다.
+      ctx.fillStyle = `rgba(${bg[0] + 44},${bg[1] + 28},${bg[2] + 22},${0.44 * dawn})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 구름 띠. 가로로 길고 납작해야 구름으로 읽힌다 —
+    // 세로로 찍으면 눈발이 된다. 층마다 흐르는 속도가 다르고,
+    // 아래로 갈수록 느려서 그것만으로 거리가 생긴다.
+    const span = W + 320;
+    const bands = [
+      { y: 0.10, h: 40, sp: 34, a: 0.20, n: 14, seed: 11 },
+      { y: 0.33, h: 52, sp: 21, a: 0.16, n: 16, seed: 131 },
+      { y: 0.58, h: 46, sp: 12, a: 0.12, n: 14, seed: 257 },
+      { y: 0.82, h: 38, sp: 6,  a: 0.09, n: 12, seed: 389 },
+    ];
+    for (const b of bands) {
+      const shift = (t * b.sp) % span;
+      for (let i = 0; i < b.n; i++) {
+        const a1 = rnd(i + b.seed), a2 = rnd(i * 7 + b.seed), a3 = rnd(i * 13 + b.seed);
+        const wpx = Math.round((44 + a1 * 150) / B) * B;
+        const x = Math.round(((i / b.n) * span + a2 * 90 - shift + span) % span / B) * B - 160;
+        const y = Math.round((H * b.y + (a3 - 0.5) * b.h) / B) * B;
+        const hpx = B * (1 + Math.round(a1 * 1.6));
+        const c = dawn > 0.45 ? '255,196,146' : '146,164,198';
+        ctx.fillStyle = `rgba(${c},${b.a * (0.55 + a3 * 0.8)})`;
+        ctx.fillRect(x, y, wpx, hpx);
+        // 아래로 한 겹 더 얇게 — 덩어리에 두께가 생긴다
+        ctx.fillStyle = `rgba(${c},${b.a * 0.4})`;
+        ctx.fillRect(x + B * 2, y + hpx, Math.max(B, wpx - B * 4), B);
+      }
+    }
+
+    // 단 가까이는 어둡고 멀수록 옅다. 아래가 아득하다는 느낌은
+    // 구름 그림이 아니라 이 어둠이 만든다.
+    const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.18, W / 2, H / 2, H * 0.95);
+    vg.addColorStop(0, 'rgba(0,0,0,.62)');
+    vg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
     ctx.restore();
   },
 
