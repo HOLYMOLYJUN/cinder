@@ -1,0 +1,369 @@
+{
+ "source": "https://nijikokun.itch.io/dungeontileset-ii-extended",
+ "version": "dungeontiles-extended v1.1",
+ "license": "CC0",
+ "sheet": "src/dungeontileset-extended.png",
+ "grid": 16,
+ "named": {
+  "bag_blue": [
+   336,
+   304,
+   352,
+   320
+  ],
+  "bag_brown": [
+   288,
+   304,
+   304,
+   320
+  ],
+  "bag_brown_cross": [
+   304,
+   304,
+   320,
+   320
+  ],
+  "bag_gold": [
+   320,
+   304,
+   336,
+   320
+  ],
+  "bomb_black": [
+   352,
+   336,
+   368,
+   352
+  ],
+  "door_wood_tall_1": [
+   128,
+   256,
+   160,
+   320
+  ],
+  "door_wood_tall_2": [
+   176,
+   256,
+   208,
+   320
+  ],
+  "flame_anim_f0": [
+   128,
+   336,
+   144,
+   352
+  ],
+  "flame_anim_f1": [
+   144,
+   336,
+   160,
+   352
+  ],
+  "flame_anim_f2": [
+   160,
+   336,
+   176,
+   352
+  ],
+  "flame_anim_f3": [
+   176,
+   336,
+   192,
+   352
+  ],
+  "flame_anim_f4": [
+   192,
+   336,
+   208,
+   352
+  ],
+  "flame_anim_f5": [
+   208,
+   336,
+   224,
+   352
+  ],
+  "flame_anim_f6": [
+   224,
+   336,
+   240,
+   352
+  ],
+  "flame_anim_f7": [
+   240,
+   336,
+   256,
+   352
+  ],
+  "flask_small_green": [
+   320,
+   208,
+   336,
+   224
+  ],
+  "flask_small_pink": [
+   288,
+   208,
+   304,
+   224
+  ],
+  "flask_small_purple": [
+   304,
+   208,
+   320,
+   224
+  ],
+  "flask_small_white": [
+   336,
+   208,
+   352,
+   224
+  ],
+  "key_long": [
+   352,
+   320,
+   368,
+   336
+  ],
+  "key_small": [
+   320,
+   320,
+   336,
+   336
+  ],
+  "keyhole_dark": [
+   288,
+   384,
+   304,
+   400
+  ],
+  "keyhole_light": [
+   304,
+   384,
+   320,
+   400
+  ],
+  "sign_grey": [
+   336,
+   384,
+   352,
+   400
+  ],
+  "sign_grey_2": [
+   336,
+   400,
+   352,
+   416
+  ],
+  "sign_hanging_grey": [
+   336,
+   416,
+   352,
+   432
+  ],
+  "sign_hanging_orange": [
+   320,
+   416,
+   336,
+   432
+  ],
+  "sign_orange": [
+   320,
+   384,
+   336,
+   400
+  ],
+  "sign_orange_2": [
+   320,
+   400,
+   336,
+   416
+  ],
+  "torch_floor_anim_f0": [
+   128,
+   352,
+   144,
+   384
+  ],
+  "torch_floor_anim_f1": [
+   144,
+   352,
+   160,
+   384
+  ],
+  "torch_floor_anim_f2": [
+   160,
+   352,
+   176,
+   384
+  ],
+  "torch_floor_anim_f3": [
+   176,
+   352,
+   192,
+   384
+  ],
+  "torch_floor_anim_f4": [
+   192,
+   352,
+   208,
+   384
+  ],
+  "torch_floor_anim_f5": [
+   208,
+   352,
+   224,
+   384
+  ],
+  "torch_floor_anim_f6": [
+   224,
+   352,
+   240,
+   384
+  ],
+  "torch_floor_anim_f7": [
+   240,
+   352,
+   256,
+   384
+  ],
+  "torch_floor_empty": [
+   256,
+   352,
+   272,
+   384
+  ],
+  "torch_glow_anim_f0": [
+   128,
+   384,
+   144,
+   400
+  ],
+  "torch_glow_anim_f1": [
+   144,
+   384,
+   160,
+   400
+  ],
+  "torch_glow_anim_f2": [
+   160,
+   384,
+   176,
+   400
+  ],
+  "torch_glow_anim_f3": [
+   176,
+   384,
+   192,
+   400
+  ],
+  "torch_glow_anim_f4": [
+   192,
+   384,
+   208,
+   400
+  ],
+  "torch_glow_anim_f5": [
+   208,
+   384,
+   224,
+   400
+  ],
+  "torch_glow_anim_f6": [
+   224,
+   384,
+   240,
+   400
+  ],
+  "torch_glow_anim_f7": [
+   240,
+   384,
+   256,
+   400
+  ],
+  "torch_wall_anim_f0": [
+   128,
+   400,
+   144,
+   432
+  ],
+  "torch_wall_anim_f1": [
+   144,
+   400,
+   160,
+   432
+  ],
+  "torch_wall_anim_f2": [
+   160,
+   400,
+   176,
+   432
+  ],
+  "torch_wall_anim_f3": [
+   176,
+   400,
+   192,
+   432
+  ],
+  "torch_wall_anim_f4": [
+   192,
+   400,
+   208,
+   432
+  ],
+  "torch_wall_anim_f5": [
+   208,
+   400,
+   224,
+   432
+  ],
+  "torch_wall_anim_f6": [
+   224,
+   400,
+   240,
+   432
+  ],
+  "torch_wall_anim_f7": [
+   240,
+   400,
+   256,
+   432
+  ],
+  "ui_heart_pink_full": [
+   288,
+   288,
+   304,
+   304
+  ],
+  "ui_heart_pink_half": [
+   304,
+   288,
+   320,
+   304
+  ],
+  "vial_green": [
+   320,
+   240,
+   336,
+   256
+  ],
+  "vial_pink": [
+   288,
+   240,
+   304,
+   256
+  ],
+  "vial_purple": [
+   304,
+   240,
+   320,
+   256
+  ],
+  "vial_white": [
+   336,
+   240,
+   352,
+   256
+  ]
+ }
+}

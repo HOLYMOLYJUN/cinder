@@ -1,0 +1,833 @@
+/* ===== 잿불 — 프로토타입 스타일 =====
+   단일 비주얼 월드(어두운 탑)로 커밋. 테마 전환 없음. */
+
+:root {
+  --bg:        #0C0A08;
+  --panel:     #16120E;
+  --panel-2:   #1E1813;
+  --line:      #2C241D;
+  --ink:       #EDE3D4;
+  --ink-soft:  #B5A897;
+  --muted:     #7A6F63;
+  --ember:     #E9954A;
+  --ember-dim: #A05F27;
+  --blood:     #C0483A;
+  --cold:      #7C90A6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  height: 100%;
+  overscroll-behavior: none;
+  word-break: keep-all;
+}
+
+/* 100% 만으로는 부모 높이가 정해지지 않은 환경(아티팩트 iframe 등)에서
+   높이가 0으로 무너진다. 뷰포트 단위로 못박아 둔다. */
+#app {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.screen, .overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+}
+.hidden { display: none !important; }
+
+/* ---------- 타이틀 ---------- */
+
+#title-screen {
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(233,149,74,.14) 0%, transparent 60%),
+    var(--bg);
+}
+.title-inner { text-align: center; padding: 20px; }
+
+/* 제목은 한 색으로 둔다.
+   두 글자를 색으로 가르면 서로 다른 단어처럼 읽히고,
+   주황은 게임 안에서 이미 "불씨"라는 뜻으로 쓰고 있어서
+   제목에까지 쓰면 그 뜻이 흐려진다. 불빛은 글자 뒤에만 깐다. */
+.game-title {
+  font-family: "Cinzel", "Gowun Batang", serif;
+  font-size: clamp(46px, 11vw, 82px);
+  font-weight: 600;
+  letter-spacing: .22em;
+  text-indent: .22em;              /* 자간 때문에 오른쪽으로 밀리는 것을 되돌린다 */
+  text-transform: uppercase;
+  margin: 0 0 6px;
+  color: var(--ink);
+  text-shadow: 0 0 46px rgba(233,149,74,.38);
+}
+
+/* 한글 이름은 영문 아래에 작게. 둘 다 이름이므로 크기로만 서열을 준다. */
+.game-name {
+  font-family: "Gowun Batang", "Nanum Myeongjo", serif;
+  font-size: clamp(15px, 3.6vw, 19px);
+  letter-spacing: .42em;
+  text-indent: .42em;
+  color: var(--muted);
+  margin: 0 0 26px;
+}
+
+.game-sub {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(13px, 3.2vw, 16px);
+  line-height: 1.85;
+  color: var(--ink-soft);
+  margin: 0 0 34px;
+  text-wrap: balance;
+}
+
+/* 마지막 두 줄만 한 칸 띄우고 조금 어둡게.
+   앞은 상황이고 뒤는 망설임이라, 붙여 두면 같은 호흡으로 읽혀 버린다. */
+.game-sub .turn {
+  display: block;
+  margin-top: 1.1em;
+  color: var(--muted);
+}
+
+/* 버튼은 눌리는 입체 테두리로. 그라데이션 대신 단색 두 겹을 쓴다 —
+   도트 그림 옆에서 부드러운 계조는 혼자 떠 보인다. */
+.btn-main {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #1A1209;
+  background: var(--ember);
+  border: 2px solid #F4B978;
+  border-right-color: #8C4E18;
+  border-bottom-color: #8C4E18;
+  padding: 12px 38px;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+.btn-main:hover { background: #F0A257; }
+.btn-main:active {
+  transform: translate(1px, 1px);
+  border-color: #8C4E18;
+  border-right-color: #F4B978;
+  border-bottom-color: #F4B978;
+}
+
+.btn-ghost {
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  border-right-color: #100D0A;
+  border-bottom-color: #100D0A;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.btn-ghost:hover { border-color: var(--ember-dim); border-right-color: #100D0A; border-bottom-color: #100D0A; color: var(--ember); }
+.btn-ghost:active { transform: translate(1px, 1px); }
+
+/* ---------- 캐릭터 선택 ---------- */
+
+/* 다섯 장은 항상 한 줄이어야 한다. 폭을 픽셀로 못박으면 기기마다 접히므로,
+   남는 공간을 나눠 갖고 좁아지면 같이 줄어들게 둔다. */
+.hero-pick {
+  display: flex; justify-content: center; flex-wrap: nowrap;
+  gap: clamp(4px, 1.2vw, 8px);
+  margin: 0 0 14px;
+  width: 100%; max-width: 500px;
+}
+.hero {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex: 1 1 0; min-width: 0; max-width: 92px;
+  padding: 10px 2px 8px;
+  overflow: hidden;
+  font-family: inherit;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-right-color: #100D0A; border-bottom-color: #100D0A;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hero:hover { border-color: var(--ember-dim); }
+.hero.on {
+  border-color: var(--ember);
+  background: var(--panel-2);
+  box-shadow: 0 0 24px -6px rgba(233,149,74,.45);
+}
+.hero-img {
+  width: 34px; height: 56px;
+  object-fit: contain; object-position: bottom;
+  image-rendering: pixelated;
+  display: block;
+}
+.hero-name {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(11px, 2.9vw, 14px);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.hero.on .hero-name { color: var(--ember); font-weight: 700; }
+.hero-stat {
+  font-family: "IBM Plex Mono", monospace; font-size: 9.5px;
+  color: var(--muted); letter-spacing: -.02em;
+}
+.hero-stat em { font-style: normal; color: var(--cold); }
+
+.hero-say {
+  min-height: 58px; margin-bottom: 24px;
+  font-family: "Gowun Batang", serif;
+}
+.hero-say b {
+  display: block; font-size: 14px; font-weight: 400;
+  color: var(--ink-soft); margin-bottom: 4px;
+}
+.hero-say span { font-size: 12px; color: var(--muted); }
+.hero-say .hero-nums {
+  display: none;
+  font-family: "IBM Plex Mono", monospace; font-size: 11px;
+  margin-top: 6px; color: var(--muted);
+}
+.hero-say .hero-nums em { font-style: normal; color: var(--cold); }
+
+/* 좁은 화면에서는 다섯 장이 한 줄에 안 들어간다.
+   카드에서 수치를 빼 아래로 내리고 폭을 줄여 한 줄을 지킨다 —
+   두 줄로 접히면 무엇을 고르는 화면인지 한눈에 안 읽힌다. */
+@media (max-width: 560px) {
+  .hero { padding: 8px 1px 6px; gap: 2px; }
+  .hero-img { width: 26px; height: 42px; }
+  .hero-stat { display: none; }
+  .hero-say .hero-nums { display: block; }
+}
+
+.record {
+  margin-top: 26px;
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: .04em;
+  min-height: 18px;
+}
+.title-links { margin-top: 22px; }
+
+/* ---------- 게임 화면 ---------- */
+
+#game-screen {
+  justify-content: center;
+  padding: 10px;
+  gap: 8px;
+  --game-w: 792px;
+}
+
+.hud {
+  width: 100%;
+  max-width: var(--game-w);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 12.5px;
+}
+.hud-left { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+
+/* 체력은 하트로. 막대보다 로그라이크답고, 칸이 몇 개 남았는지가 숫자보다 빨리 읽힌다. */
+.hearts { display: flex; gap: 2px; flex-wrap: wrap; }
+.heart {
+  width: 18px; height: 17px;
+  image-rendering: pixelated;
+  display: block;
+}
+#hp-text { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.hud-right { display: flex; gap: 16px; }
+
+/* 장비·물약 아이콘. 전부 16px 도트라 확대할 때 뭉개지면 안 된다.
+   object-fit 이 없으면 기본값 fill 이라 정사각 칸에 늘려 채운다. 직접 그린
+   아이콘은 16x16 이라 멀쩡하지만, 무기는 팩에서 오는 것이라 세로로 길다
+   (긴 창 6x30, 짧은 검 10x21). 그대로 두면 창이 뭉툭한 막대가 된다. */
+.g-ico, .shop-ico, .gear-icon {
+  image-rendering: pixelated;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.g-ico { width: 16px; height: 16px; margin-right: 3px; }
+.shop-ico { width: 26px; height: 26px; flex: none; }
+.gear-icon { width: 40px; height: 40px; display: block; margin: 0 auto 4px; }
+
+/* 레벨 — 체력 옆에 둔다. 레벨이 곧 체력이 늘어나는 일이므로 같이 읽힌다. */
+.lv { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.lv i { font-style: normal; color: var(--muted); font-size: 11px; }
+.lv b { color: var(--ember); font-weight: 600; font-variant-numeric: tabular-nums; }
+.xp-bar {
+  width: 46px; height: 4px; border-radius: 2px;
+  background: var(--line); overflow: hidden;
+}
+.xp-fill {
+  display: block; height: 100%; width: 0;
+  background: var(--ember-dim);
+  transition: width .18s ease-out;
+}
+.lv.up b { animation: lvpop .5s ease-out; }
+@keyframes lvpop {
+  0%   { transform: scale(1);   text-shadow: none; }
+  35%  { transform: scale(1.5); text-shadow: 0 0 10px var(--ember); }
+  100% { transform: scale(1);   text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp-fill { transition: none; }
+  .lv.up b { animation: none; }
+}
+.stat { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.stat i { font-style: normal; color: var(--muted); font-size: 11px; }
+.stat b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 물약·골드 아이콘도 게임 화면과 같은 그림에서 가져온다 */
+.stat .ico {
+  width: 16px; height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+/* 보스 체력 — 마주친 뒤에만 나타난다 */
+.boss-bar {
+  width: 100%;
+  max-width: var(--game-w);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Gowun Batang", serif;
+  font-size: 13px;
+  color: var(--ember);
+}
+.boss-track {
+  flex: 1;
+  height: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+}
+#boss-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, var(--ember-dim), var(--ember));
+  transition: width .25s ease-out;
+}
+
+/* 장착 중인 장비 — 캔버스 바로 위 한 줄 */
+.gear-strip {
+  width: 100%;
+  max-width: var(--game-w);
+  display: flex;
+  gap: 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-height: 16px;
+  flex-wrap: wrap;
+}
+.gear-strip .g-slot { display: inline-flex; align-items: baseline; gap: 5px; }
+.gear-strip .g-slot i { font-style: normal; opacity: .65; }
+.gear-strip .g-slot b { font-weight: 500; }
+.gear-strip .g-empty { color: #4E463D; }
+
+/* 좁은 화면에서는 이 줄이 넘쳐 능력치가 혼자 다음 줄로 밀린다.
+   폰(가용 폭 약 382px)에서 재보면 장비 357 + 간격 14 + 능력치 110 = 481 이다.
+   아이콘 셋은 52px 뿐이라 그것만 줄여선 모자라고, 슬롯 이름 셋이 92px 로 더 크다.
+   그림이 붙은 슬롯은 이름을 지워도 무엇인지 읽히므로 그쪽을 접는다.
+   (등급 접두가 붙은 긴 이름이 셋 다 겹치면 그래도 넘칠 수 있다 — 그때는 접힌다) */
+@media (max-width: 560px) {
+  .gear-strip { gap: 8px; }
+  .gear-strip .g-lab { display: none; }
+}
+
+canvas#view {
+  display: block;
+  width: 100%;
+  max-width: var(--game-w);
+  height: auto;
+  background: #080705;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+
+.log {
+  width: 100%;
+  max-width: var(--game-w);
+  height: 74px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  scrollbar-width: thin;
+}
+.log div { opacity: .55; }
+.log div:last-child { opacity: 1; color: var(--ink); }
+.log .hit  { color: var(--ember); }
+.log .hurt { color: var(--blood); }
+.log .good { color: #8FBF7F; }
+.log .sys  { color: var(--muted); }
+
+/* 터치 조작 — 키보드에만 있던 기능을 전부 버튼으로 꺼낸다 */
+.touch-row {
+  display: none; align-items: flex-end; justify-content: center;
+  gap: 10px; margin-top: 8px; width: 100%;
+}
+.touch-acts { display: grid; grid-template-columns: repeat(2, 78px); gap: 6px; }
+.touch-acts button {
+  font-family: inherit; font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  border-right-color: #100D0A; border-bottom-color: #100D0A;
+  padding: 10px 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-acts button b { color: var(--ink); font-weight: 600; }
+.touch-acts button:active { transform: translate(1px, 1px); }
+.touch-acts button.on { color: #1A1209; background: var(--ember); border-color: #F4B978; }
+.touch-acts button.locked { opacity: .35; }
+
+/* 터치 조작 */
+.touch-pad {
+  display: none;
+  grid-template-columns: repeat(3, 58px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 6px;
+}
+.touch-pad button {
+  font-size: 22px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-pad button:active { background: var(--line); color: var(--ember); }
+.touch-pad button[data-dir="up"]    { grid-area: 1 / 2; }
+.touch-pad button[data-dir="left"]  { grid-area: 2 / 1; }
+.touch-pad button[data-dir="wait"]  { grid-area: 2 / 2; font-size: 16px; color: var(--muted); }
+.touch-pad button[data-dir="right"] { grid-area: 2 / 3; }
+.touch-pad button[data-dir="down"]  { grid-area: 3 / 2; }
+
+@media (hover: none) and (pointer: coarse) {
+  .touch-row { display: flex; }
+  .touch-pad { display: grid; }
+  .log { height: 52px; }
+}
+
+/* ---------- 층 진입 연출 ---------- */
+
+#floor-intro {
+  background: radial-gradient(ellipse at 50% 60%, #140D06 0%, #070504 70%);
+  z-index: 40;
+  transition: opacity .5s ease;
+}
+#floor-intro.fading { opacity: 0; }
+
+.intro-inner { text-align: center; padding: 24px; max-width: 480px; }
+.intro-floor {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(40px, 10vw, 62px);
+  font-weight: 700;
+  color: var(--ember);
+  letter-spacing: .08em;
+  margin-bottom: 24px;
+  text-shadow: 0 0 40px rgba(233,149,74,.4);
+}
+/* 기억 이름처럼 긴 제목은 층수보다 작게 */
+.intro-floor.long { font-size: clamp(28px, 7vw, 44px); }
+
+.intro-line {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(14px, 3.6vw, 16.5px);
+  line-height: 2.1;
+  color: var(--ink-soft);
+  min-height: 3.2em;
+}
+.intro-line .caret {
+  color: var(--ember);
+  animation: blink .7s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.intro-hint {
+  margin-top: 20px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+  opacity: 0;
+  transition: opacity .6s ease .2s;
+}
+.intro-hint.show { opacity: 1; }
+
+/* ---------- 장비 비교 ---------- */
+
+#gear-modal { background: rgba(7,5,4,.90); z-index: 45; }
+.gear-inner {
+  width: calc(100% - 40px); max-width: 400px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 24px 26px;
+}
+.gear-head { margin-bottom: 18px; }
+.gear-slot {
+  display: block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px; letter-spacing: .16em;
+  color: var(--muted); margin-bottom: 6px;
+}
+.gear-name {
+  font-family: "Gowun Batang", serif;
+  font-size: 22px; font-weight: 700; color: var(--ink);
+}
+.gear-name.r-fine    { color: var(--cold); }
+.gear-name.r-ancient { color: var(--ember); }
+
+.gear-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 14px; }
+.gear-table th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px; letter-spacing: .1em; font-weight: 500;
+  color: var(--muted); text-align: right; padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+.gear-table th:first-child { text-align: left; }
+.gear-table td {
+  padding: 7px 0; text-align: right; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft, #221C16);
+}
+.gear-table td:first-child { text-align: left; color: var(--muted); }
+.gear-table td.up   { color: #8FBF7F; }
+.gear-table td.down { color: var(--blood); }
+.gear-table td.same { color: var(--muted); }
+
+.gear-old { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+.gear-actions { display: flex; gap: 10px; }
+.gear-actions .btn-main, .gear-actions .btn-ghost { flex: 1; padding-left: 0; padding-right: 0; }
+.k {
+  display: inline-block; margin-left: 6px; opacity: .6;
+  font-family: "IBM Plex Mono", monospace; font-size: 11px;
+}
+
+/* ---------- 상점 ---------- */
+
+#shop-modal { background: rgba(7,5,4,.93); z-index: 45; }
+.shop-inner {
+  width: calc(100% - 40px); max-width: 460px;
+  max-height: 86vh; overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 24px 26px;
+}
+.shop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.shop-head h2 { font-family: "Gowun Batang", serif; font-size: 20px; margin: 0; color: var(--ember); }
+.shop-gold { font-size: 12.5px; color: var(--muted); }
+.shop-gold b { color: var(--gold, #D9B04E); font-variant-numeric: tabular-nums; }
+.shop-say {
+  font-family: "Gowun Batang", serif; font-size: 13px; line-height: 1.8;
+  color: var(--muted); margin: 0 0 18px;
+}
+
+.shop-list { display: grid; gap: 8px; margin-bottom: 20px; }
+.shop-row {
+  display: grid; grid-template-columns: 20px 26px minmax(0,1fr) auto;
+  gap: 12px; align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 11px 14px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color .15s, background .15s;
+}
+.shop-row:hover:not(:disabled) { border-color: var(--ember-dim); }
+.shop-row:disabled { opacity: .42; cursor: default; }
+.shop-row .num { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+.shop-row .nm { font-size: 13.5px; color: var(--ink); }
+.shop-row .nm.r-fine    { color: var(--cold); }
+.shop-row .nm.r-ancient { color: var(--ember); }
+.shop-row .sub { display: block; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.shop-row .sub .up   { color: #8FBF7F; }
+.shop-row .sub .down { color: var(--blood); }
+.shop-row .price {
+  font-size: 12.5px; color: #D9B04E; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.shop-row.sold .price { color: var(--muted); }
+
+/* ---------- 결말 ---------- */
+
+#ending-screen {
+  background: radial-gradient(ellipse at 50% 40%, #14100A 0%, #060504 70%);
+  z-index: 55;
+}
+.ending-inner { width: calc(100% - 40px); max-width: 520px; text-align: center; }
+.ending-title {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(26px, 6vw, 34px); font-weight: 700;
+  color: var(--ember); margin-bottom: 22px;
+  text-shadow: 0 0 46px rgba(233,149,74,.4);
+}
+.ending-body {
+  font-family: "Gowun Batang", serif;
+  font-size: 14.5px; line-height: 2.1; color: var(--ink-soft);
+  margin: 0 0 34px;
+}
+.ending-choices { display: grid; gap: 12px; }
+.ending-pick {
+  font: inherit; text-align: left; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 0; padding: 18px 20px;
+  transition: border-color .18s, background .18s;
+}
+.ending-pick:hover { border-color: var(--ember); background: var(--panel-2); }
+.ending-pick b {
+  display: block; font-family: "Gowun Batang", serif;
+  font-size: 17px; color: var(--ink); margin-bottom: 7px;
+}
+.ending-pick span { font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+
+/* ---------- 결과 ---------- */
+
+#result-screen { background: rgba(7,5,4,.94); z-index: 50; }
+.result-inner { text-align: center; padding: 30px; max-width: 420px; }
+.result-title {
+  font-family: "Gowun Batang", serif;
+  font-size: 30px; font-weight: 700;
+  color: var(--ember);
+  margin-bottom: 14px;
+}
+.result-line {
+  font-family: "Gowun Batang", serif;
+  font-size: 14.5px; line-height: 1.9;
+  color: var(--ink-soft);
+  margin-bottom: 30px;
+}
+.result-stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 9px 26px;
+  justify-content: center;
+  margin: 0 0 32px;
+  font-size: 13.5px;
+}
+.result-stats dt { color: var(--muted); text-align: right; }
+.result-stats dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; text-align: left; }
+
+/* ---------- 도감 ----------
+   조작법 · 몬스터 · 아이템 · 내 기억 · 업적을 탭 하나로 묶은 창 */
+
+#codex-screen { background: rgba(7,5,4,.95); z-index: 60; }
+.codex-inner {
+  width: calc(100% - 32px); max-width: 640px;
+  height: min(86vh, 660px);
+  display: flex; flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.codex-tabs {
+  display: flex; gap: 2px;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.codex-tabs button {
+  font: inherit; font-size: 12.5px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 0;
+  padding: 8px 13px;
+  cursor: pointer;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.codex-tabs button:hover { color: var(--ink-soft); }
+.codex-tabs button.on {
+  color: var(--ember);
+  background: var(--panel-2);
+  border-color: var(--line);
+  border-bottom: 1px solid var(--panel-2);
+}
+.codex-tabs .codex-x {
+  margin-left: auto; margin-bottom: 0;
+  color: var(--muted); font-size: 14px; padding: 6px 10px;
+}
+.codex-tabs .codex-x:hover { color: var(--ember); }
+
+.codex-body {
+  flex: 1; overflow-y: auto;
+  padding: 20px 24px 26px;
+  scrollbar-width: thin;
+}
+.codex-say {
+  font-family: "Gowun Batang", serif; font-size: 12.5px; line-height: 1.9;
+  color: var(--muted); margin: 0 0 18px;
+}
+
+.codex-table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.codex-table th {
+  font-family: "IBM Plex Mono", monospace; font-weight: 500;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint, #6E6259); text-align: right;
+  padding: 0 8px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.codex-table th:nth-child(-n+2) { text-align: left; }
+.codex-table td {
+  padding: 7px 8px 7px 0; text-align: right;
+  color: var(--ink-soft); border-bottom: 1px solid #221C16;
+}
+.codex-table td:nth-child(-n+2) { text-align: left; }
+.codex-table td.cx-name { color: var(--ink); }
+.codex-table td.cx-mod { color: var(--muted); font-size: 11.5px; }
+.codex-table td.hi { color: var(--ink); font-weight: 600; }
+.codex-table td.hi.mag { color: var(--cold); }
+.codex-table tr.locked td { color: #453E36; font-style: italic; }
+.cx-thumb {
+  display: block; width: 26px; height: 26px;
+  object-fit: contain; object-position: bottom;
+  image-rendering: pixelated;
+}
+.cx-tag {
+  font-size: 10px; color: var(--cold);
+  border: 1px solid color-mix(in srgb, var(--cold) 40%, transparent);
+  border-radius: 0; padding: 0 4px; margin-left: 4px; vertical-align: 1px;
+}
+
+/* 업적 */
+.ach-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 0; }
+.ach-row {
+  display: grid; grid-template-columns: 20px 130px minmax(0,1fr);
+  gap: 10px; align-items: baseline;
+  background: var(--panel-2); padding: 11px 14px; font-size: 13px;
+}
+.ach-row .ach-mark { color: #443D35; text-align: center; }
+.ach-row .ach-name { color: #4E463D; font-family: "Gowun Batang", serif; }
+.ach-row .ach-desc { color: #3E3830; font-size: 12px; }
+.ach-row.got .ach-mark { color: var(--ember); }
+.ach-row.got .ach-name { color: var(--ember); font-weight: 700; }
+.ach-row.got .ach-desc { color: var(--muted); }
+@media (max-width: 520px) {
+  .ach-row { grid-template-columns: 18px minmax(0,1fr); }
+  .ach-row .ach-desc { grid-column: 2; }
+}
+
+/* 업적 알림 */
+#toasts {
+  position: absolute; right: 16px; bottom: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 70; pointer-events: none;
+}
+.toast {
+  background: var(--panel); border: 1px solid var(--ember-dim);
+  border-left-width: 3px; border-radius: 0;
+  padding: 11px 16px; max-width: 260px;
+  box-shadow: 0 8px 26px -10px rgba(0,0,0,.8);
+  animation: toastIn .32s ease-out;
+}
+.toast b {
+  display: block; font-family: "Gowun Batang", serif;
+  font-size: 14px; color: var(--ember); margin-bottom: 3px;
+}
+.toast span { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.toast.out { opacity: 0; transform: translateX(12px); transition: opacity .6s, transform .6s; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+.memory-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 0; margin-bottom: 20px; }
+.mem-row { background: var(--panel-2); padding: 13px 16px; }
+.mem-row .mem-name {
+  font-family: "Gowun Batang", serif; font-size: 14.5px;
+  color: #4E463D;
+}
+.mem-row .mem-line { display: none; }
+.mem-row.got .mem-name { color: var(--ember); font-weight: 700; }
+.mem-row.got .mem-line {
+  display: block;
+  font-family: "Gowun Batang", serif; font-size: 12.5px;
+  color: var(--ink-soft); margin-top: 5px; line-height: 1.7;
+}
+.mem-row.got .mem-eff {
+  font-size: 11.5px; color: var(--muted); margin-top: 6px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.mem-row:not(.got) .mem-eff { display: none; }
+
+/* ---------- 도움말 ---------- */
+
+
+
+
+.help-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+.help-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); color: var(--ink-soft); vertical-align: middle; }
+.help-table td:first-child { white-space: nowrap; width: 44%; }
+kbd {
+  display: inline-block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 0;
+  padding: 2px 6px;
+}
+.or { color: var(--muted); font-size: 11px; margin: 0 2px; }
+.help-note { font-size: 12.5px; line-height: 1.85; color: var(--muted); margin: 0 0 16px; }
+.help-note b { color: var(--ink-soft); }
+.gl-stair { color: var(--ember); font-weight: 700; }
+.gl-camp  { color: #E86A3A; font-weight: 700; }
+.gl-shop  { color: #C9A227; font-weight: 700; }
+.gl-gear  { color: var(--ink-soft); font-weight: 700; font-family: "IBM Plex Mono", monospace; }
+
+button:focus-visible, canvas:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+/* ---------- 도트 문법 마무리 ----------
+   폰트는 그대로 두되 형태만 픽셀 쪽으로 맞춘다.
+   한글 픽셀 폰트는 12px 아래로 내려가면 읽히지 않아서,
+   가독성을 지키면서 통일감을 얻는 절충이다. */
+
+/* 창은 각지게, 테두리는 두껍게 */
+.codex-inner, .gear-inner, .shop-inner, .result-inner, .ending-pick, .memory-list, .ach-list {
+  border-width: 2px;
+}
+
+/* 게이지도 칸 단위로 — 매끄럽게 차오르지 않고 뚝뚝 끊긴다 */
+.boss-track { height: 10px; border-width: 2px; }
+#boss-fill {
+  transition: width .12s steps(6, end);
+  background: repeating-linear-gradient(
+    90deg, var(--ember) 0 6px, #C97B33 6px 8px);
+}
+
+/* 목록의 점도 네모로 */
+ul li::before, .chip::before { border-radius: 0 !important; }
+
+/* 픽셀 그림은 어떤 크기로 늘려도 뭉개지지 않게 */
+img.cx-thumb, img.heart { image-rendering: pixelated; }

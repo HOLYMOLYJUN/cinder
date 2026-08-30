@@ -1,0 +1,10 @@
+node_modules/
+
+# 눈으로 확인하려고 뽑는 대조용 그림. 도구가 언제든 다시 만든다.
+assets/icons/_*.png
+
+# 검사가 남기는 스크린샷
+tools/shots/
+
+.DS_Store
+Thumbs.db

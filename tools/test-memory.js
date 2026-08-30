@@ -1,0 +1,166 @@
+/* 잿불 — 기억 시스템 검증
+   봇이 우연히 고대의 장비를 줍기를 기다릴 수 없으므로,
+   기억을 직접 쥐여주고 각 효과가 실제로 도는지 확인한다. */
+
+const { chromium } = require('playwright');
+const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const SHOT = __dirname + '/shots';
+require('fs').mkdirSync(SHOT, { recursive: true });
+
+let fails = 0;
+const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails++; };
+
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const errors = [];
+  page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
+
+  await page.goto(GAME);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForTimeout(900);
+
+  /* ---------- 1. 처음에는 아무 기억도 없다 ---------- */
+  await page.click('#btn-start');
+  await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+
+  const fresh = await page.evaluate(() => ({
+    mem: [...state.memories], pity: state.pity,
+    stats: { ...state.player.stats }, maxHp: state.player.maxHp,
+    base: baseStats(),
+  }));
+  check(fresh.mem.length === 0, '새 판은 기억 0개로 시작');
+  check(fresh.stats.spd === fresh.base.spd && fresh.maxHp === fresh.base.maxHp,
+        `기억 없을 때 기본 스탯 (속${fresh.stats.spd} 체${fresh.maxHp})`);
+
+  /* ---------- 2. 원거리는 잠겨 있다 ---------- */
+  const lockedRanged = await page.evaluate(() => {
+    const p = state.player;
+    for (const [k, d] of Object.entries(DIRS)) {
+      if (isWalkable(state.map, p.x + d.dx, p.y + d.dy)) {
+        const before = state.turns;
+        playerAction(k, 'ranged');
+        return { spentTurn: state.turns !== before };
+      }
+    }
+    return null;
+  });
+  check(lockedRanged && !lockedRanged.spentTurn, '기억 전에는 원거리가 턴도 쓰지 않음');
+
+  /* ---------- 3. 기억을 전부 쥐여주면 효과가 붙는가 ---------- */
+  const withAll = await page.evaluate(() => {
+    state.memories = new Set(MEMORIES.map(m => m.id));
+    recalcStats(state.player);
+    return { stats: { ...state.player.stats }, maxHp: state.player.maxHp };
+  });
+  check(withAll.stats.spd === fresh.base.spd + 2, `「오르던 발」 속도 +2 반영 (${withAll.stats.spd})`);
+  check(withAll.maxHp === fresh.base.maxHp + 10, `「첫 번째 이름」 최대 체력 +10 반영 (${withAll.maxHp})`);
+
+  /* ---------- 4. 원거리가 실제로 맞는가 ---------- */
+  const setup = await page.evaluate(() => {
+    const p = state.player;
+    for (const [k, d] of Object.entries(DIRS)) {
+      let clear = true;
+      for (let i = 1; i <= 3; i++)
+        if (!isWalkable(state.map, p.x + d.dx*i, p.y + d.dy*i)) clear = false;
+      if (!clear) continue;
+      const mon = makeMonster(MONSTERS.find(m => m.id === 'troll'), p.x + d.dx*3, p.y + d.dy*3);
+      state.monsters.push(mon);
+      return { dir: k, hp: mon.hp };
+    }
+    return null;
+  });
+  if (setup) {
+    const KEY = { up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight' };
+    await page.keyboard.down('z');
+    await page.keyboard.press(KEY[setup.dir]);
+    await page.keyboard.up('z');
+    await page.waitForTimeout(200);
+    const after = await page.evaluate(() =>
+      state.monsters[state.monsters.length - 1].hp);
+    check(after < setup.hp, `「던지던 손」 3칸 밖 트롤에게 명중 (${setup.hp} → ${after})`);
+    await page.screenshot({ path: SHOT + '/11-ranged.png' });
+  } else {
+    check(false, '원거리를 시험할 직선 통로를 못 찾음');
+  }
+
+  /* ---------- 5. 불씨 밝기 ---------- */
+  const ember = await page.evaluate(() => {
+    const base = state.fovRadius;
+    toggleEmber(); const bright = state.fovRadius; const sightBright = monsterSight();
+    toggleEmber(); const dim = state.fovRadius; const sightDim = monsterSight();
+    toggleEmber();
+    return { base, bright, dim, sightBright, sightDim };
+  });
+  check(ember.bright > ember.base && ember.dim < ember.base,
+        `「끄던 손」 시야 조절 (어둡게 ${ember.dim} / 기본 ${ember.base} / 밝게 ${ember.bright})`);
+  check(ember.sightBright > ember.sightDim,
+        `밝히면 몬스터도 더 멀리서 알아챔 (${ember.sightDim} → ${ember.sightBright})`);
+
+  /* ---------- 6. 부활 ---------- */
+  const revive = await page.evaluate(() => {
+    state.revived = false;
+    state.player.hp = 1;
+    kill(state.player);
+    const first = { alive: state.player.alive, hp: state.player.hp, revived: state.revived };
+    state.player.hp = 1;
+    kill(state.player);                       // 두 번째는 진짜 죽어야 한다
+    return { first, second: { alive: state.player.alive } };
+  });
+  check(revive.first.alive && revive.first.hp > 1,
+        `「남겨진 온기」 첫 죽음에서 일어남 (체력 ${revive.first.hp})`);
+  check(!revive.second.alive, '두 번째 죽음은 그대로 끝남');
+
+  /* ---------- 7. 기억 연출 ---------- */
+  await page.evaluate(() => {
+    UI.hideResult();
+    const m = MEMORIES.find(x => x.id === 'douse');
+    UI.showCurtain(m.name, m.line, m.effect, () => {});
+  });
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: SHOT + '/12-memory-curtain.png' });
+  const curtainTitle = await page.textContent('#intro-floor');
+  check(curtainTitle.trim() === '끄던 손', '기억 되찾는 연출이 뜸: ' + curtainTitle.trim());
+
+  /* ---------- 8. 저장과 복원 ---------- */
+  await page.evaluate(() => {
+    UI.closeIntro();
+    state.memories = new Set(['throw', 'douse']);
+    state.pity = 3;
+    persist();
+  });
+  await page.waitForTimeout(300);
+  await page.reload();
+  await page.waitForTimeout(900);
+  const restored = await page.evaluate(() => {
+    const s = loadData();
+    startRun();
+    return { saved: s.memories, pity: s.pity, inGame: [...state.memories], statePity: state.pity };
+  });
+  check(restored.saved.length === 2 && restored.inGame.length === 2,
+        '기억이 새로고침 뒤에도 남음: ' + restored.inGame.join(', '));
+  check(restored.statePity === 3, '누적 확률 보정값도 복원됨 (pity ' + restored.statePity + ')');
+
+  /* ---------- 9. 내 기억 화면 (도감의 한 탭) ---------- */
+  await page.evaluate(() => { UI.showCodex('memories'); });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: SHOT + '/13-memory-list.png' });
+  const shown = await page.$$eval('.mem-row', els => ({
+    total: els.length,
+    got: els.filter(e => e.classList.contains('got')).length,
+    hidden: els.filter(e => !e.classList.contains('got'))
+              .map(e => e.textContent.trim())[0],
+  }));
+  check(shown.total === 9 && shown.got === 2, `기억 목록 9개 중 2개 해금 (${shown.got})`);
+  check(/기억나지 않/.test(shown.hidden), '못 얻은 기억은 내용이 가려짐');
+
+  console.log('\n=== 에러 ===');
+  console.log(errors.length ? errors.join('\n') : '없음');
+  if (errors.length) fails++;
+
+  console.log(fails === 0 ? '\n전부 통과' : `\n실패 ${fails}건`);
+  await browser.close();
+  process.exit(fails ? 1 : 0);
+})();
