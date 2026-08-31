@@ -5,7 +5,7 @@
    그래서 잠긴 항목이 이름조차 흘리지 않는지부터 확인한다. */
 
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 const SHOT = __dirname + '/shots';
 require('fs').mkdirSync(SHOT, { recursive: true });
 

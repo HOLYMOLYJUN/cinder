@@ -9,7 +9,7 @@
    레벨이 공격만 올리면 8레벨 기사에게 주술 지팡이가 함정 아이템이 된다. */
 
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 
 let fails = 0;
 const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails++; };

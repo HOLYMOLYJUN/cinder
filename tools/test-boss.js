@@ -6,7 +6,7 @@
    회피가 실제로 동작하는지를 기술마다 직접 시험한다. */
 
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 const SHOT = __dirname + '/shots';
 require('fs').mkdirSync(SHOT, { recursive: true });
 
@@ -183,7 +183,8 @@ async function gotoFloor(page, n) {
   check(picks.length === 2, '선택지 두 개: ' + picks.join(' / '));
 
   await page.click('[data-ending="leave"]');
-  await page.waitForTimeout(400);
+  // 결과표는 바로 덮이지 않는다 — 선택창만 걷고 옥상을 1.9초 보여준 뒤에 뜬다
+  await page.waitForTimeout(2400);
   const after = await page.evaluate(() => ({
     resultVisible: !document.getElementById('result-screen').classList.contains('hidden'),
     title: document.getElementById('result-title').textContent,

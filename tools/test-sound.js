@@ -5,7 +5,7 @@
    제대로 다루고 있는지가 가장 흔한 실수다. */
 
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 
 let fails = 0;
 const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails++; };

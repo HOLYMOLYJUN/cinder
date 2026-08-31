@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 const SHOT = __dirname + '/shots';
 require('fs').mkdirSync(SHOT, { recursive: true });
 

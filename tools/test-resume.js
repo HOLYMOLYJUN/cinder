@@ -14,7 +14,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   p.on('pageerror', e => errs.push(e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
 
-  await p.goto('file:///c:/Users/vlck1/Desktop/dev/game/index.html');
+  await p.goto(require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href);
   await p.evaluate(() => localStorage.clear());
   await p.reload(); await p.waitForTimeout(700);
 
