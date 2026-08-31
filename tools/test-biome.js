@@ -53,10 +53,14 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   });
   check(pick.inSewer.floor === 'sewer.floor' && pick.inSewer.wall === 'sewer.wallFace',
         '하수도에서는 하수도 것을 고른다');
-  check(pick.inSewer.stairs === 'stairs' && pick.inSewer.chest === 'chest',
-        '바이옴에 없는 것(계단·상자)은 원래 것으로 돌아간다');
+  check(pick.inSewer.stairs === 'sewer.stairs',
+        '계단도 층에 따라 갈린다 — 아래층 갈색 바닥에 은빛 쇠는 혼자 튄다');
+  check(pick.inSewer.chest === 'chest',
+        '바이옴에 없는 것(상자)은 원래 것으로 돌아간다');
   check(pick.inStone.floor === 'floor' && pick.inStone.wall === 'wallFace',
         '아래층에서는 원래 것을 고른다');
+  check(await p.evaluate(() => { Render.setBiome(3); return Render.biomeKey('stairs'); }) === 'stairs',
+        '아래층 계단은 팩 원래 것 그대로');
 
   console.log('\n[ 들어가고 이어해도 유지되는가 ]');
   const live = await p.evaluate(() => {

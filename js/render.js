@@ -250,7 +250,7 @@ const Render = {
               this.tile(ctx, this.biomeKey('wallTop'), 0, px, py, lit);
           } else {
             this.tile(ctx, this.biomeKey('floor'), this.floorVariant(x, y), px, py, lit);
-            if (t === T.STAIRS) this.tile(ctx, 'stairs', 0, px, py, lit);
+            if (t === T.STAIRS) this.tile(ctx, this.biomeKey('stairs'), 0, px, py, lit);
             if (t === T.CAMP) {
               this.tile(ctx, 'camp', Math.floor(performance.now()/150) % 3, px, py, lit);
               this.campFire(ctx, px, py, lit);

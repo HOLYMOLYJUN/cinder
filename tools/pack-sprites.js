@@ -120,13 +120,15 @@ Object.assign(MANIFEST, {
   'wallTop':  one('wall_top_mid'),
   'wallLeft': one('wall_left'),
   'wallRight':one('wall_right'),
-  /* 다음 층으로 나가는 자리.
+  /* 다음 층으로 나가는 자리. 층에 따라 갈린다.
 
-     0x72 의 floor_stairs 는 어둠으로 내려가는 계단이고 floor_ladder 는
-     작은 나무 사다리라, 탑을 「오르는」 게임에서 둘 다 어긋나 읽혔다.
-     하수도 팩 바닥에 있는 것이 제일 위로 난 것처럼 보여서 그것을 쓴다 —
-     전 층에서 같은 그림이다(바이옴을 안 타는 공통 키). */
-  'stairs':   one('sewer_stairs'),
+     하수도 팩 것이 제일 「위로 난 것」처럼 보이는데, 은빛 쇠라 돌 층의
+     갈색 바닥 위에서는 혼자 튄다. 그래서 아래층은 팩 원래 것을 그대로 두고
+     11층부터만 쇠 사다리로 바꾼다 — 바닥이 초록 쇠로 바뀌는 층이라 거기서는 맞는다.
+
+     (더 나은 그림이 생기면 여기 두 줄만 갈아 끼우면 된다) */
+  'stairs':        one('floor_ladder'),
+  'sewer.stairs':  one('sewer_stairs'),
   'coin':     ['coin_anim_f0.png','coin_anim_f1.png','coin_anim_f2.png','coin_anim_f3.png'],
   'chest':    one('chest_full_open_anim_f0'),
   'door':     one('doors_leaf_closed'),
