@@ -232,7 +232,7 @@ const Render = {
           ctx.globalAlpha = 1;
           if (t === T.DOOR) {
             // 잠긴 문. 벽처럼 단단하되 한눈에 문으로 보여야 한다.
-            this.tile(ctx, 'wallFace', 0, px, py, lit);
+            this.tile(ctx, this.biomeKey('wallFace'), 0, px, py, lit);
             this.tile(ctx, 'door', 0, px, py, lit);
             if (lit) {
               const g4 = ctx.createRadialGradient(px + TS/2, py + TS/2, 1, px + TS/2, py + TS/2, TS*0.8);
@@ -245,10 +245,11 @@ const Render = {
             // wall_mid 가 벽돌 본체다. wall_top_mid 는 윗면 마감재라
             // 그것만 그리면 벽이 얇은 선으로 보인다 — 본체를 먼저 깔고,
             // 위쪽이 트인 벽에만 마감을 덧댄다.
-            this.tile(ctx, 'wallFace', 0, px, py, lit);
-            if (tileAt(map, x, y - 1) !== T.WALL) this.tile(ctx, 'wallTop', 0, px, py, lit);
+            this.tile(ctx, this.biomeKey('wallFace'), 0, px, py, lit);
+            if (tileAt(map, x, y - 1) !== T.WALL)
+              this.tile(ctx, this.biomeKey('wallTop'), 0, px, py, lit);
           } else {
-            this.tile(ctx, 'floor', this.floorVariant(x, y), px, py, lit);
+            this.tile(ctx, this.biomeKey('floor'), this.floorVariant(x, y), px, py, lit);
             if (t === T.STAIRS) this.tile(ctx, 'stairs', 0, px, py, lit);
             if (t === T.CAMP) {
               this.tile(ctx, 'camp', Math.floor(performance.now()/150) % 3, px, py, lit);
@@ -824,6 +825,31 @@ const Render = {
     ctx.fillRect(u * 3, 0, u, u * 2);            // 이
     ctx.fillRect(u * 4.2, 0, u, u * 1.4);
     ctx.restore();
+  },
+
+  /* ---------- 바이옴 ----------
+     층마다 배경이 바뀌어야 오르는 실감이 난다. 열다섯 층이 전부 같은 돌벽이면
+     10층과 3층이 같은 곳으로 보인다.
+
+     그림만 갈아 끼우고 지형 생성은 건드리지 않는다 — 방과 복도를 만드는 규칙은
+     그대로 두고 무엇으로 그리는지만 바꾼다. 그래서 바이옴을 늘려도
+     map.js 를 다시 볼 일이 없다.
+
+     biome 이 붙은 키가 없으면 원래 키로 돌아간다. 그러니 바이옴 쪽에는
+     바꾸고 싶은 것만 넣어 두면 되고, 계단·상자·모닥불처럼 공통인 것은
+     한 곳에만 있으면 된다. */
+  biome: null,
+
+  /* 꼭대기 층은 뺀다. 거기는 옥상이라 난간 너머가 아득한 아래인데,
+     하수도 바닥을 깔면 실내가 되어 버려서 그 층이 하려던 말이 사라진다. */
+  setBiome(depth) {
+    this.biome = (depth >= CFG.SEWER_FLOOR && depth < CFG.TOP_FLOOR) ? 'sewer' : null;
+  },
+
+  biomeKey(key) {
+    if (!this.biome) return key;
+    const k = this.biome + '.' + key;
+    return this.img[k] ? k : key;
   },
 
   // 타일 한 칸에 딱 맞는 그림 (16x16 을 타일 크기로 확대)

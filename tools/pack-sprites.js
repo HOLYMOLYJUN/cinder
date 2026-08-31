@@ -25,10 +25,14 @@ const FRAMES_EXT = path.join(ROOT, 'assets', 'tileset-extended', 'frames');
 const ICONS = path.join(ROOT, 'assets', 'icons');
 // 우리가 따로 만든 캐릭터. 라이선스가 다르므로 CC0 원본 폴더에 섞지 않는다.
 const FRAMES_CUSTOM = path.join(ROOT, 'assets', 'custom', 'frames');
+/* 하수도 팩 (0x72 Sewers v0.3, CC0 · 유료로 받은 것).
+   원본은 아틀라스라 그대로는 못 쓴다 — tools/slice-atlas.js 가 쓸 칸만 낱장으로 뽑아
+   여기에 둔다. 그러니 이 폴더는 '자동 생성'이고, 고칠 곳은 slice-atlas.js 쪽이다. */
+const FRAMES_SEWERS = path.join(ROOT, 'assets', 'tileset-sewers', 'frames');
 
 // 같은 이름이면 원본(v1.7)이 이긴다 — 확장 팩 쪽이 구버전이라 몇 픽셀 다르다.
 function findFrame(file) {
-  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM]) {
+  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS]) {
     const p = path.join(dir, file);
     if (fs.existsSync(p)) return p;
   }
@@ -141,6 +145,15 @@ Object.assign(MANIFEST, {
 
   /* 화살 — 활이 쏘는 투사체. 그림은 위를 보고 있고, 그리는 쪽에서 돌린다 */
   'arrow':      one('weapon_arrow'),
+
+  /* 하수도 — 11층부터 쓰는 두 번째 바이옴.
+     키 이름을 'sewer.<원래 키>' 로 맞춰 둔다. Render.biomeKey 가 앞에 'sewer.' 를
+     붙여 보고 없으면 원래 키로 돌아가므로, 여기 있는 것만 갈아 끼워지고
+     나머지(계단·상자·모닥불)는 손댈 것 없이 그대로 쓰인다. */
+  'sewer.floor':    ['sewer_floor_0.png','sewer_floor_1.png','sewer_floor_2.png','sewer_floor_3.png',
+                     'sewer_floor_4.png','sewer_floor_5.png','sewer_floor_6.png','sewer_floor_7.png'],
+  'sewer.wallFace': one('sewer_wall_mid'),
+  'sewer.wallTop':  one('sewer_wall_top'),
 });
 
 /* 장비 아이콘.

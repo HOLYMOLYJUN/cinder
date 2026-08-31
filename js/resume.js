@@ -129,6 +129,9 @@ function loadRun(d, opts) {
   state.level = d.level || 1; state.xp = d.xp || 0;
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
   state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
+  // 배경은 층에서 정해지므로 따로 저장하지 않는다. 다만 다시 세워 주지 않으면
+  // 이어하기나 관전으로 11층에 들어갔을 때 1층 돌벽으로 그려진다.
+  Render.setBiome(d.depth);
   state.campUses = d.campUses; state.revived = d.revived;
   state.hurtThisFloor = d.hurt; state.gotMemoryThisRun = d.gotMemory;
   state.seenMonsters = new Set(d.seen || []);

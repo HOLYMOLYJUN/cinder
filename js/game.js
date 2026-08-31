@@ -134,6 +134,7 @@ function enterFloor(depth) {
   const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
   const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
   state.floorTag = tag;
+  Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
