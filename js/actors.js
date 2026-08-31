@@ -66,18 +66,66 @@ function makePlayer() {
    못 알아보면 매 턴 새로 태어나므로 순간이동하는 것처럼 보인다. */
 let monsterUid = 0;
 
-function makeMonster(def, x, y) {
+/* ---------- 엘리트 ----------
+
+   몬스터를 새로 그리는 것보다 있는 것에 접두사를 붙이는 편이 훨씬 싸다.
+   같은 고블린이라도 「굶주린」이 붙으면 다른 몬스터처럼 싸워야 한다 —
+   표는 그대로 두고 배율 몇 개만 얹는데 체감은 종류가 늘어난 것과 같다.
+
+   그리고 이건 "위층에 가도 같은 것이 나온다"를 직접 푼다.
+   층이 오를수록 자주 붙으므로, 익숙한 몬스터가 다시 낯설어진다.
+
+   tint 는 발밑 빛 색이다. 붙었다는 것이 한눈에 보여야
+   "왜 갑자기 안 죽지"가 아니라 "저건 다른 놈이다"가 된다. */
+const ELITES = [
+  { id: 'starved', name: '굶주린', tint: '#C9D66B',
+    mul: { spd: 1.7, hp: 0.75 },
+    note: '빠르다' },
+  { id: 'raging',  name: '성난',   tint: '#E05A3A',
+    mul: { atk: 1.5, sp: 1.5, hp: 1.2 },
+    note: '세게 때린다' },
+  { id: 'hardened',name: '굳은',   tint: '#7FA8C4',
+    mul: { hp: 1.5, spd: 0.8 }, add: { def: 4, md: 4 },
+    note: '단단하다' },
+  // 죽고 나서 한 번 더 일이 벌어지는 둘. 잡았다고 물러서면 안 된다.
+  { id: 'ashen',   name: '재를 뒤집어쓴', tint: '#E9954A',
+    mul: { hp: 1.1 }, burst: true,
+    note: '쓰러지면 터진다' },
+  { id: 'echoing', name: '메아리치는',   tint: '#B08BD6',
+    mul: { hp: 1.3 }, echo: true,
+    note: '쓰러지면 둘로 갈라진다' },
+];
+
+// 층이 오를수록 자주 붙는다. 1~2층에는 안 붙는다 — 아직 기본형도 다 못 봤다.
+function eliteChance(depth) {
+  if (depth < 3) return 0;
+  return clamp(0.05 + (depth - 3) * 0.022, 0, 0.30);
+}
+
+function makeMonster(def, x, y, eliteId) {
+  const e = eliteId ? ELITES.find(v => v.id === eliteId) : null;
+  const mul = (e && e.mul) || {};
+  const add = (e && e.add) || {};
+  const sc = (v, k) => Math.max(1, Math.round(v * (mul[k] || 1) + (add[k] || 0)));
+
+  const hp = sc(def.hp, 'hp');
   return {
     kind: 'monster',
     uid: ++monsterUid,
     defId: def.id,
-    name: def.name,
+    name: e ? e.name + ' ' + def.name : def.name,
     glyph: def.g,
     color: def.c,
     x, y, rx: x, ry: y,
-    maxHp: def.hp, hp: def.hp,
-    stats: { atk: def.atk, sp: def.sp, def: def.def, md: def.md, spd: def.spd },
-    gold: def.gold,
+    maxHp: hp, hp,
+    stats: { atk: sc(def.atk, 'atk'), sp: sc(def.sp, 'sp'),
+             def: sc(def.def, 'def'), md: sc(def.md, 'md'), spd: sc(def.spd, 'spd') },
+    // 더 오래 버티고 더 아프게 때리므로 값어치도 그만큼 쳐준다
+    gold: e ? Math.round(def.gold * 1.8) : def.gold,
+    elite: e ? e.id : null,
+    eliteTint: e ? e.tint : null,
+    burst: !!(e && e.burst),
+    echo: !!(e && e.echo),
     energy: randInt(0, CFG.ENERGY_COST - 1),   // 등장 타이밍을 흩뜨린다
     alive: true,
     // 주문이 공격보다 높으면 원거리형이다 — 판정 규칙과 같은 기준을 쓴다

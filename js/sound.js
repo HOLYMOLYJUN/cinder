@@ -212,6 +212,12 @@ const Sound = {
       case 'gearAncient':                          // 고대의 — 확실히 다르게 들려야 한다
         this.chord([330, 494, 659, 988], { dur: 0.5, vol: 0.12, spread: 70, release: 0.6 });
         break;
+      /* 저주가 드러나는 순간. 장비 소리는 전부 위로 열리는 화음이라
+         이것만 반대로 — 아래로 내려앉는 단2도. 보스 예고음과 같은 수법이다. */
+      case 'gearCursed':
+        this.chord([247, 233], { dur: 0.55, vol: 0.13, spread: 90, release: 0.7, type: 'triangle' });
+        this.tone({ from: 120, to: 62, dur: 0.5, vol: 0.11, type: 'sawtooth', release: 0.5 });
+        break;
 
       case 'stairs':
         this.tone({ from: 160, to: 70, dur: 0.3, vol: 0.16, type: 'sawtooth', release: 0.3 });
@@ -397,4 +403,5 @@ const GAP = {
   step: 0.05, hit: 0.04, hurt: 0.05, magic: 0.05, gold: 0.06,
   kill: 0.06, bossWarn: 0.4, bossHit: 0.3, memory: 1, death: 1,
   cast: 0.12, spell: 0.1, miss: 0.15, fireball: 0.1, blast: 0.12, key: 0.2, unlock: 0.3,
+  gearCursed: 0.5,
 };

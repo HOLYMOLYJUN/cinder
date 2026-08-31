@@ -22,6 +22,15 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
+/* '#RRGGBB' → [r, g, b].
+   그라데이션을 같은 색의 투명으로 끝내려고 쓴다 — 검은 투명으로 끝내면
+   가운데가 색이 아니라 그을음으로 번진다. */
+function hexRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16),
+          parseInt(hex.slice(3, 5), 16),
+          parseInt(hex.slice(5, 7), 16)];
+}
+
 // 격자 거리(대각선 포함) — 시야·추격 판정에 쓴다
 function chebyshev(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));

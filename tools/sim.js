@@ -68,7 +68,9 @@ ctx.UI = {
   updateBossBar: () => {},
   showGame: () => {}, showTitle: () => {},
   hideResult: () => {}, hideGearCompare: () => {}, hideShop: () => {}, hideCodex: () => {},
-  gearOpen: () => false, shopOpen: () => false, codexOpen: () => false,
+  gearOpen: () => false, shopOpen: () => false, codexOpen: () => false, campOpen: () => false,
+  // 봇은 늘 몸을 녹인다 — 예전 모닥불과 같은 행동이라 이전 측정과 이어진다
+  showCamp: (opts, pick) => { ctx.__campPick = pick; }, hideCamp: () => {},
   intro: { active: false },
   setRecord: () => {},
   toast: (t) => { ctx.__lastToast = t; },
@@ -259,6 +261,13 @@ function playRun() {
       const take = g && gearScore(g) > gearScore(s.player.gear[g.slot]);
       if (!take && g) declined.add(g);
       G.resolveGear(!!take);
+      continue;
+    }
+    // 모닥불 앞에 섰으면 고른다
+    if (ctx.__campPick) {
+      const pick = ctx.__campPick;
+      ctx.__campPick = null;
+      pick('warm');
       continue;
     }
     // 상점이 열렸으면 살 수 있는 것을 산다

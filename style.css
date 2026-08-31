@@ -261,6 +261,9 @@ html, body {
 .g-ico { width: 16px; height: 16px; margin-right: 3px; }
 .shop-ico { width: 26px; height: 26px; flex: none; }
 .gear-icon { width: 40px; height: 40px; display: block; margin: 0 auto 4px; }
+/* display:block 이 hidden 속성을 덮어써서, 그림이 없을 때 깨진 이미지가 떴다.
+   (그림이 없는 장비, 그리고 정체불명처럼 일부러 안 보여주는 것) */
+.gear-icon[hidden] { display: none; }
 
 /* 레벨 — 체력 옆에 둔다. 레벨이 곧 체력이 늘어나는 일이므로 같이 읽힌다. */
 .lv { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -608,6 +611,21 @@ canvas#view {
   font-size: 17px; color: var(--ink); margin-bottom: 7px;
 }
 .ending-pick span { font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+.ending-pick .k {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px;
+  color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; margin-left: 6px;
+}
+/* 고를 수 없는 것 — 숨기지 않는다. 다음 판에 무기를 들고 오면 열린다는 걸 알려야 한다 */
+.ending-pick.locked { opacity: .42; cursor: default; }
+.ending-pick.locked:hover { border-color: var(--line); background: var(--panel); }
+
+/* 모닥불 — 결말과 같은 틀을 쓰되 불빛이 더 가깝다 */
+#camp-modal {
+  background: radial-gradient(ellipse at 50% 55%, rgba(48,28,12,.86) 0%, rgba(6,5,4,.94) 70%);
+  z-index: 54;
+}
+.camp-inner .ending-title { margin-bottom: 14px; }
+.camp-inner .ending-body { margin-bottom: 22px; }
 
 /* ---------- 결과 ---------- */
 

@@ -44,6 +44,7 @@ function packRun() {
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
       hasKey: state.hasKey, chill: state.chill, burn: state.burn,
+      ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       campUses: state.campUses, revived: state.revived,
       hurt: state.hurtThisFloor, gotMemory: state.gotMemoryThisRun,
       seen: [...state.seenMonsters],
@@ -58,6 +59,7 @@ function packRun() {
         casting: x.casting, hasKey: !!x.hasKey, boss: !!x.boss,
         pending: x.pending || null, marks: x.marks || null,
         seenBoss: !!x.seen,
+        elite: x.elite || null,   // 접두사를 잃으면 이어할 때 갑자기 순해진다
       })),
 
       map: {
@@ -144,6 +146,7 @@ function loadRun(d, opts) {
   // 사람
   const p = makePlayer();
   p.gear = d.player.gear;
+  state.ashHp = d.ashHp || 0;           // recalcStats 가 이걸 보므로 그 전에 넣는다
   recalcStats(p);                       // 장비와 기억에서 스탯을 다시 만든다
   p.x = d.player.x; p.y = d.player.y;
   p.rx = p.x; p.ry = p.y;
@@ -178,7 +181,7 @@ function loadRun(d, opts) {
     } else {
       const def = MONSTERS.find(x => x.id === s.id);
       if (!def) continue;
-      mon = makeMonster(def, s.x, s.y);
+      mon = makeMonster(def, s.x, s.y, s.elite || null);
     }
     mon.hp = s.hp; mon.energy = s.energy; mon.casting = s.casting;
     mon.hasKey = s.hasKey;
@@ -196,7 +199,7 @@ function loadRun(d, opts) {
 
   if (!opts.quiet) {
     UI.clearLog();
-    UI.hideGearCompare(); UI.hideShop(); UI.hideResult();
+    UI.hideGearCompare(); UI.hideShop(); UI.hideCamp(); UI.hideResult();
     UI.showGame();
   }
   UI.updateHud(state);

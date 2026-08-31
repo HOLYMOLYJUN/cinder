@@ -19,6 +19,8 @@ const RARITY = {
   common:  { name: '',      color: '#9A8B7A', mul: 1.0 },
   fine:    { name: '좋은',  color: '#7FA8C4', mul: 1.9 },
   ancient: { name: '고대의', color: '#E9954A', mul: 4.2 },
+  // 정체불명을 열었을 때 나올 수 있는 쪽. 상점에는 안 나오고 바닥에서만 나온다.
+  cursed:  { name: '저주받은', color: '#8E6BB0', mul: 0.5 },
 };
 
 /* min: 이 층부터 나온다 */
@@ -92,6 +94,45 @@ function makeGear(def) {
   return { ...def, mod: { ...def.mod } };
 }
 
+/* ---------- 정체불명 ----------
+
+   비교창이 "숫자가 크면 먹는다"로만 끝나면 그건 판단이 아니라 산수다.
+   무엇인지 모르는 물건을 하나 섞으면, 지금 낀 것을 버릴 값어치가 있는가를
+   숫자 없이 정해야 한다 — 이 게임에서 장비를 바꾸는 것은 되돌릴 수 없으므로
+   그 자체로 충분히 무거운 도박이다.
+
+   좋은 쪽은 확실히 좋아야 한다. 열어 봐야 평범한 것이면 두 번째부터는 아무도 안 연다.
+   그래서 좋은 쪽은 고대의 가중치를 크게 얹어 뽑고, 나쁜 쪽은 저주로 뒤집는다. */
+function rollUnknown(depth, luck) {
+  const cursed = chance(0.34);
+  // 나쁜 쪽은 층수만 보고, 좋은 쪽은 운을 크게 얹어 뽑는다
+  const base = rollGear(depth, cursed ? 0 : (luck || 0) + 4);
+  if (!base) return null;
+
+  if (cursed) {
+    base.rarity = 'cursed';
+    /* 값을 뒤집되 전부 뒤집지는 않는다. 하나쯤은 남아 있어야
+       "쓸 수는 있는데 손해"가 되고, 그게 통째로 꽝인 것보다 낫다. */
+    const keys = Object.keys(base.mod);
+    for (const k of keys) {
+      base.mod[k] = -Math.max(1, Math.round(Math.abs(base.mod[k]) * 0.5));
+    }
+    if (keys.length > 1) {                       // 하나는 되살린다
+      const keep = choice(keys);
+      base.mod[keep] = Math.max(1, Math.abs(base.mod[keep]));
+    }
+  }
+  base.unknown = true;                            // 열기 전에는 값을 숨긴다
+  return base;
+}
+
+// 열어 본 순간. 되돌릴 수 없으므로 이름과 값이 그 자리에서 드러난다.
+function revealGear(g) {
+  if (!g || !g.unknown) return g;
+  g.unknown = false;
+  return g;
+}
+
 // 상인의 매대. 이미 낀 것과 같은 물건이나 매대 안 중복은 팔지 않는다 —
 // "변화 없음"이라고 적힌 물건을 파는 상인은 플레이어의 시간을 뺏을 뿐이다.
 function rollShopStock(depth, player, count) {
@@ -113,6 +154,8 @@ function rollShopStock(depth, player, count) {
 }
 
 function gearFullName(g) {
+  // 열기 전에는 무엇인지도 말해주지 않는다. 자리만 알려준다.
+  if (g.unknown) return '정체불명의 ' + SLOT_NAME[g.slot];
   const r = RARITY[g.rarity];
   return r.name ? r.name + ' ' + g.name : g.name;
 }
@@ -146,6 +189,9 @@ function recalcStats(player) {
   for (const [k, n] of Object.entries(MEM.mod())) s[k] = (s[k] || 0) + n;
   // 이번 판에서 오른 레벨도
   for (const [k, n] of Object.entries(LV.mod())) s[k] = (s[k] || 0) + n;
+  /* 모닥불에서 재를 삼킨 만큼. 장비에 얹으면 그 장비를 버릴 때 같이 사라지므로
+     판 상태에 따로 들고 있다가 여기서 더한다 — 스탯을 세우는 곳은 언제나 여기 하나다. */
+  if (typeof state !== 'undefined' && state.ashHp) s.maxHp += state.ashHp;
 
   const beforeMax = player.maxHp;
   player.maxHp = Math.max(1, s.maxHp);

@@ -129,6 +129,32 @@ const UI = {
       clamp(b.hp / b.maxHp, 0, 1) * 100 + '%';
   },
 
+  /* ---------- 모닥불 선택 ----------
+     안식처가 회복소이기만 하면 밟는 것 말고 할 일이 없다.
+     같은 자리에서 무엇을 얻을지 고르게 하면 판마다 다른 길이 난다. */
+  showCamp(options, onPick) {
+    const box = document.getElementById('camp-choices');
+    box.innerHTML = '';
+    options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'ending-pick' + (o.disabled ? ' locked' : '');
+      b.innerHTML = `<b>${o.name} <span class="k">${i + 1}</span></b><span>${o.desc}</span>`;
+      if (o.disabled) b.disabled = true;
+      else b.addEventListener('click', () => onPick(o.id));
+      box.appendChild(b);
+    });
+    this._campPick = onPick;
+    this._campOptions = options;
+    document.getElementById('camp-modal').classList.remove('hidden');
+  },
+  hideCamp() { document.getElementById('camp-modal').classList.add('hidden'); },
+  campOpen() { return !document.getElementById('camp-modal').classList.contains('hidden'); },
+  // 숫자키로도 고를 수 있게 — 상점과 같은 조작이다
+  campPickIndex(i) {
+    const o = this._campOptions && this._campOptions[i];
+    if (o && !o.disabled && this._campPick) this._campPick(o.id);
+  },
+
   /* ---------- 결말 ---------- */
   showEnding() { document.getElementById('ending-screen').classList.remove('hidden'); },
   hideEnding() { document.getElementById('ending-screen').classList.add('hidden'); },
@@ -162,6 +188,20 @@ const UI = {
     this.el.gearName.className = 'gear-name r-' + gear.rarity;
 
     this.el.gearRows.innerHTML = '';
+    if (gear.unknown) {
+      /* 값을 보여주면 도박이 아니다. 지금 낀 것만 보이고 새것 쪽은 물음표다 —
+         버릴 것이 무엇인지는 알면서 얻을 것은 모르는 상태가 이 물건의 전부다. */
+      for (const k of STAT_ORDER) {
+        const b = current ? (current.mod[k] || 0) : 0;
+        if (!b) continue;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${STAT_LABEL[k]}</td><td>${b}</td><td>?</td><td class="same">?</td>`;
+        this.el.gearRows.appendChild(tr);
+      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="cx-mod">열어 보기 전에는 알 수 없습니다. 좋은 것일 수도, 저주일 수도.</td>`;
+      this.el.gearRows.appendChild(tr);
+    } else {
     for (const r of compareRows(gear, current)) {
       const tr = document.createElement('tr');
       const cls = r.diff > 0 ? 'up' : (r.diff < 0 ? 'down' : 'same');
@@ -172,6 +212,7 @@ const UI = {
         `<td>${r.next || '—'}</td>` +
         `<td class="${cls}">${r.diff === 0 ? '' : sign + r.diff}</td>`;
       this.el.gearRows.appendChild(tr);
+    }
     }
 
     // 활을 버리면 원거리가 같이 사라진다 — 스탯 표에는 안 보이는 값이라 말로 적어 준다
@@ -401,6 +442,7 @@ const UI = {
 
   // 장비 그림. 무기는 팩에서, 갑옷·장신구는 tools/make-icons.js 가 그린 것에서 온다.
   gearIcon(gear) {
+    if (gear.unknown) return null;      // 그림도 정체를 흘리면 안 된다
     const s = typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
     return s ? s.f[0] : null;
   },
@@ -433,6 +475,11 @@ const UI = {
         `<td>${m.def}</td><td>${m.md}</td><td>${m.spd}</td></tr>`);
     }
     rows.push('</tbody>');
+    // 엘리트는 몬스터가 아니라 몬스터에 붙는 것이므로 표 아래에 따로 적는다
+    rows.push('<tbody><tr class="cx-note"><td colspan="9" class="cx-mod" style="padding-top:14px">' +
+      '<b>이름 앞에 붙는 것</b> — 3층부터, 위로 갈수록 자주 붙습니다. 발밑이 빛납니다.<br>' +
+      ELITES.map(e => `「${e.name}」 ${e.note}`).join(' · ') +
+      '</td></tr></tbody>');
     document.getElementById('codex-monsters').innerHTML = rows.join('');
   },
 

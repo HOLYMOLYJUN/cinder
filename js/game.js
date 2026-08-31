@@ -39,6 +39,8 @@ const state = {
   chill: 0,               // 몸이 굳은 턴 수
   burn: 0,                // 불이 붙은 턴 수
   rangedCd: 0,            // 던진 손이 돌아오기까지 남은 턴
+  ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
+  campSpot: null,         // 지금 고르고 있는 모닥불 자리
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -80,6 +82,8 @@ function startRun() {
   state.chill = 0;
   state.burn = 0;
   state.rangedCd = 0;
+  state.ashHp = 0;
+  state.campSpot = null;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -167,10 +171,13 @@ function enterFloor(depth) {
     if (bossDef) base = Math.round(base * 0.45);        // 보스층은 잡몹을 줄인다
     if (isRoof)  base = Math.round(base * 0.28);        // 옥상은 주인과의 자리다
     const count = Math.max(2, Math.round(base * (tag.monsterMul || 1)));
+    const ec = eliteChance(depth);
     for (let i = 0; i < count; i++) {
       const spot = findSpawnSpot(map, p);
       if (!spot) break;
-      state.monsters.push(makeMonster(choice(table), spot.x, spot.y));
+      // 익숙한 몬스터를 다시 낯설게 만드는 자리 — 층이 오를수록 자주 붙는다
+      const elite = chance(ec) ? choice(ELITES).id : null;
+      state.monsters.push(makeMonster(choice(table), spot.x, spot.y, elite));
     }
   }
 
@@ -216,7 +223,11 @@ function enterFloor(depth) {
     const gearCount = randInt(1, 2) + (tag.id === 'treasure' ? 2 : 0);
     for (let i = 0; i < gearCount; i++) {
       const s = findSpawnSpot(map, p);
-      const g = rollGear(depth, ancientLuck());
+      // 3층부터 다섯에 하나쯤은 무엇인지 모르는 채로 놓인다.
+      // 앞선 두 층은 아직 장비가 무엇인지도 익히는 중이라 섞지 않는다.
+      const g = (depth >= 3 && chance(0.22))
+        ? rollUnknown(depth, ancientLuck())
+        : rollGear(depth, ancientLuck());
       if (s && g) map.items.push({ x: s.x, y: s.y, type: 'gear', gear: g });
     }
   }
@@ -319,7 +330,7 @@ function toggleEmber() {
 // 그 뒤 처리 로직은 의도에 따라 갈리기만 하고 나머지는 공유된다.
 function playerAction(dir, intent) {
   if (!state.running || !state.awaitingInput || !state.player.alive) return;
-  if (UI.gearOpen() || UI.shopOpen()) return;      // 창이 떠 있는 동안은 움직이지 않는다
+  if (UI.gearOpen() || UI.shopOpen() || UI.campOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
 
   const p = state.player;
 
@@ -419,22 +430,7 @@ function onPlayerEnter(x, y) {
 
   if (t === T.SHOP) openShop();
 
-  if (t === T.CAMP) {
-    const p = state.player;
-    const healed = p.maxHp - p.hp;
-    p.hp = p.maxHp;
-    state.campUses++;
-
-    // 「돌아선 밤」을 되찾았으면 모닥불이 한 번 더 탄다
-    const maxUses = MEM.has('night') ? 2 : 1;
-    if (state.campUses >= maxUses) map.tiles[y][x] = T.FLOOR;
-
-    Sound.play('camp');
-    Render.addFloater(x, y, healed > 0 ? '+' + healed : '온기', COLORS.heal);
-    UI.log(healed > 0 ? '모닥불에서 몸을 녹였습니다. 체력을 모두 회복했습니다.'
-                      : '모닥불에서 몸을 녹였습니다.', 'good');
-    if (state.campUses < maxUses) UI.log('불이 아직 남아 있습니다.', 'sys');
-  }
+  if (t === T.CAMP) openCamp(x, y);
 
   if (t === T.STAIRS) {
     Sound.play('stairs');
@@ -708,10 +704,23 @@ function resolveGear(take) {
     return;
   }
   const old = p.gear[g.slot];
+
+  /* 정체불명은 손에 쥔 순간 드러난다. 열고 나서 무를 수 없다는 것이
+     이 물건의 값어치이자 값이다 — 여기서 되돌릴 수 있게 하면 도박이 아니라 감정이 된다. */
+  const wasUnknown = !!g.unknown;
+  if (wasUnknown) {
+    revealGear(g);
+    rememberGear(g);
+    const cursed = g.rarity === 'cursed';
+    Sound.play(cursed ? 'gearCursed' : 'gearAncient');
+    UI.log(cursed
+      ? josa(gearFullName(g), '이', '가') + ' 드러납니다. 손이 시립니다.'
+      : josa(gearFullName(g), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
+  }
+
   p.gear[g.slot] = g;
   recalcStats(p);
 
-  const wasMagic = old ? null : null;
   UI.log(josa(gearFullName(g), '을', '를') + ' 착용했습니다' +
          (old ? ' (' + gearFullName(old) + ' 버림).' : '.'), 'good');
 
@@ -720,6 +729,84 @@ function resolveGear(take) {
     UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
   }
   UI.updateHud(state);
+}
+
+/* =========================================================
+   모닥불 — 같은 불을 무엇에 쓸 것인가
+
+   회복만 하던 자리였다. 그러면 밟는 것 말고 할 일이 없어서,
+   안식처가 "쉬어 가는 층"이 아니라 "지나가는 층"이 된다.
+   같은 불에서 셋 중 하나를 고르게 하면 판마다 다른 길이 난다 —
+   체력이 넉넉한 판에는 불에 무기를 담그고, 몰린 판에는 그냥 녹인다.
+   ========================================================= */
+
+function campOptions() {
+  const p = state.player;
+  const w = p.gear.weapon;
+  const hurt = p.maxHp - p.hp;
+  return [
+    { id: 'warm', name: '몸을 녹인다',
+      desc: hurt > 0 ? `체력을 모두 회복한다 (+${hurt})` : '이미 성한 몸이다' },
+    { id: 'temper', name: '무기를 불에 담근다',
+      // 무기가 없으면 담글 것도 없다. 잠긴 채로 보여야 "다음엔 들고 오자"가 된다.
+      disabled: !w,
+      desc: w ? josa(gearFullName(w), '을', '를') + ' 벼린다 — 이 판 내내 남는다'
+              : '담글 무기가 없다' },
+    { id: 'ash', name: '재를 삼킨다',
+      desc: '최대 체력 +6 — 이 판 내내 남는다' },
+  ];
+}
+
+function openCamp(x, y) {
+  state.campSpot = { x, y };
+  UI.showCamp(campOptions(), pickCamp);
+}
+
+function pickCamp(id) {
+  UI.hideCamp();
+  const p = state.player;
+  const spot = state.campSpot;
+  if (!spot) return;
+  state.campSpot = null;
+
+  if (id === 'warm') {
+    const healed = p.maxHp - p.hp;
+    p.hp = p.maxHp;
+    Render.addFloater(spot.x, spot.y, healed > 0 ? '+' + healed : '온기', COLORS.heal);
+    UI.log(healed > 0 ? '모닥불에서 몸을 녹였습니다. 체력을 모두 회복했습니다.'
+                      : '모닥불에서 몸을 녹였습니다.', 'good');
+  } else if (id === 'temper') {
+    const w = p.gear.weapon;
+    if (!w) return;
+    /* 벼린 것은 장비에 직접 얹는다. 그래야 재계산(recalcStats)이 자동으로 따라오고,
+       이어하기·관전 블롭에도 장비째로 실려 간다 — 따로 저장할 것이 없다. */
+    const magic = (w.mod.sp || 0) > (w.mod.atk || 0);
+    const key = magic ? 'sp' : 'atk';
+    const amount = magic ? 4 : 3;
+    w.mod[key] = (w.mod[key] || 0) + amount;
+    w.tempered = (w.tempered || 0) + 1;
+    recalcStats(p);
+    Sound.play('gearAncient');
+    Render.addFloater(spot.x, spot.y, '+' + amount, COLORS.ember);
+    UI.log(josa(gearFullName(w), '을', '를') + ' 불에 담갔습니다. ' +
+           (magic ? '주문' : '공격') + ' +' + amount + '.', 'good');
+  } else if (id === 'ash') {
+    state.ashHp = (state.ashHp || 0) + 6;
+    recalcStats(p);
+    Render.addFloater(spot.x, spot.y, '최대 +6', COLORS.ember);
+    UI.log('재를 삼켰습니다. 목이 타지만, 몸이 조금 더 버팁니다. 최대 체력 +6.', 'good');
+  }
+
+  state.campUses++;
+  // 「돌아선 밤」을 되찾았으면 모닥불이 한 번 더 탄다 — 두 가지를 고를 수 있다
+  const maxUses = MEM.has('night') ? 2 : 1;
+  if (state.campUses >= maxUses) state.map.tiles[spot.y][spot.x] = T.FLOOR;
+  else UI.log('불이 아직 남아 있습니다.', 'sys');
+
+  Sound.play('camp');
+  UI.updateHud(state);
+  UI.updateGearStrip(p);
+  persist();
 }
 
 /* =========================================================
@@ -902,6 +989,52 @@ function kill(entity) {
     const s = state.map.stairs;
     state.map.tiles[s.y][s.x] = T.STAIRS;
     UI.log('막혀 있던 계단이 드러납니다.', 'good');
+  }
+
+  /* 「재를 뒤집어쓴」 — 쓰러지는 순간 터진다.
+     붙어서 마지막 일격을 넣은 사람이 정확히 맞는 자리라, 잡고 나서도 한 걸음 물러설
+     이유가 생긴다. 옆에 있던 다른 몬스터도 같이 맞는다. */
+  if (entity.burst) {
+    Render.addBlast(entity.x, entity.y);
+    Render.addShake(10);
+    Sound.play('blast');
+    const dmg = 4 + Math.round(state.depth * 0.8);
+    const p = state.player;
+    if (p.alive && chebyshev(p.x, p.y, entity.x, entity.y) <= 1) {
+      p.hp -= dmg;
+      p.flash = CFG.FLASH_TIME;
+      Render.addFloater(p.x, p.y, String(dmg), COLORS.ember);
+      UI.log(josa(entity.name, '이', '가') + ' 터집니다. ' + dmg + '의 피해.', 'hurt');
+      if (p.hp <= 0) { kill(p); return; }
+    } else {
+      UI.log(josa(entity.name, '이', '가') + ' 재를 흩뿌리며 터집니다.', 'hurt');
+    }
+    for (const m of state.monsters) {
+      if (!m.alive || m === entity) continue;
+      if (chebyshev(m.x, m.y, entity.x, entity.y) > 1) continue;
+      hurtMonster(m, dmg, COLORS.ember);
+    }
+    UI.updateHud(state);
+  }
+
+  /* 「메아리치는」 — 쓰러지면 자기 자신 둘로 갈라진다.
+     갈라진 것에는 접두사를 넘기지 않는다. 안 그러면 끝없이 메아리친다. */
+  if (entity.echo) {
+    const def = MONSTERS.find(m => m.id === entity.defId);
+    let born = 0;
+    if (def) {
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        if (born >= 2) break;
+        const x = entity.x + dx, y = entity.y + dy;
+        if (!isWalkable(state.map, x, y) || monsterAt(x, y)) continue;
+        if (x === state.player.x && y === state.player.y) continue;
+        const m = makeMonster(def, x, y);
+        m.hp = m.maxHp = Math.max(1, Math.round(m.maxHp * 0.5));
+        state.monsters.push(m);
+        born++;
+      }
+    }
+    if (born) UI.log(josa(entity.name, '이', '가') + ' 메아리처럼 ' + born + '으로 되돌아옵니다.', 'hurt');
   }
 
   // 갈라지는 것. 잡았다고 끝이 아니다.
@@ -1295,6 +1428,16 @@ function onKeyDown(e) {
     return;
   }
 
+  /* 모닥불은 숫자키로 고른다 — 상점과 같은 조작.
+     닫는 키는 없다. 불 앞에서 아무것도 안 하고 지나갈 수는 없어야
+     이게 선택이 되지, 무시해도 되는 창이 되지 않는다. */
+  if (UI.campOpen()) {
+    const n = code.match(/^Digit([1-3])$/) || code.match(/^Numpad([1-3])$/);
+    if (n) UI.campPickIndex(Number(n[1]) - 1);
+    e.preventDefault();
+    return;
+  }
+
   // 개발용. 결말 연출을 보려고 열네 층을 다시 오를 수는 없다.
   // 한 번 누를 때마다 한 단씩 — 옥상 → 주인이 쓰러짐 → 결말 선택.
   if (code === 'BracketRight') { jumpToEnding(); e.preventDefault(); return; }
@@ -1332,7 +1475,7 @@ function onKeyUp(e) {
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
   if (KEY_MOD[e.code] === 'ranged' && !modUsed.has(e.code) &&
-      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen()) {
+      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen() && !UI.campOpen()) {
     playerAction(null, 'ranged');
   }
   modUsed.delete(e.code);

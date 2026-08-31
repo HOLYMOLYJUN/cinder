@@ -31,7 +31,8 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(await page.isVisible('#codex-screen'), '도감이 열림');
 
   const locked = await page.evaluate(() => {
-    const rows = [...document.querySelectorAll('#codex-monsters tr')];
+    // cx-note 는 몬스터가 아니라 표 아래에 붙는 설명(엘리트 접두사)이므로 센 것에서 뺀다
+    const rows = [...document.querySelectorAll('#codex-monsters tr:not(.cx-note)')];
     return {
       total: rows.length - 1,
       lockedCount: rows.filter(r => r.classList.contains('locked')).length,
@@ -69,7 +70,8 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     rememberMonster('orc');
     rememberGear(GEAR.find(g => g.name === '짧은 검'));
     UI.showCodex('monsters');
-    const rows = [...document.querySelectorAll('#codex-monsters tr')];
+    // cx-note 는 몬스터가 아니라 표 아래에 붙는 설명(엘리트 접두사)이므로 센 것에서 뺀다
+    const rows = [...document.querySelectorAll('#codex-monsters tr:not(.cx-note)')];
     return {
       open: rows.filter(r => !r.classList.contains('locked')).length - 1,
       hasGoblin: /고블린/.test(document.getElementById('codex-monsters').textContent),

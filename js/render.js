@@ -507,6 +507,23 @@ const Render = {
       }
       py += Math.sin(performance.now() / 420 + e.x * 1.7) * 0.7;
 
+      /* 엘리트는 발밑 빛으로 알린다. 같은 그림에 접두사만 붙은 것이라
+         표시가 없으면 "왜 안 죽지"가 되지 "저건 다른 놈이다"가 되지 않는다.
+         숨을 쉬듯 밝기가 오르내려서 배경의 횃불빛과 구별된다. */
+      if (e.eliteTint) {
+        const cx = px + TS / 2, cy = py + TS * 0.80;
+        const pulse = 0.5 + Math.sin(performance.now() / 320 + e.x) * 0.16;
+        const [r, gg, bb] = hexRgb(e.eliteTint);
+        /* 같은 색의 투명으로 끝내야 한다. 검은 투명으로 끝내면
+           가운데가 색이 아니라 그을음으로 번져서 발밑이 더러워 보인다. */
+        const grd = ctx.createRadialGradient(cx, cy, 1, cx, cy, TS * 0.66);
+        grd.addColorStop(0,   `rgba(${r},${gg},${bb},${pulse})`);
+        grd.addColorStop(0.6, `rgba(${r},${gg},${bb},${pulse * 0.34})`);
+        grd.addColorStop(1,   `rgba(${r},${gg},${bb},0)`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(cx - TS, cy - TS, TS * 2, TS * 2);
+      }
+
       // 불씨를 든 사람 발밑에는 빛이 고인다 — 어디에 있는지 한눈에 보이게
       if (e.kind === 'player') {
         const cx = px + TS / 2, cy = py + TS * 0.72;
@@ -519,8 +536,11 @@ const Render = {
 
       const f = Math.floor(performance.now() / (moving ? 90 : 160)) % set.f.length;
       // 「등불지기」는 당신의 얼굴을 하고 있다 — 같은 그림에 불빛만 입힌다
+      /* 엘리트는 그림에도 색이 든다. 발밑 빛만으로는 밝은 방에서 묻히는데,
+         이건 "왜 안 죽지"를 늦게 깨닫는 종류의 실수라 확실히 달라 보여야 한다. */
       const tint = e.flash > 0 ? ['#FFFFFF', 0.85]
-                 : (e.defId === 'keeper' ? [COLORS.ember, 0.5] : null);
+                 : (e.defId === 'keeper' ? [COLORS.ember, 0.5]
+                 : (e.eliteTint ? [e.eliteTint, 0.36] : null));
       this.sprite(ctx, key + (moving ? '.run' : '.idle'), px, py,
                   e.boss ? 1.25 : 1, 1, tint, e.face, f);
 

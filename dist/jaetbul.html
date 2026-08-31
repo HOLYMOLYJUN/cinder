@@ -267,6 +267,9 @@ html, body {
 .g-ico { width: 16px; height: 16px; margin-right: 3px; }
 .shop-ico { width: 26px; height: 26px; flex: none; }
 .gear-icon { width: 40px; height: 40px; display: block; margin: 0 auto 4px; }
+/* display:block 이 hidden 속성을 덮어써서, 그림이 없을 때 깨진 이미지가 떴다.
+   (그림이 없는 장비, 그리고 정체불명처럼 일부러 안 보여주는 것) */
+.gear-icon[hidden] { display: none; }
 
 /* 레벨 — 체력 옆에 둔다. 레벨이 곧 체력이 늘어나는 일이므로 같이 읽힌다. */
 .lv { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -614,6 +617,21 @@ canvas#view {
   font-size: 17px; color: var(--ink); margin-bottom: 7px;
 }
 .ending-pick span { font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+.ending-pick .k {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px;
+  color: var(--muted); border: 1px solid var(--line); padding: 1px 6px; margin-left: 6px;
+}
+/* 고를 수 없는 것 — 숨기지 않는다. 다음 판에 무기를 들고 오면 열린다는 걸 알려야 한다 */
+.ending-pick.locked { opacity: .42; cursor: default; }
+.ending-pick.locked:hover { border-color: var(--line); background: var(--panel); }
+
+/* 모닥불 — 결말과 같은 틀을 쓰되 불빛이 더 가깝다 */
+#camp-modal {
+  background: radial-gradient(ellipse at 50% 55%, rgba(48,28,12,.86) 0%, rgba(6,5,4,.94) 70%);
+  z-index: 54;
+}
+.camp-inner .ending-title { margin-bottom: 14px; }
+.camp-inner .ending-body { margin-bottom: 22px; }
 
 /* ---------- 결과 ---------- */
 
@@ -1104,6 +1122,15 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
     </div>
   </div>
 
+  <!-- ===== 모닥불 앞 선택 ===== -->
+  <div id="camp-modal" class="overlay hidden">
+    <div class="ending-inner camp-inner">
+      <div class="ending-title">모닥불</div>
+      <p class="ending-body" id="camp-say">불이 아직 살아 있습니다. 무엇에 쓰겠습니까.</p>
+      <div class="ending-choices" id="camp-choices"></div>
+    </div>
+  </div>
+
   <!-- ===== 결말 선택 ===== -->
   <div id="ending-screen" class="overlay hidden">
     <div class="ending-inner">
@@ -1450,6 +1477,15 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
+/* '#RRGGBB' → [r, g, b].
+   그라데이션을 같은 색의 투명으로 끝내려고 쓴다 — 검은 투명으로 끝내면
+   가운데가 색이 아니라 그을음으로 번진다. */
+function hexRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16),
+          parseInt(hex.slice(3, 5), 16),
+          parseInt(hex.slice(5, 7), 16)];
+}
+
 // 격자 거리(대각선 포함) — 시야·추격 판정에 쓴다
 function chebyshev(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
@@ -1736,6 +1772,12 @@ const Sound = {
       case 'gearAncient':                          // 고대의 — 확실히 다르게 들려야 한다
         this.chord([330, 494, 659, 988], { dur: 0.5, vol: 0.12, spread: 70, release: 0.6 });
         break;
+      /* 저주가 드러나는 순간. 장비 소리는 전부 위로 열리는 화음이라
+         이것만 반대로 — 아래로 내려앉는 단2도. 보스 예고음과 같은 수법이다. */
+      case 'gearCursed':
+        this.chord([247, 233], { dur: 0.55, vol: 0.13, spread: 90, release: 0.7, type: 'triangle' });
+        this.tone({ from: 120, to: 62, dur: 0.5, vol: 0.11, type: 'sawtooth', release: 0.5 });
+        break;
 
       case 'stairs':
         this.tone({ from: 160, to: 70, dur: 0.3, vol: 0.16, type: 'sawtooth', release: 0.3 });
@@ -1921,6 +1963,7 @@ const GAP = {
   step: 0.05, hit: 0.04, hurt: 0.05, magic: 0.05, gold: 0.06,
   kill: 0.06, bossWarn: 0.4, bossHit: 0.3, memory: 1, death: 1,
   cast: 0.12, spell: 0.1, miss: 0.15, fireball: 0.1, blast: 0.12, key: 0.2, unlock: 0.3,
+  gearCursed: 0.5,
 };
 
 
@@ -2301,18 +2344,66 @@ function makePlayer() {
    못 알아보면 매 턴 새로 태어나므로 순간이동하는 것처럼 보인다. */
 let monsterUid = 0;
 
-function makeMonster(def, x, y) {
+/* ---------- 엘리트 ----------
+
+   몬스터를 새로 그리는 것보다 있는 것에 접두사를 붙이는 편이 훨씬 싸다.
+   같은 고블린이라도 「굶주린」이 붙으면 다른 몬스터처럼 싸워야 한다 —
+   표는 그대로 두고 배율 몇 개만 얹는데 체감은 종류가 늘어난 것과 같다.
+
+   그리고 이건 "위층에 가도 같은 것이 나온다"를 직접 푼다.
+   층이 오를수록 자주 붙으므로, 익숙한 몬스터가 다시 낯설어진다.
+
+   tint 는 발밑 빛 색이다. 붙었다는 것이 한눈에 보여야
+   "왜 갑자기 안 죽지"가 아니라 "저건 다른 놈이다"가 된다. */
+const ELITES = [
+  { id: 'starved', name: '굶주린', tint: '#C9D66B',
+    mul: { spd: 1.7, hp: 0.75 },
+    note: '빠르다' },
+  { id: 'raging',  name: '성난',   tint: '#E05A3A',
+    mul: { atk: 1.5, sp: 1.5, hp: 1.2 },
+    note: '세게 때린다' },
+  { id: 'hardened',name: '굳은',   tint: '#7FA8C4',
+    mul: { hp: 1.5, spd: 0.8 }, add: { def: 4, md: 4 },
+    note: '단단하다' },
+  // 죽고 나서 한 번 더 일이 벌어지는 둘. 잡았다고 물러서면 안 된다.
+  { id: 'ashen',   name: '재를 뒤집어쓴', tint: '#E9954A',
+    mul: { hp: 1.1 }, burst: true,
+    note: '쓰러지면 터진다' },
+  { id: 'echoing', name: '메아리치는',   tint: '#B08BD6',
+    mul: { hp: 1.3 }, echo: true,
+    note: '쓰러지면 둘로 갈라진다' },
+];
+
+// 층이 오를수록 자주 붙는다. 1~2층에는 안 붙는다 — 아직 기본형도 다 못 봤다.
+function eliteChance(depth) {
+  if (depth < 3) return 0;
+  return clamp(0.05 + (depth - 3) * 0.022, 0, 0.30);
+}
+
+function makeMonster(def, x, y, eliteId) {
+  const e = eliteId ? ELITES.find(v => v.id === eliteId) : null;
+  const mul = (e && e.mul) || {};
+  const add = (e && e.add) || {};
+  const sc = (v, k) => Math.max(1, Math.round(v * (mul[k] || 1) + (add[k] || 0)));
+
+  const hp = sc(def.hp, 'hp');
   return {
     kind: 'monster',
     uid: ++monsterUid,
     defId: def.id,
-    name: def.name,
+    name: e ? e.name + ' ' + def.name : def.name,
     glyph: def.g,
     color: def.c,
     x, y, rx: x, ry: y,
-    maxHp: def.hp, hp: def.hp,
-    stats: { atk: def.atk, sp: def.sp, def: def.def, md: def.md, spd: def.spd },
-    gold: def.gold,
+    maxHp: hp, hp,
+    stats: { atk: sc(def.atk, 'atk'), sp: sc(def.sp, 'sp'),
+             def: sc(def.def, 'def'), md: sc(def.md, 'md'), spd: sc(def.spd, 'spd') },
+    // 더 오래 버티고 더 아프게 때리므로 값어치도 그만큼 쳐준다
+    gold: e ? Math.round(def.gold * 1.8) : def.gold,
+    elite: e ? e.id : null,
+    eliteTint: e ? e.tint : null,
+    burst: !!(e && e.burst),
+    echo: !!(e && e.echo),
     energy: randInt(0, CFG.ENERGY_COST - 1),   // 등장 타이밍을 흩뜨린다
     alive: true,
     // 주문이 공격보다 높으면 원거리형이다 — 판정 규칙과 같은 기준을 쓴다
@@ -2551,6 +2642,8 @@ const RARITY = {
   common:  { name: '',      color: '#9A8B7A', mul: 1.0 },
   fine:    { name: '좋은',  color: '#7FA8C4', mul: 1.9 },
   ancient: { name: '고대의', color: '#E9954A', mul: 4.2 },
+  // 정체불명을 열었을 때 나올 수 있는 쪽. 상점에는 안 나오고 바닥에서만 나온다.
+  cursed:  { name: '저주받은', color: '#8E6BB0', mul: 0.5 },
 };
 
 /* min: 이 층부터 나온다 */
@@ -2624,6 +2717,45 @@ function makeGear(def) {
   return { ...def, mod: { ...def.mod } };
 }
 
+/* ---------- 정체불명 ----------
+
+   비교창이 "숫자가 크면 먹는다"로만 끝나면 그건 판단이 아니라 산수다.
+   무엇인지 모르는 물건을 하나 섞으면, 지금 낀 것을 버릴 값어치가 있는가를
+   숫자 없이 정해야 한다 — 이 게임에서 장비를 바꾸는 것은 되돌릴 수 없으므로
+   그 자체로 충분히 무거운 도박이다.
+
+   좋은 쪽은 확실히 좋아야 한다. 열어 봐야 평범한 것이면 두 번째부터는 아무도 안 연다.
+   그래서 좋은 쪽은 고대의 가중치를 크게 얹어 뽑고, 나쁜 쪽은 저주로 뒤집는다. */
+function rollUnknown(depth, luck) {
+  const cursed = chance(0.34);
+  // 나쁜 쪽은 층수만 보고, 좋은 쪽은 운을 크게 얹어 뽑는다
+  const base = rollGear(depth, cursed ? 0 : (luck || 0) + 4);
+  if (!base) return null;
+
+  if (cursed) {
+    base.rarity = 'cursed';
+    /* 값을 뒤집되 전부 뒤집지는 않는다. 하나쯤은 남아 있어야
+       "쓸 수는 있는데 손해"가 되고, 그게 통째로 꽝인 것보다 낫다. */
+    const keys = Object.keys(base.mod);
+    for (const k of keys) {
+      base.mod[k] = -Math.max(1, Math.round(Math.abs(base.mod[k]) * 0.5));
+    }
+    if (keys.length > 1) {                       // 하나는 되살린다
+      const keep = choice(keys);
+      base.mod[keep] = Math.max(1, Math.abs(base.mod[keep]));
+    }
+  }
+  base.unknown = true;                            // 열기 전에는 값을 숨긴다
+  return base;
+}
+
+// 열어 본 순간. 되돌릴 수 없으므로 이름과 값이 그 자리에서 드러난다.
+function revealGear(g) {
+  if (!g || !g.unknown) return g;
+  g.unknown = false;
+  return g;
+}
+
 // 상인의 매대. 이미 낀 것과 같은 물건이나 매대 안 중복은 팔지 않는다 —
 // "변화 없음"이라고 적힌 물건을 파는 상인은 플레이어의 시간을 뺏을 뿐이다.
 function rollShopStock(depth, player, count) {
@@ -2645,6 +2777,8 @@ function rollShopStock(depth, player, count) {
 }
 
 function gearFullName(g) {
+  // 열기 전에는 무엇인지도 말해주지 않는다. 자리만 알려준다.
+  if (g.unknown) return '정체불명의 ' + SLOT_NAME[g.slot];
   const r = RARITY[g.rarity];
   return r.name ? r.name + ' ' + g.name : g.name;
 }
@@ -2678,6 +2812,9 @@ function recalcStats(player) {
   for (const [k, n] of Object.entries(MEM.mod())) s[k] = (s[k] || 0) + n;
   // 이번 판에서 오른 레벨도
   for (const [k, n] of Object.entries(LV.mod())) s[k] = (s[k] || 0) + n;
+  /* 모닥불에서 재를 삼킨 만큼. 장비에 얹으면 그 장비를 버릴 때 같이 사라지므로
+     판 상태에 따로 들고 있다가 여기서 더한다 — 스탯을 세우는 곳은 언제나 여기 하나다. */
+  if (typeof state !== 'undefined' && state.ashHp) s.maxHp += state.ashHp;
 
   const beforeMax = player.maxHp;
   player.maxHp = Math.max(1, s.maxHp);
@@ -3539,6 +3676,23 @@ const Render = {
       }
       py += Math.sin(performance.now() / 420 + e.x * 1.7) * 0.7;
 
+      /* 엘리트는 발밑 빛으로 알린다. 같은 그림에 접두사만 붙은 것이라
+         표시가 없으면 "왜 안 죽지"가 되지 "저건 다른 놈이다"가 되지 않는다.
+         숨을 쉬듯 밝기가 오르내려서 배경의 횃불빛과 구별된다. */
+      if (e.eliteTint) {
+        const cx = px + TS / 2, cy = py + TS * 0.80;
+        const pulse = 0.5 + Math.sin(performance.now() / 320 + e.x) * 0.16;
+        const [r, gg, bb] = hexRgb(e.eliteTint);
+        /* 같은 색의 투명으로 끝내야 한다. 검은 투명으로 끝내면
+           가운데가 색이 아니라 그을음으로 번져서 발밑이 더러워 보인다. */
+        const grd = ctx.createRadialGradient(cx, cy, 1, cx, cy, TS * 0.66);
+        grd.addColorStop(0,   `rgba(${r},${gg},${bb},${pulse})`);
+        grd.addColorStop(0.6, `rgba(${r},${gg},${bb},${pulse * 0.34})`);
+        grd.addColorStop(1,   `rgba(${r},${gg},${bb},0)`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(cx - TS, cy - TS, TS * 2, TS * 2);
+      }
+
       // 불씨를 든 사람 발밑에는 빛이 고인다 — 어디에 있는지 한눈에 보이게
       if (e.kind === 'player') {
         const cx = px + TS / 2, cy = py + TS * 0.72;
@@ -3551,8 +3705,11 @@ const Render = {
 
       const f = Math.floor(performance.now() / (moving ? 90 : 160)) % set.f.length;
       // 「등불지기」는 당신의 얼굴을 하고 있다 — 같은 그림에 불빛만 입힌다
+      /* 엘리트는 그림에도 색이 든다. 발밑 빛만으로는 밝은 방에서 묻히는데,
+         이건 "왜 안 죽지"를 늦게 깨닫는 종류의 실수라 확실히 달라 보여야 한다. */
       const tint = e.flash > 0 ? ['#FFFFFF', 0.85]
-                 : (e.defId === 'keeper' ? [COLORS.ember, 0.5] : null);
+                 : (e.defId === 'keeper' ? [COLORS.ember, 0.5]
+                 : (e.eliteTint ? [e.eliteTint, 0.36] : null));
       this.sprite(ctx, key + (moving ? '.run' : '.idle'), px, py,
                   e.boss ? 1.25 : 1, 1, tint, e.face, f);
 
@@ -4083,6 +4240,32 @@ const UI = {
       clamp(b.hp / b.maxHp, 0, 1) * 100 + '%';
   },
 
+  /* ---------- 모닥불 선택 ----------
+     안식처가 회복소이기만 하면 밟는 것 말고 할 일이 없다.
+     같은 자리에서 무엇을 얻을지 고르게 하면 판마다 다른 길이 난다. */
+  showCamp(options, onPick) {
+    const box = document.getElementById('camp-choices');
+    box.innerHTML = '';
+    options.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'ending-pick' + (o.disabled ? ' locked' : '');
+      b.innerHTML = `<b>${o.name} <span class="k">${i + 1}</span></b><span>${o.desc}</span>`;
+      if (o.disabled) b.disabled = true;
+      else b.addEventListener('click', () => onPick(o.id));
+      box.appendChild(b);
+    });
+    this._campPick = onPick;
+    this._campOptions = options;
+    document.getElementById('camp-modal').classList.remove('hidden');
+  },
+  hideCamp() { document.getElementById('camp-modal').classList.add('hidden'); },
+  campOpen() { return !document.getElementById('camp-modal').classList.contains('hidden'); },
+  // 숫자키로도 고를 수 있게 — 상점과 같은 조작이다
+  campPickIndex(i) {
+    const o = this._campOptions && this._campOptions[i];
+    if (o && !o.disabled && this._campPick) this._campPick(o.id);
+  },
+
   /* ---------- 결말 ---------- */
   showEnding() { document.getElementById('ending-screen').classList.remove('hidden'); },
   hideEnding() { document.getElementById('ending-screen').classList.add('hidden'); },
@@ -4116,6 +4299,20 @@ const UI = {
     this.el.gearName.className = 'gear-name r-' + gear.rarity;
 
     this.el.gearRows.innerHTML = '';
+    if (gear.unknown) {
+      /* 값을 보여주면 도박이 아니다. 지금 낀 것만 보이고 새것 쪽은 물음표다 —
+         버릴 것이 무엇인지는 알면서 얻을 것은 모르는 상태가 이 물건의 전부다. */
+      for (const k of STAT_ORDER) {
+        const b = current ? (current.mod[k] || 0) : 0;
+        if (!b) continue;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${STAT_LABEL[k]}</td><td>${b}</td><td>?</td><td class="same">?</td>`;
+        this.el.gearRows.appendChild(tr);
+      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="cx-mod">열어 보기 전에는 알 수 없습니다. 좋은 것일 수도, 저주일 수도.</td>`;
+      this.el.gearRows.appendChild(tr);
+    } else {
     for (const r of compareRows(gear, current)) {
       const tr = document.createElement('tr');
       const cls = r.diff > 0 ? 'up' : (r.diff < 0 ? 'down' : 'same');
@@ -4126,6 +4323,7 @@ const UI = {
         `<td>${r.next || '—'}</td>` +
         `<td class="${cls}">${r.diff === 0 ? '' : sign + r.diff}</td>`;
       this.el.gearRows.appendChild(tr);
+    }
     }
 
     // 활을 버리면 원거리가 같이 사라진다 — 스탯 표에는 안 보이는 값이라 말로 적어 준다
@@ -4355,6 +4553,7 @@ const UI = {
 
   // 장비 그림. 무기는 팩에서, 갑옷·장신구는 tools/make-icons.js 가 그린 것에서 온다.
   gearIcon(gear) {
+    if (gear.unknown) return null;      // 그림도 정체를 흘리면 안 된다
     const s = typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
     return s ? s.f[0] : null;
   },
@@ -4387,6 +4586,11 @@ const UI = {
         `<td>${m.def}</td><td>${m.md}</td><td>${m.spd}</td></tr>`);
     }
     rows.push('</tbody>');
+    // 엘리트는 몬스터가 아니라 몬스터에 붙는 것이므로 표 아래에 따로 적는다
+    rows.push('<tbody><tr class="cx-note"><td colspan="9" class="cx-mod" style="padding-top:14px">' +
+      '<b>이름 앞에 붙는 것</b> — 3층부터, 위로 갈수록 자주 붙습니다. 발밑이 빛납니다.<br>' +
+      ELITES.map(e => `「${e.name}」 ${e.note}`).join(' · ') +
+      '</td></tr></tbody>');
     document.getElementById('codex-monsters').innerHTML = rows.join('');
   },
 
@@ -5139,6 +5343,7 @@ function packRun() {
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
       hasKey: state.hasKey, chill: state.chill, burn: state.burn,
+      ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       campUses: state.campUses, revived: state.revived,
       hurt: state.hurtThisFloor, gotMemory: state.gotMemoryThisRun,
       seen: [...state.seenMonsters],
@@ -5153,6 +5358,7 @@ function packRun() {
         casting: x.casting, hasKey: !!x.hasKey, boss: !!x.boss,
         pending: x.pending || null, marks: x.marks || null,
         seenBoss: !!x.seen,
+        elite: x.elite || null,   // 접두사를 잃으면 이어할 때 갑자기 순해진다
       })),
 
       map: {
@@ -5239,6 +5445,7 @@ function loadRun(d, opts) {
   // 사람
   const p = makePlayer();
   p.gear = d.player.gear;
+  state.ashHp = d.ashHp || 0;           // recalcStats 가 이걸 보므로 그 전에 넣는다
   recalcStats(p);                       // 장비와 기억에서 스탯을 다시 만든다
   p.x = d.player.x; p.y = d.player.y;
   p.rx = p.x; p.ry = p.y;
@@ -5273,7 +5480,7 @@ function loadRun(d, opts) {
     } else {
       const def = MONSTERS.find(x => x.id === s.id);
       if (!def) continue;
-      mon = makeMonster(def, s.x, s.y);
+      mon = makeMonster(def, s.x, s.y, s.elite || null);
     }
     mon.hp = s.hp; mon.energy = s.energy; mon.casting = s.casting;
     mon.hasKey = s.hasKey;
@@ -5291,7 +5498,7 @@ function loadRun(d, opts) {
 
   if (!opts.quiet) {
     UI.clearLog();
-    UI.hideGearCompare(); UI.hideShop(); UI.hideResult();
+    UI.hideGearCompare(); UI.hideShop(); UI.hideCamp(); UI.hideResult();
     UI.showGame();
   }
   UI.updateHud(state);
@@ -5568,6 +5775,8 @@ const state = {
   chill: 0,               // 몸이 굳은 턴 수
   burn: 0,                // 불이 붙은 턴 수
   rangedCd: 0,            // 던진 손이 돌아오기까지 남은 턴
+  ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
+  campSpot: null,         // 지금 고르고 있는 모닥불 자리
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -5609,6 +5818,8 @@ function startRun() {
   state.chill = 0;
   state.burn = 0;
   state.rangedCd = 0;
+  state.ashHp = 0;
+  state.campSpot = null;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -5696,10 +5907,13 @@ function enterFloor(depth) {
     if (bossDef) base = Math.round(base * 0.45);        // 보스층은 잡몹을 줄인다
     if (isRoof)  base = Math.round(base * 0.28);        // 옥상은 주인과의 자리다
     const count = Math.max(2, Math.round(base * (tag.monsterMul || 1)));
+    const ec = eliteChance(depth);
     for (let i = 0; i < count; i++) {
       const spot = findSpawnSpot(map, p);
       if (!spot) break;
-      state.monsters.push(makeMonster(choice(table), spot.x, spot.y));
+      // 익숙한 몬스터를 다시 낯설게 만드는 자리 — 층이 오를수록 자주 붙는다
+      const elite = chance(ec) ? choice(ELITES).id : null;
+      state.monsters.push(makeMonster(choice(table), spot.x, spot.y, elite));
     }
   }
 
@@ -5745,7 +5959,11 @@ function enterFloor(depth) {
     const gearCount = randInt(1, 2) + (tag.id === 'treasure' ? 2 : 0);
     for (let i = 0; i < gearCount; i++) {
       const s = findSpawnSpot(map, p);
-      const g = rollGear(depth, ancientLuck());
+      // 3층부터 다섯에 하나쯤은 무엇인지 모르는 채로 놓인다.
+      // 앞선 두 층은 아직 장비가 무엇인지도 익히는 중이라 섞지 않는다.
+      const g = (depth >= 3 && chance(0.22))
+        ? rollUnknown(depth, ancientLuck())
+        : rollGear(depth, ancientLuck());
       if (s && g) map.items.push({ x: s.x, y: s.y, type: 'gear', gear: g });
     }
   }
@@ -5848,7 +6066,7 @@ function toggleEmber() {
 // 그 뒤 처리 로직은 의도에 따라 갈리기만 하고 나머지는 공유된다.
 function playerAction(dir, intent) {
   if (!state.running || !state.awaitingInput || !state.player.alive) return;
-  if (UI.gearOpen() || UI.shopOpen()) return;      // 창이 떠 있는 동안은 움직이지 않는다
+  if (UI.gearOpen() || UI.shopOpen() || UI.campOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
 
   const p = state.player;
 
@@ -5948,22 +6166,7 @@ function onPlayerEnter(x, y) {
 
   if (t === T.SHOP) openShop();
 
-  if (t === T.CAMP) {
-    const p = state.player;
-    const healed = p.maxHp - p.hp;
-    p.hp = p.maxHp;
-    state.campUses++;
-
-    // 「돌아선 밤」을 되찾았으면 모닥불이 한 번 더 탄다
-    const maxUses = MEM.has('night') ? 2 : 1;
-    if (state.campUses >= maxUses) map.tiles[y][x] = T.FLOOR;
-
-    Sound.play('camp');
-    Render.addFloater(x, y, healed > 0 ? '+' + healed : '온기', COLORS.heal);
-    UI.log(healed > 0 ? '모닥불에서 몸을 녹였습니다. 체력을 모두 회복했습니다.'
-                      : '모닥불에서 몸을 녹였습니다.', 'good');
-    if (state.campUses < maxUses) UI.log('불이 아직 남아 있습니다.', 'sys');
-  }
+  if (t === T.CAMP) openCamp(x, y);
 
   if (t === T.STAIRS) {
     Sound.play('stairs');
@@ -6237,10 +6440,23 @@ function resolveGear(take) {
     return;
   }
   const old = p.gear[g.slot];
+
+  /* 정체불명은 손에 쥔 순간 드러난다. 열고 나서 무를 수 없다는 것이
+     이 물건의 값어치이자 값이다 — 여기서 되돌릴 수 있게 하면 도박이 아니라 감정이 된다. */
+  const wasUnknown = !!g.unknown;
+  if (wasUnknown) {
+    revealGear(g);
+    rememberGear(g);
+    const cursed = g.rarity === 'cursed';
+    Sound.play(cursed ? 'gearCursed' : 'gearAncient');
+    UI.log(cursed
+      ? josa(gearFullName(g), '이', '가') + ' 드러납니다. 손이 시립니다.'
+      : josa(gearFullName(g), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
+  }
+
   p.gear[g.slot] = g;
   recalcStats(p);
 
-  const wasMagic = old ? null : null;
   UI.log(josa(gearFullName(g), '을', '를') + ' 착용했습니다' +
          (old ? ' (' + gearFullName(old) + ' 버림).' : '.'), 'good');
 
@@ -6249,6 +6465,84 @@ function resolveGear(take) {
     UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
   }
   UI.updateHud(state);
+}
+
+/* =========================================================
+   모닥불 — 같은 불을 무엇에 쓸 것인가
+
+   회복만 하던 자리였다. 그러면 밟는 것 말고 할 일이 없어서,
+   안식처가 "쉬어 가는 층"이 아니라 "지나가는 층"이 된다.
+   같은 불에서 셋 중 하나를 고르게 하면 판마다 다른 길이 난다 —
+   체력이 넉넉한 판에는 불에 무기를 담그고, 몰린 판에는 그냥 녹인다.
+   ========================================================= */
+
+function campOptions() {
+  const p = state.player;
+  const w = p.gear.weapon;
+  const hurt = p.maxHp - p.hp;
+  return [
+    { id: 'warm', name: '몸을 녹인다',
+      desc: hurt > 0 ? `체력을 모두 회복한다 (+${hurt})` : '이미 성한 몸이다' },
+    { id: 'temper', name: '무기를 불에 담근다',
+      // 무기가 없으면 담글 것도 없다. 잠긴 채로 보여야 "다음엔 들고 오자"가 된다.
+      disabled: !w,
+      desc: w ? josa(gearFullName(w), '을', '를') + ' 벼린다 — 이 판 내내 남는다'
+              : '담글 무기가 없다' },
+    { id: 'ash', name: '재를 삼킨다',
+      desc: '최대 체력 +6 — 이 판 내내 남는다' },
+  ];
+}
+
+function openCamp(x, y) {
+  state.campSpot = { x, y };
+  UI.showCamp(campOptions(), pickCamp);
+}
+
+function pickCamp(id) {
+  UI.hideCamp();
+  const p = state.player;
+  const spot = state.campSpot;
+  if (!spot) return;
+  state.campSpot = null;
+
+  if (id === 'warm') {
+    const healed = p.maxHp - p.hp;
+    p.hp = p.maxHp;
+    Render.addFloater(spot.x, spot.y, healed > 0 ? '+' + healed : '온기', COLORS.heal);
+    UI.log(healed > 0 ? '모닥불에서 몸을 녹였습니다. 체력을 모두 회복했습니다.'
+                      : '모닥불에서 몸을 녹였습니다.', 'good');
+  } else if (id === 'temper') {
+    const w = p.gear.weapon;
+    if (!w) return;
+    /* 벼린 것은 장비에 직접 얹는다. 그래야 재계산(recalcStats)이 자동으로 따라오고,
+       이어하기·관전 블롭에도 장비째로 실려 간다 — 따로 저장할 것이 없다. */
+    const magic = (w.mod.sp || 0) > (w.mod.atk || 0);
+    const key = magic ? 'sp' : 'atk';
+    const amount = magic ? 4 : 3;
+    w.mod[key] = (w.mod[key] || 0) + amount;
+    w.tempered = (w.tempered || 0) + 1;
+    recalcStats(p);
+    Sound.play('gearAncient');
+    Render.addFloater(spot.x, spot.y, '+' + amount, COLORS.ember);
+    UI.log(josa(gearFullName(w), '을', '를') + ' 불에 담갔습니다. ' +
+           (magic ? '주문' : '공격') + ' +' + amount + '.', 'good');
+  } else if (id === 'ash') {
+    state.ashHp = (state.ashHp || 0) + 6;
+    recalcStats(p);
+    Render.addFloater(spot.x, spot.y, '최대 +6', COLORS.ember);
+    UI.log('재를 삼켰습니다. 목이 타지만, 몸이 조금 더 버팁니다. 최대 체력 +6.', 'good');
+  }
+
+  state.campUses++;
+  // 「돌아선 밤」을 되찾았으면 모닥불이 한 번 더 탄다 — 두 가지를 고를 수 있다
+  const maxUses = MEM.has('night') ? 2 : 1;
+  if (state.campUses >= maxUses) state.map.tiles[spot.y][spot.x] = T.FLOOR;
+  else UI.log('불이 아직 남아 있습니다.', 'sys');
+
+  Sound.play('camp');
+  UI.updateHud(state);
+  UI.updateGearStrip(p);
+  persist();
 }
 
 /* =========================================================
@@ -6431,6 +6725,52 @@ function kill(entity) {
     const s = state.map.stairs;
     state.map.tiles[s.y][s.x] = T.STAIRS;
     UI.log('막혀 있던 계단이 드러납니다.', 'good');
+  }
+
+  /* 「재를 뒤집어쓴」 — 쓰러지는 순간 터진다.
+     붙어서 마지막 일격을 넣은 사람이 정확히 맞는 자리라, 잡고 나서도 한 걸음 물러설
+     이유가 생긴다. 옆에 있던 다른 몬스터도 같이 맞는다. */
+  if (entity.burst) {
+    Render.addBlast(entity.x, entity.y);
+    Render.addShake(10);
+    Sound.play('blast');
+    const dmg = 4 + Math.round(state.depth * 0.8);
+    const p = state.player;
+    if (p.alive && chebyshev(p.x, p.y, entity.x, entity.y) <= 1) {
+      p.hp -= dmg;
+      p.flash = CFG.FLASH_TIME;
+      Render.addFloater(p.x, p.y, String(dmg), COLORS.ember);
+      UI.log(josa(entity.name, '이', '가') + ' 터집니다. ' + dmg + '의 피해.', 'hurt');
+      if (p.hp <= 0) { kill(p); return; }
+    } else {
+      UI.log(josa(entity.name, '이', '가') + ' 재를 흩뿌리며 터집니다.', 'hurt');
+    }
+    for (const m of state.monsters) {
+      if (!m.alive || m === entity) continue;
+      if (chebyshev(m.x, m.y, entity.x, entity.y) > 1) continue;
+      hurtMonster(m, dmg, COLORS.ember);
+    }
+    UI.updateHud(state);
+  }
+
+  /* 「메아리치는」 — 쓰러지면 자기 자신 둘로 갈라진다.
+     갈라진 것에는 접두사를 넘기지 않는다. 안 그러면 끝없이 메아리친다. */
+  if (entity.echo) {
+    const def = MONSTERS.find(m => m.id === entity.defId);
+    let born = 0;
+    if (def) {
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        if (born >= 2) break;
+        const x = entity.x + dx, y = entity.y + dy;
+        if (!isWalkable(state.map, x, y) || monsterAt(x, y)) continue;
+        if (x === state.player.x && y === state.player.y) continue;
+        const m = makeMonster(def, x, y);
+        m.hp = m.maxHp = Math.max(1, Math.round(m.maxHp * 0.5));
+        state.monsters.push(m);
+        born++;
+      }
+    }
+    if (born) UI.log(josa(entity.name, '이', '가') + ' 메아리처럼 ' + born + '으로 되돌아옵니다.', 'hurt');
   }
 
   // 갈라지는 것. 잡았다고 끝이 아니다.
@@ -6824,6 +7164,16 @@ function onKeyDown(e) {
     return;
   }
 
+  /* 모닥불은 숫자키로 고른다 — 상점과 같은 조작.
+     닫는 키는 없다. 불 앞에서 아무것도 안 하고 지나갈 수는 없어야
+     이게 선택이 되지, 무시해도 되는 창이 되지 않는다. */
+  if (UI.campOpen()) {
+    const n = code.match(/^Digit([1-3])$/) || code.match(/^Numpad([1-3])$/);
+    if (n) UI.campPickIndex(Number(n[1]) - 1);
+    e.preventDefault();
+    return;
+  }
+
   // 개발용. 결말 연출을 보려고 열네 층을 다시 오를 수는 없다.
   // 한 번 누를 때마다 한 단씩 — 옥상 → 주인이 쓰러짐 → 결말 선택.
   if (code === 'BracketRight') { jumpToEnding(); e.preventDefault(); return; }
@@ -6861,7 +7211,7 @@ function onKeyUp(e) {
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
   if (KEY_MOD[e.code] === 'ranged' && !modUsed.has(e.code) &&
-      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen()) {
+      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen() && !UI.campOpen()) {
     playerAction(null, 'ranged');
   }
   modUsed.delete(e.code);
