@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "test": "node test.mjs",
+    "dev:ttl": "wrangler dev --var HISTORY_TTL_MS:1500"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +16,8 @@
     "partyserver": "^0.5.10"
   },
   "devDependencies": {
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.127.1",
+    "ws": "^8.21.3"
   },
   "private": true,
   "type": "module"

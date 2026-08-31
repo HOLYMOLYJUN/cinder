@@ -72,6 +72,29 @@ const Chat = {
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
   },
 
+  /* ---------- 대화 지우기 ----------
+     되돌릴 수 없는 것을 한 번의 잘못 누름으로 날려서는 안 된다.
+     그렇다고 confirm() 창을 띄우면 게임 위로 시스템 대화상자가 덮인다 —
+     버튼이 스스로 한 번 되묻고, 몇 초 지나면 원래 말로 돌아간다. */
+  askWipe() {
+    if (this.wipeArmed) {
+      clearTimeout(this.wipeTimer);
+      this.disarmWipe();
+      Net.send({ t: 'clear', name: Net.name });
+      return;
+    }
+    this.wipeArmed = true;
+    this.el.wipe.textContent = '정말요?';
+    this.el.wipe.classList.add('warn');
+    this.wipeTimer = setTimeout(() => this.disarmWipe(), 4000);
+  },
+
+  disarmWipe() {
+    this.wipeArmed = false;
+    this.el.wipe.textContent = '대화 지우기';
+    this.el.wipe.classList.remove('warn');
+  },
+
   copyLink() {
     const url = this.link();
     const show = () => {
@@ -126,6 +149,7 @@ const Chat = {
       form:  $('chat-form'), text:  $('chat-text'),
       badge: $('chat-badge'),
       copy:  $('chat-copy'), linkBox: $('chat-link'),
+      wipe:  $('chat-wipe'),
     };
     if (!this.el.panel) return;
 
@@ -153,6 +177,10 @@ const Chat = {
     });
     Net.on('chat', m => this.push(m));
     Net.on('system', m => this.system(m.text));
+    Net.on('cleared', m => {
+      this.clear();
+      this.system(m.name + ' 님이 대화를 지웠습니다.');
+    });
     Net.on('presence', m => this.paintStatus(Net.status));
     Net.on('error', m => {
       if (m.reason === 'rate') this.system('너무 빠릅니다. 잠깐 쉬었다 보내세요.');
@@ -167,6 +195,7 @@ const Chat = {
       this.el.room.value = this.newRoom();
     });
     this.el.copy.addEventListener('click', () => this.copyLink());
+    this.el.wipe.addEventListener('click', () => this.askWipe());
 
     /* 같은 탭에 다른 초대 링크를 붙여 넣었을 때. 새로고침 없이 그 방으로 옮겨 간다. */
     window.addEventListener('hashchange', () => {
@@ -275,6 +304,7 @@ const Chat = {
   },
 
   toJoin() {
+    this.disarmWipe();
     this.el.live.classList.add('hidden');
     this.el.join.classList.remove('hidden');
     this.el.linkBox.classList.add('hidden');

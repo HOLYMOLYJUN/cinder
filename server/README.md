@@ -101,7 +101,9 @@ npx wrangler dev          # http://127.0.0.1:8787
 | ← | `{v, t:'hello', you, room, history}` — 늦게 들어와도 방금까지의 대화를 받는다 |
 | ← | `{v, t:'chat', id, name, text, at}` |
 | ← | `{v, t:'system', text, at}` |
+| → | `{v, t:'clear', name}` — 방의 기록을 지운다 |
 | ← | `{v, t:'presence', count}` |
+| ← | `{v, t:'cleared', name, at}` |
 | ← | `{v, t:'error', reason}` |
 | ← | `{v, t:'pong'}` |
 
@@ -111,6 +113,11 @@ npx wrangler dev          # http://127.0.0.1:8787
 
 ## 지키는 것
 
+- 최근 50줄까지, 그중 **12시간이 안 지난 것만** 넘긴다.
+  방 이름이 곧 열쇠인데 기록이 영원히 남으면, 이름이 새는 순간 지난 대화가 통째로 딸려 나간다.
+  지나간 것은 지나가게 두는 편이 낫다. `vars.HISTORY_TTL_MS` 로 바꿀 수 있다
+- 방 안에 있는 사람은 누구나 기록을 지울 수 있다(`clear`). 둘이 쓰는 방에 권한 체계를 세울
+  이유가 없고, **지우는 쪽은 언제나 안전한 방향**이다
 - 이름 16자, 한 줄 200자, 프레임 8KB 로 자른다 — 클라이언트 검증은 믿지 않는다
 - 10초에 15줄 넘으면 `error:rate` 를 돌려주고 흘린다
 - 줄바꿈·제어문자는 공백으로 눕힌다
@@ -120,6 +127,20 @@ npx wrangler dev          # http://127.0.0.1:8787
 ## 검사
 
 ```bash
-npx wrangler dev                    # 한쪽 창에서 띄워 두고
-node ../tools/test-chat.js          # 다른 창에서 (정적 서버도 함께 필요)
+npx wrangler dev          # 한쪽 창에서 띄워 두고
+npm test                  # 다른 창에서 — 소켓을 여러 개 붙여 프로토콜을 그대로 시험한다
+```
+
+나이 제한까지 보려면 서버를 짧은 값으로 띄우고 같은 값을 알려준다.
+12시간을 기다릴 수는 없으므로 그 숫자를 밖으로 뺐다:
+
+```bash
+npm run dev:ttl                             # HISTORY_TTL_MS=1500 으로 띄운다
+HISTORY_TTL_MS=1500 npm test
+```
+
+게임 쪽까지 함께 보는 검사는 저장소 뿌리에 있다:
+
+```bash
+node ../tools/test-chat.js          # 정적 서버도 함께 필요
 ```

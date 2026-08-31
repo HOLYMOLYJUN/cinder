@@ -261,7 +261,44 @@ const joined = page => page.waitForFunction(
     (await shy.isVisible('#chat')) && (await shy.inputValue('#chat-room')) === room);
   await shy.close();
 
-  /* ---------- 9. 기본값으로 같은 방에 모이면 안 된다 ---------- */
+  /* ---------- 9. 대화 지우기는 한 번 되묻는다 ---------- */
+  await b.keyboard.press('KeyC');       // B 쪽 창을 열어 둔다
+  await b.waitForTimeout(200);
+
+  check('지우기 전에는 대화가 남아 있다',
+    (await b.textContent('#chat-lines')).includes('들리냐'));
+
+  await a.click('#chat-wipe');
+  await a.waitForTimeout(200);
+  check('한 번 누르면 되묻기만 한다',
+    (await a.textContent('#chat-wipe')).includes('정말'),
+    await a.textContent('#chat-wipe'));
+  check('되묻는 동안에는 아직 안 지운다',
+    (await b.textContent('#chat-lines')).includes('들리냐'));
+
+  await a.click('#chat-wipe');           // 두 번째 — 진짜로 지운다
+  await a.waitForTimeout(600);
+  check('두 번 누르면 지워진다', !(await a.textContent('#chat-lines')).includes('들리냐'));
+  check('상대 화면에서도 지워진다', !(await b.textContent('#chat-lines')).includes('들리냐'));
+  check('누가 지웠는지 알려 준다',
+    (await b.textContent('#chat-lines')).includes('대화를 지웠습니다'));
+  check('버튼 글자가 되돌아온다', (await a.textContent('#chat-wipe')) === '대화 지우기');
+
+  // 지운 뒤에도 방은 계속 쓸 수 있어야 한다
+  await a.fill('#chat-text', '지운뒤에도');
+  await a.press('#chat-text', 'Enter');
+  await b.waitForTimeout(600);
+  check('지운 뒤에도 대화가 이어진다',
+    (await b.textContent('#chat-lines')).includes('지운뒤에도'));
+
+  // 되묻기는 몇 초 지나면 스스로 풀린다
+  await a.click('#chat-wipe');
+  await a.waitForTimeout(4600);
+  check('되묻기는 시간이 지나면 풀린다', (await a.textContent('#chat-wipe')) === '대화 지우기');
+  check('풀린 뒤에는 지워져 있지 않다',
+    (await a.textContent('#chat-lines')).includes('지운뒤에도'));
+
+  /* ---------- 10. 기본값으로 같은 방에 모이면 안 된다 ---------- */
 
   // 플레이스홀더가 방 이름처럼 생기면 보이는 대로 치고, 그러면 다 같은 방이 된다
   const ph = await a.getAttribute('#chat-room', 'placeholder');
@@ -297,7 +334,7 @@ const joined = page => page.waitForFunction(
     (await typo.evaluate(() => Net.status)) === 'off');
   await typo.close();
 
-  /* ---------- 10. 끊겼다 다시 붙는다 ---------- */
+  /* ---------- 11. 끊겼다 다시 붙는다 ---------- */
   await a.evaluate(() => Net.ws && Net.ws.close());   // 서버가 끊은 것처럼
   await a.waitForTimeout(300);
   await joined(a).then(() => check('끊기면 스스로 다시 붙는다', true))

@@ -940,6 +940,8 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
 .chat-form { display: flex; gap: 6px; padding: 8px; border-top: 2px solid var(--line); }
 
 .chat-foot { padding: 0 8px 8px; }
+/* 한 번 되물을 때만 붉게. 되돌릴 수 없는 것임을 색으로도 말한다 */
+.chat button.ghost.warn { color: var(--blood); border-color: var(--blood); }
 .chat-foot button { padding: 4px 8px !important; font-size: 11.5px !important; }
 
 /* 클립보드가 막힌 곳(비-https 등)에서 직접 골라 복사하라고 내주는 칸 */
@@ -1223,6 +1225,7 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
       <input id="chat-link" class="chat-link hidden" readonly>
       <div class="chat-row chat-foot">
         <button id="chat-copy" class="ghost">링크 복사</button>
+        <button id="chat-wipe" class="ghost">대화 지우기</button>
         <button id="chat-leave" class="ghost">나가기</button>
       </div>
     </div>
@@ -4569,6 +4572,29 @@ const Chat = {
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
   },
 
+  /* ---------- 대화 지우기 ----------
+     되돌릴 수 없는 것을 한 번의 잘못 누름으로 날려서는 안 된다.
+     그렇다고 confirm() 창을 띄우면 게임 위로 시스템 대화상자가 덮인다 —
+     버튼이 스스로 한 번 되묻고, 몇 초 지나면 원래 말로 돌아간다. */
+  askWipe() {
+    if (this.wipeArmed) {
+      clearTimeout(this.wipeTimer);
+      this.disarmWipe();
+      Net.send({ t: 'clear', name: Net.name });
+      return;
+    }
+    this.wipeArmed = true;
+    this.el.wipe.textContent = '정말요?';
+    this.el.wipe.classList.add('warn');
+    this.wipeTimer = setTimeout(() => this.disarmWipe(), 4000);
+  },
+
+  disarmWipe() {
+    this.wipeArmed = false;
+    this.el.wipe.textContent = '대화 지우기';
+    this.el.wipe.classList.remove('warn');
+  },
+
   copyLink() {
     const url = this.link();
     const show = () => {
@@ -4623,6 +4649,7 @@ const Chat = {
       form:  $('chat-form'), text:  $('chat-text'),
       badge: $('chat-badge'),
       copy:  $('chat-copy'), linkBox: $('chat-link'),
+      wipe:  $('chat-wipe'),
     };
     if (!this.el.panel) return;
 
@@ -4650,6 +4677,10 @@ const Chat = {
     });
     Net.on('chat', m => this.push(m));
     Net.on('system', m => this.system(m.text));
+    Net.on('cleared', m => {
+      this.clear();
+      this.system(m.name + ' 님이 대화를 지웠습니다.');
+    });
     Net.on('presence', m => this.paintStatus(Net.status));
     Net.on('error', m => {
       if (m.reason === 'rate') this.system('너무 빠릅니다. 잠깐 쉬었다 보내세요.');
@@ -4664,6 +4695,7 @@ const Chat = {
       this.el.room.value = this.newRoom();
     });
     this.el.copy.addEventListener('click', () => this.copyLink());
+    this.el.wipe.addEventListener('click', () => this.askWipe());
 
     /* 같은 탭에 다른 초대 링크를 붙여 넣었을 때. 새로고침 없이 그 방으로 옮겨 간다. */
     window.addEventListener('hashchange', () => {
@@ -4772,6 +4804,7 @@ const Chat = {
   },
 
   toJoin() {
+    this.disarmWipe();
     this.el.live.classList.add('hidden');
     this.el.join.classList.remove('hidden');
     this.el.linkBox.classList.add('hidden');

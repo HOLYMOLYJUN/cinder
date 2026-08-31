@@ -20,6 +20,12 @@ const MAX_TEXT  = 200;        // 한 줄 길이
 const MAX_NAME  = 16;
 const HISTORY   = 50;         // 방이 들고 있는 최근 줄 수
 
+/* 들고 있는 줄에 나이 제한을 둔다. 방 이름이 곧 열쇠인데 기록이 영원히 남으면,
+   어쩌다 이름이 새는 순간 지난 대화가 통째로 딸려 나간다.
+   지나간 것은 그냥 지나가게 두는 편이 낫다.
+   wrangler.jsonc 의 vars 로 바꿀 수 있다 (검사에서 짧게 줄여 쓴다). */
+const HISTORY_TTL = 12 * 60 * 60 * 1000;   // 12시간
+
 // 초당이 아니라 창(window)으로 센다 — 확성기라 연달아 치는 게 정상이다.
 const RATE_WINDOW = 10000;
 const RATE_MAX    = 15;
@@ -53,6 +59,18 @@ export class CinderRoom extends Server {
     this.rate = new Map();
   }
 
+  ttl() {
+    const v = Number(this.env && this.env.HISTORY_TTL_MS);
+    return v > 0 ? v : HISTORY_TTL;
+  }
+
+  /* 아직 나이가 안 찬 줄만. 저장된 것을 지우는 것이 아니라 내보낼 때 거른다 —
+     쓰기는 말할 때만 일어나면 되고, 오래된 줄은 다음 쓰기에서 함께 떨어져 나간다. */
+  fresh() {
+    const cut = now() - this.ttl();
+    return (this.history || []).filter(l => l.at > cut);
+  }
+
   send(conn, obj) {
     try { conn.send(JSON.stringify(obj)); } catch (e) { /* 이미 닫힌 소켓 */ }
   }
@@ -69,7 +87,7 @@ export class CinderRoom extends Server {
       v: PROTO, t: 'hello',
       you: conn.id,
       room: this.name,
-      history: this.history,
+      history: this.fresh(),
     });
     this.announce([]);
   }
@@ -103,10 +121,20 @@ export class CinderRoom extends Server {
     // 클라이언트가 연결이 살아 있는지 보려고 보내는 것. 그대로 돌려준다.
     if (msg.t === 'ping') { this.send(conn, { v: PROTO, t: 'pong' }); return; }
 
-    if (msg.t !== 'chat') return;
+    if (msg.t !== 'chat' && msg.t !== 'clear') return;
 
     if (this.limited(conn.id)) {
       this.send(conn, { v: PROTO, t: 'error', reason: 'rate' });
+      return;
+    }
+
+    /* 방을 비운다. 방 안에 있는 사람이면 누구나 할 수 있다 —
+       둘이 쓰는 방에 권한 체계를 세울 이유가 없고, 지우는 쪽이 언제나 안전한 방향이다. */
+    if (msg.t === 'clear') {
+      this.history = [];
+      await this.ctx.storage.delete('history');
+      const who = clean(msg.name, MAX_NAME) || '누군가';
+      this.broadcast(JSON.stringify({ v: PROTO, t: 'cleared', name: who, at: now() }));
       return;
     }
 
@@ -121,8 +149,8 @@ export class CinderRoom extends Server {
 
     const line = { v: PROTO, t: 'chat', id: conn.id, name: name, text: text, at: now() };
 
-    this.history.push(line);
-    if (this.history.length > HISTORY) this.history = this.history.slice(-HISTORY);
+    // 나이 지난 줄은 여기서 함께 떨어져 나간다. 따로 청소하는 일을 만들지 않는다.
+    this.history = this.fresh().concat(line).slice(-HISTORY);
     await this.ctx.storage.put('history', this.history);
 
     this.broadcast(JSON.stringify(line));
