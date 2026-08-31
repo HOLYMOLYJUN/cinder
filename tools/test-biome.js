@@ -76,6 +76,52 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(resumed.biome === 'sewer',
         `이어하기로 돌아와도 하수도다 (${resumed.depth}층 · ${resumed.biome})`);
 
+  console.log('\n[ 바닥에는 이끼만, 그리고 밟으면 아프다 ]');
+  const props = await p.evaluate(() => {
+    // 하수도 층을 여러 번 뽑아 실제로 깔리는 것을 전부 모은다
+    const floor = new Set(), wall = new Set();
+    for (let i = 0; i < 30; i++) {
+      enterFloor(12); UI.closeIntro();
+      for (const pr of state.map.props) {
+        (state.map.tiles[pr.y][pr.x] === T.WALL ? wall : floor).add(pr.kind);
+      }
+    }
+    // 판정은 게임 쪽 함수로 한다 — 검사에 규칙을 베껴 두면 둘이 어긋난다
+    return { floor: [...floor], wall: [...wall],
+             allPoison: [...floor].every(k => isPoisonProp(k)) };
+  });
+  check(props.floor.length > 0 && props.allPoison,
+        `바닥에는 이끼만 깔린다 (${props.floor.join(', ')})`);
+  check(!props.floor.some(k => /jar|barrel|grate/.test(k)),
+        '항아리·통·배수구는 바닥에서 치웠다');
+  check(props.wall.length > 0, `벽 장식은 그대로 (${props.wall.length}종)`);
+
+  const bite = await p.evaluate(() => {
+    enterFloor(12); UI.closeIntro();
+    const pl = state.player;
+    // 옆 칸에 이끼를 놓고 그리로 걸어간다
+    const m = state.map;
+    let to = null;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      if (isWalkable(m, pl.x + dx, pl.y + dy)) { to = [dx, dy]; break; }
+    }
+    if (!to) return { skip: true };
+    const tx = pl.x + to[0], ty = pl.y + to[1];
+    m.props = [{ x: tx, y: ty, kind: 'sewer_moss_a', seed: 0 }];
+    state.monsters.length = 0;
+    pl.hp = 30;
+    const before = pl.hp;
+    onPlayerEnter(tx, ty);
+    const after = pl.hp;
+    // 지형이 아니라 그림이므로 길을 막지는 않는다
+    return { before, after, walkable: isWalkable(m, tx, ty) };
+  });
+  if (bite.skip) console.log('  옆이 전부 벽이라 건너뜀');
+  else {
+    check(bite.after === bite.before - 1, `밟으면 1 깎인다 (${bite.before} → ${bite.after})`);
+    check(bite.walkable, '막지는 않는다 — 갈 수 있느냐가 아니라 갈 값어치가 있느냐를 묻는다');
+  }
+
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
   console.log(fails ? `\n실패 ${fails}건` : '\n전부 통과');
   await b.close();

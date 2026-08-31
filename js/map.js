@@ -154,8 +154,17 @@ function makeFloor(depth, withVault) {
      wall  — 벽에 붙는다. 아래가 바닥이어야 방 안에서 보인다 (횃불과 같은 조건).
      floor — 바닥에 놓인다. 지나다니는 길을 가리지 않게 계단·모닥불·상인은 피한다. */
 const SEWER_WALL_PROPS  = ['sewer_fall', 'sewer_vent', 'sewer_pipe', 'sewer_barrel2', 'sewer_web'];
-const SEWER_FLOOR_PROPS = ['sewer_jar_a', 'sewer_jar_b', 'sewer_barrel',
-                           'sewer_moss_a', 'sewer_moss_b', 'sewer_grate'];
+
+/* 바닥에는 이끼만 놓는다.
+
+   처음에는 항아리·통·배수구도 같이 깔았다. 그런데 바닥에 놓인 것은 전부
+   「밟아도 되는 것」이라, 가짓수만 늘고 판단은 하나도 안 생겼다 —
+   눈만 시끄러워지고 어디가 길인지 읽기가 더 어려워졌다.
+
+   이끼만 남기고 **밟으면 아프게** 했다. 그러자 같은 그림이 장식에서
+   지형이 된다. 한 칸을 돌아갈지 그냥 밟고 갈지가 매번 물어진다 —
+   피 1은 무시해도 되는 값이지만, 무시해도 되는지를 정하는 것이 판단이다. */
+const SEWER_FLOOR_PROPS = ['sewer_moss_a', 'sewer_moss_b'];
 
 function addProps(map, depth) {
   map.props = [];

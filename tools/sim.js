@@ -107,7 +107,7 @@ const G = vm.runInContext(`({
   state, startRun, enterFloor, playerAction, drinkPotion, resolveGear, buyFromShop,
   monsterAt, isWalkable, blocksSight, DIRS, T, MONSTERS, GEAR, SLOTS, CFG,
   MEMORIES, ACHIEVEMENTS, BOSSES, isMagicAttack, chebyshev, compareRows, POTION_MAX, tileAt, LV,
-  rangedTarget, canRanged, rangedReady, chooseHero, HEROES,
+  rangedTarget, canRanged, rangedReady, chooseHero, HEROES, isPoisonProp,
 })`, ctx);
 
 /* ---------- 봇 ---------- */
@@ -125,10 +125,19 @@ function markedTiles() {
   return out;
 }
 
+// 밟으면 아픈 칸. 봇도 사람처럼 성하면 그냥 밟고, 몰리면 돌아간다.
+function poisonAt(x, y) {
+  const m = G.state.map;
+  return !!(m.props && m.props.some(p =>
+    p.x === x && p.y === y && G.isPoisonProp(p.kind)));
+}
+
 function bfs(from, avoid) {
   const m = G.state.map;
   const prev = new Map(), dist = new Map([[from.y * m.w + from.x, 0]]);
   const q = [[from.x, from.y]];
+  // 체력이 넉넉하면 한 칸 값어치가 없으므로 그냥 지나간다
+  const dodge = G.state.player.hp < G.state.player.maxHp * 0.5;
   while (q.length) {
     const [x, y] = q.shift();
     const d = dist.get(y * m.w + x);
@@ -137,6 +146,7 @@ function bfs(from, avoid) {
       if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h || dist.has(k)) continue;
       if (m.tiles[ny][nx] === G.T.WALL || m.tiles[ny][nx] === G.T.DOOR) continue;   // 잠긴 문은 못 지나간다
       if (avoid && G.monsterAt(nx, ny)) continue;
+      if (dodge && poisonAt(nx, ny)) continue;
       dist.set(k, d + 1); prev.set(k, [x, y, name]); q.push([nx, ny]);
     }
   }

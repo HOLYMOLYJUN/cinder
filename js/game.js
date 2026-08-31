@@ -432,6 +432,14 @@ function onPlayerEnter(x, y) {
     map.items.splice(map.items.indexOf(it), 1);
   }
 
+  /* 이끼를 밟았다. 막지는 않고 아프기만 하다 —
+     막으면 길이 사라져서 갈 수 있느냐를 묻게 되고,
+     아프기만 하면 갈 값어치가 있느냐를 묻게 된다. 후자가 판단이다. */
+  if (map.props) {
+    const pr = map.props.find(v => v.x === x && v.y === y && isPoisonProp(v.kind));
+    if (pr) poisonStep();
+  }
+
   const t = map.tiles[y][x];
 
   if (t === T.SHOP) openShop();
@@ -770,6 +778,30 @@ function resolveGear(take) {
     UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
   }
   UI.updateHud(state);
+}
+
+/* 하수도 층의 형광 이끼. 밟으면 1 깎인다.
+
+   1 은 무시해도 되는 값이다. 그게 요점이다 — 무시해도 되는지를 정하는 것이
+   판단이기 때문이다. 성한 몸이면 그냥 밟고 지나가고, 몰려서 물약 하나로
+   버티는 중이면 한 칸을 돌아간다. 같은 칸이 판마다 다른 뜻을 갖는다.
+
+   막지 않는 이유는 위(onPlayerEnter)에 적어 두었다. */
+function isPoisonProp(kind) {
+  return kind === 'sewer_moss_a' || kind === 'sewer_moss_b';
+}
+
+function poisonStep() {
+  const p = state.player;
+  if (!p || !p.alive) return;
+  p.hp -= 1;
+  p.flash = CFG.FLASH_TIME;
+  state.hurtThisFloor = true;
+  Render.addFloater(p.x, p.y, '1', COLORS.poison || '#9ED64A');
+  Sound.play('burn');
+  UI.log('이끼를 밟았습니다. 발끝이 저립니다.', 'hurt');
+  UI.updateHud(state);
+  if (p.hp <= 0) kill(p);
 }
 
 /* 스스로 아무는 사람 (리자드).

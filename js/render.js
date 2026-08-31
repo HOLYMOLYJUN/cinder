@@ -833,6 +833,24 @@ const Render = {
       return;
     }
 
+    /* 밟으면 아픈 것은 스스로 빛나야 한다.
+       불씨가 닿지 않는 자리에도 흐리게나마 보여야 「저기는 피해서 간다」가
+       가능해진다 — 밟고 나서야 알게 되면 그건 판단이 아니라 사고다. */
+    if (typeof isPoisonProp === 'function' && isPoisonProp(p.kind)) {
+      const pulse = 0.24 + Math.abs(Math.sin(performance.now() / 700 + p.seed)) * 0.16;
+      const cx = px + TS / 2, cy = py + TS * 0.62;
+      const [r, g, b] = hexRgb(COLORS.poison);
+      const grd = ctx.createRadialGradient(cx, cy, 1, cx, cy, TS * 0.62);
+      grd.addColorStop(0, `rgba(${r},${g},${b},${pulse})`);
+      grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = grd;
+      ctx.fillRect(cx - TS, cy - TS, TS * 2, TS * 2);
+      ctx.globalAlpha = Math.max(a, 0.72);      // 어두워도 묻히지 않는다
+      this.tile(ctx, this.propKey(p.kind), 0, px, py);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
     ctx.globalAlpha = a;
     this.tile(ctx, this.propKey(p.kind), 0, px, py);
     ctx.globalAlpha = 1;
