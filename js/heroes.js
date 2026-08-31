@@ -52,7 +52,17 @@ const HEROES = [
 ];
 
 // 지금 고른 사람. 저장에 남아 다음에도 그대로 시작한다.
+/* 관전 중에는 남의 사람으로 스탯을 세워야 한다. 그렇다고 chooseHero 를 부르면
+   관전자의 저장값에 그 사람이 박혀 버린다 — 남의 판을 보다가 내 캐릭터가 바뀌는 셈이다.
+   그래서 저장하지 않고 잠깐 덮어쓰는 자리를 따로 둔다. */
+let heroOverride = null;
+
+function setHeroOverride(id) {
+  heroOverride = id ? (HEROES.find(h => h.id === id) || null) : null;
+}
+
 function currentHero() {
+  if (heroOverride) return heroOverride;
   const save = loadData() || {};
   return HEROES.find(h => h.id === save.hero) || HEROES[0];
 }

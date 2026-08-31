@@ -61,9 +61,15 @@ function makePlayer() {
   };
 }
 
+/* 스냅샷을 주고받을 때 "이 몬스터가 아까 그 몬스터인가"를 알아야 한다.
+   그걸 알아야 관전 화면에서 그려지는 좌표를 이어받아 미끄러지듯 움직인다 —
+   못 알아보면 매 턴 새로 태어나므로 순간이동하는 것처럼 보인다. */
+let monsterUid = 0;
+
 function makeMonster(def, x, y) {
   return {
     kind: 'monster',
+    uid: ++monsterUid,
     defId: def.id,
     name: def.name,
     glyph: def.g,

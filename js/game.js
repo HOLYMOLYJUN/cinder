@@ -39,6 +39,7 @@ const state = {
   chill: 0,               // 몸이 굳은 턴 수
   burn: 0,                // 불이 붙은 턴 수
   resumable: false,       // 지금 상태를 이어할 수 있는가
+  spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
   level: 1,               // 이번 판의 레벨 — 죽으면 사라진다
   xp: 0,                  // 다음 레벨까지 모은 경험치
@@ -54,6 +55,13 @@ const modUsed = new Set();  // 그 키가 방향과 함께 쓰였는가
    ========================================================= */
 
 function startRun() {
+  // 새 판을 시작하는 것은 관전을 그만두는 것이기도 하다.
+  // 안 풀면 남의 사람(setHeroOverride)으로 내 판의 스탯을 세우게 된다.
+  if (state.spectating) {
+    state.spectating = false;
+    setHeroOverride(null);
+    if (typeof Cast !== 'undefined') { Cast.watching = null; Cast.paint(); }
+  }
   clearRun();
   state.resumable = false;
   state.depth = 1;
@@ -1104,6 +1112,11 @@ function endRun(reachedTop) {
   state.resumable = false;
   clearRun();          // 끝난 판은 이어할 수 없다
 
+  /* 스냅샷은 살아 있을 때만 나간다(packRun 이 alive 를 본다).
+     이걸 따로 보내지 않으면 관전 화면이 마지막으로 살아있던 순간에 멈춘 채로 남는다 —
+     관전에서 제일 보고 싶은 순간이 하필 거기다. */
+  if (typeof Cast !== 'undefined') Cast.over(reachedTop);
+
   // 기억을 못 얻은 채 끝났으면 다음 판의 확률이 오른다
   if (!state.gotMemoryThisRun && MEM.nextCandidate()) state.pity++;
 
@@ -1159,6 +1172,16 @@ function onKeyDown(e) {
      이걸 빼면 "wasd"라고 치는 동안 캐릭터가 네 칸 움직이고,
      "1"을 치면 물약이 사라진다. 채팅을 붙일 때 제일 먼저 터지는 곳이다. */
   if (typeof Chat !== 'undefined' && Chat.typing()) return;
+
+  /* 남의 판을 보는 중이면 어떤 키도 판을 건드리지 않는다.
+     관전은 보는 것이지 두는 것이 아니다 — 여기서 막지 않으면
+     관전 화면에서 누른 방향키가 다음 스냅샷에 덮여 사라지면서
+     "왜 안 움직이지"가 된다. 확성기는 그대로 열린다. */
+  if (state.spectating && e.code !== 'KeyC') {
+    if (typeof Cast !== 'undefined' && e.code === 'Escape') Cast.unwatch();
+    e.preventDefault();
+    return;
+  }
 
   // event.key 가 아니라 event.code 를 쓴다.
   // key 를 쓰면 한글 입력 상태에서 Z 가 'ㅋ' 으로 들어와 조작이 먹통이 된다.
@@ -1371,6 +1394,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Render.init(document.getElementById('view'));
   Net.init();
   Chat.init();
+  Cast.init();
 
   updateRecordText(loadData());
 

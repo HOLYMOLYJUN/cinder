@@ -955,3 +955,25 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
   }
   .chat-tab { right: 8px; bottom: 8px; }
 }
+
+/* ===== 관전 띠 =====
+   남의 판을 보고 있다는 것이 한눈에 보여야 한다 — 내 판인 줄 알고
+   키를 누르다가 "왜 안 움직이지"로 헤매면 그게 제일 나쁘다. */
+.cast-bar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 42;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px;
+  background: var(--panel-2); border-bottom: 2px solid var(--ember-dim);
+  font-size: 12.5px; color: var(--ink-soft);
+}
+/* 띠가 뜬 만큼 화면 안쪽을 내린다 */
+#app.has-cast .screen, #app.has-cast .overlay { padding-top: 36px; }
+
+.cast-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cast-bar button {
+  padding: 4px 10px;
+  background: var(--ember-dim); color: #1A1109;
+  border: 2px solid var(--ember-dim); border-radius: 0;
+  font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.cast-bar button:hover { background: var(--ember); border-color: var(--ember); }

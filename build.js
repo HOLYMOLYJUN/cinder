@@ -35,6 +35,7 @@ const JS_FILES = [
   'js/net.js',
   'js/chat.js',
   'js/resume.js',
+  'js/cast.js',
   'js/game.js',
 ];
 

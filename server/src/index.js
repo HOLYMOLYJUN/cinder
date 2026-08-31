@@ -15,7 +15,9 @@ import { routePartykitRequest, Server } from 'partyserver';
    포맷을 바꿔도 열어 둔 옛날 탭이 이상하게 굴지 않는다. */
 const PROTO = 1;
 
-const MAX_FRAME = 8 * 1024;   // 프레임 하나의 상한 — 넘으면 읽지도 않는다
+/* 프레임 하나의 상한. 채팅 한 줄에는 넘치게 크지만 관전 스냅샷이 이 길로 온다 —
+   15층 한복판의 판 전체가 4KB 남짓이라 여유를 두었다. */
+const MAX_FRAME = 64 * 1024;
 const MAX_TEXT  = 200;        // 한 줄 길이
 const MAX_NAME  = 16;
 const HISTORY   = 50;         // 방이 들고 있는 최근 줄 수
@@ -89,6 +91,8 @@ export class CinderRoom extends Server {
       room: this.name,
       history: this.fresh(),
     });
+    // 보던 판이 있으면 한 장 먼저 준다. 다음 턴까지 빈 화면으로 두지 않는다.
+    if (this.lastState) { try { conn.send(this.lastState); } catch (e) {} }
     this.announce([]);
   }
 
@@ -120,6 +124,32 @@ export class CinderRoom extends Server {
 
     // 클라이언트가 연결이 살아 있는지 보려고 보내는 것. 그대로 돌려준다.
     if (msg.t === 'ping') { this.send(conn, { v: PROTO, t: 'pong' }); return; }
+
+    /* ---------- 관전 ----------
+       서버는 판이 무엇인지 모른다. 받은 것을 그대로 넘기고 마지막 한 장만 들고 있는다.
+       늦게 들어온 사람이 다음 턴까지 빈 화면을 보고 있지 않도록.
+
+       대화 기록(history)에는 절대 넣지 않는다 — 성격도 수명도 다르고,
+       스냅샷 하나가 채팅 오십 줄보다 크다. 저장소에도 쓰지 않는다.
+       하이버네이션에서 깨면 사라지지만, 그때는 다음 턴이면 새것이 온다. */
+    if (msg.t === 'state' || msg.t === 'over') {
+      /* 채팅의 레이트 제한을 그대로 씌우면 안 된다 — 스냅샷은 매 턴 나가는 것이라
+         10초에 15장이면 금방 걸린다. 대신 바닥만 깔아 둔다.
+         보내는 쪽이 이미 조이고 있으므로(250ms), 이건 고장이나 장난을 막는 선이다. */
+      if (msg.t === 'state') {
+        const gap = now() - (this.lastCast || 0);
+        if (gap < 100) return;
+        this.lastCast = now();
+      }
+      const out = JSON.stringify(Object.assign({}, msg, {
+        id: conn.id,
+        name: clean(msg.name, MAX_NAME) || '누군가',
+      }));
+      if (msg.t === 'state') this.lastState = out;
+      else this.lastState = null;          // 판이 끝났으면 들고 있을 이유가 없다
+      this.broadcast(out, [conn.id]);
+      return;
+    }
 
     if (msg.t !== 'chat' && msg.t !== 'clear') return;
 

@@ -236,6 +236,15 @@
 
   </div>
 
+  <!-- ===== 관전 띠 =====
+       게임 화면 안이 아니라 바깥에 둔다. 안에 두면 아직 판을 시작하지 않은 사람
+       (타이틀 화면)에게는 통째로 안 보이고, 그러면 «보기» 를 누를 방법이 없다. -->
+  <div class="cast-bar hidden" id="cast-bar">
+    <span id="cast-text"></span>
+    <button id="cast-go" class="hidden">보기</button>
+    <button id="cast-stop" class="hidden">관전 그만</button>
+  </div>
+
   <!-- ===== 확성기 =====
        NET.HOST 를 비워 두면 chat.js 가 이 둘을 끝까지 숨겨 둔다.
        배포 전이나 file:// 로 열었을 때는 없는 기능이어야 한다. -->
@@ -271,6 +280,7 @@
       </form>
       <input id="chat-link" class="chat-link hidden" readonly>
       <div class="chat-row chat-foot">
+        <button id="chat-cast" class="ghost">방송 시작</button>
         <button id="chat-copy" class="ghost">링크 복사</button>
         <button id="chat-wipe" class="ghost">대화 지우기</button>
         <button id="chat-leave" class="ghost">나가기</button>
@@ -298,6 +308,7 @@
 <script src="js/net.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/resume.js"></script>
+<script src="js/cast.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>
