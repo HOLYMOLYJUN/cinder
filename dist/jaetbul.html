@@ -650,11 +650,13 @@ canvas#view {
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
           mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
+/* 흐르는 것은 JS 가 직접 옮긴다 (UI.showCredits) — 누르고 있는 동안 빨라져야 하는데
+   CSS 애니메이션은 도중에 속도를 바꾸면 진행한 만큼을 잃고 처음부터 다시 흐른다. */
 .credits-roll {
   position: absolute; left: 0; right: 0; top: 100%;
   text-align: center; padding: 0 24px;
+  will-change: transform;
 }
-@keyframes credit-roll { to { transform: translateY(calc(var(--roll) * -1)); } }
 
 .cr-big {
   font-family: "Cinzel", "Gowun Batang", serif;
@@ -1243,7 +1245,7 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
     </div>
     <div class="credits-foot">
       <button id="credits-close" class="btn-ghost hidden">돌아간다</button>
-      <span class="credits-hint" id="credits-hint">아무 키나 누르면 건너뜁니다</span>
+      <span class="credits-hint" id="credits-hint">누르고 있으면 빨리 감깁니다</span>
     </div>
   </div>
 
@@ -4731,22 +4733,43 @@ const UI = {
     hint.classList.remove('hidden');
     this._creditsDone = onDone || null;
 
-    // 글이 길수록 오래 흐른다 — 초를 박으면 화면 크기에 따라 어긋난다
+    /* CSS 애니메이션이 아니라 직접 굴린다.
+       누르고 있는 동안 빨라져야 하는데, 애니메이션은 도중에 속도를 바꾸면
+       진행한 만큼을 잃고 처음부터 다시 흐른다. 위치를 우리가 들고 있으면
+       배속만 곱하면 되고, 어디까지 흘렀는지도 그대로 남는다. */
     const view = screen.querySelector('.credits-view').clientHeight;
-    const dist = box.scrollHeight + view;
-    const secs = clamp(dist / 46, 14, 60);
-    box.style.setProperty('--roll', dist + 'px');
+    this._creditDist = box.scrollHeight + view;
+    this._creditPos = 0;
+    this._creditFast = false;
     box.style.animation = 'none';
-    void box.offsetHeight;                       // 다시 틀려면 한 번 끊어야 한다
-    box.style.animation = `credit-roll ${secs}s linear forwards`;
+    box.style.transform = 'translateY(0)';
 
-    clearTimeout(this._creditsTimer);
-    this._creditsTimer = setTimeout(() => this.endCredits(), secs * 1000);
+    cancelAnimationFrame(this._creditRaf);
+    let last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      this._creditPos += this.CREDIT_SPEED * (this._creditFast ? 6 : 1) * dt;
+      if (this._creditPos >= this._creditDist) { this.endCredits(); return; }
+      box.style.transform = `translateY(${-this._creditPos}px)`;
+      this._creditRaf = requestAnimationFrame(tick);
+    };
+    this._creditRaf = requestAnimationFrame(tick);
   },
 
-  // 끝까지 흘렀거나 건너뛰었을 때 — 글을 멈추고 돌아갈 길을 연다
+  CREDIT_SPEED: 46,          // 평소 흐르는 속도 (초당 픽셀)
+
+  // 누르고 있는 동안만 빨라진다. 건너뛰는 게 아니라 감는 것이라
+  // 지나간 이름은 그대로 다 지나간다.
+  creditsFast(on) {
+    if (this.creditsRolling()) this._creditFast = !!on;
+  },
+
+  // 끝까지 흘렀을 때 — 멈추고 돌아갈 길을 연다
   endCredits() {
-    clearTimeout(this._creditsTimer);
+    cancelAnimationFrame(this._creditRaf);
+    this._creditRaf = 0;
+    this._creditFast = false;
     const box = document.getElementById('credits-roll');
     box.style.animation = 'none';
     box.style.transform = 'translateY(0)';
@@ -4755,7 +4778,8 @@ const UI = {
   },
 
   hideCredits() {
-    clearTimeout(this._creditsTimer);
+    cancelAnimationFrame(this._creditRaf);
+    this._creditRaf = 0;
     document.getElementById('credits-screen').classList.add('hidden');
     const done = this._creditsDone;
     this._creditsDone = null;
@@ -4766,8 +4790,7 @@ const UI = {
     return !document.getElementById('credits-screen').classList.contains('hidden');
   },
   creditsRolling() {
-    return this.creditsOpen() &&
-           document.getElementById('credits-close').classList.contains('hidden');
+    return this.creditsOpen() && !!this._creditRaf;
   },
 
   /* ---------- 결말 ---------- */
@@ -7736,9 +7759,10 @@ function onKeyDown(e) {
   }
 
   /* 크레딧이 열려 있으면 다른 것은 아무것도 안 받는다.
-     한 번 누르면 끝으로 건너뛰고, 그다음 누르면 닫힌다. */
+     누르고 있는 동안 빨리 감기고, 다 흐른 뒤에 누르면 닫힌다.
+     건너뛰지 않는 이유 — 이름은 지나가라고 적은 것이라 지나가긴 해야 한다. */
   if (UI.creditsOpen()) {
-    if (UI.creditsRolling()) UI.endCredits();
+    if (UI.creditsRolling()) UI.creditsFast(true);
     else UI.hideCredits();
     e.preventDefault();
     return;
@@ -7816,6 +7840,9 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
+  // 손을 떼면 크레딧이 다시 제 속도로 흐른다
+  if (UI.creditsOpen()) { UI.creditsFast(false); return; }
+
   // Z 를 방향키 없이 눌렀다 뗐으면 그것만으로 던진다.
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
@@ -8005,9 +8032,19 @@ window.addEventListener('DOMContentLoaded', () => {
      한 번 더 눌러야 닫힌다 — 건너뛰자마자 닫히면 마지막 줄을 못 읽는다. */
   document.getElementById('btn-credits').addEventListener('click', () => UI.showCredits());
   document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
-  document.getElementById('credits-screen').addEventListener('click', e => {
+  // 손가락으로도 같게 — 누르고 있는 동안 빨라진다
+  const credits = document.getElementById('credits-screen');
+  credits.addEventListener('pointerdown', e => {
     if (e.target.closest('#credits-close')) return;
-    if (UI.creditsRolling()) UI.endCredits();
+    UI.creditsFast(true);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    credits.addEventListener(ev, () => UI.creditsFast(false));
+  }
+  // 다 흐른 뒤에는 아무 데나 눌러도 닫힌다
+  credits.addEventListener('click', e => {
+    if (e.target.closest('#credits-close')) return;
+    if (!UI.creditsRolling()) UI.hideCredits();
   });
 
   window.addEventListener('keydown', onKeyDown);

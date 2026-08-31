@@ -224,22 +224,43 @@ const UI = {
     hint.classList.remove('hidden');
     this._creditsDone = onDone || null;
 
-    // 글이 길수록 오래 흐른다 — 초를 박으면 화면 크기에 따라 어긋난다
+    /* CSS 애니메이션이 아니라 직접 굴린다.
+       누르고 있는 동안 빨라져야 하는데, 애니메이션은 도중에 속도를 바꾸면
+       진행한 만큼을 잃고 처음부터 다시 흐른다. 위치를 우리가 들고 있으면
+       배속만 곱하면 되고, 어디까지 흘렀는지도 그대로 남는다. */
     const view = screen.querySelector('.credits-view').clientHeight;
-    const dist = box.scrollHeight + view;
-    const secs = clamp(dist / 46, 14, 60);
-    box.style.setProperty('--roll', dist + 'px');
+    this._creditDist = box.scrollHeight + view;
+    this._creditPos = 0;
+    this._creditFast = false;
     box.style.animation = 'none';
-    void box.offsetHeight;                       // 다시 틀려면 한 번 끊어야 한다
-    box.style.animation = `credit-roll ${secs}s linear forwards`;
+    box.style.transform = 'translateY(0)';
 
-    clearTimeout(this._creditsTimer);
-    this._creditsTimer = setTimeout(() => this.endCredits(), secs * 1000);
+    cancelAnimationFrame(this._creditRaf);
+    let last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      this._creditPos += this.CREDIT_SPEED * (this._creditFast ? 6 : 1) * dt;
+      if (this._creditPos >= this._creditDist) { this.endCredits(); return; }
+      box.style.transform = `translateY(${-this._creditPos}px)`;
+      this._creditRaf = requestAnimationFrame(tick);
+    };
+    this._creditRaf = requestAnimationFrame(tick);
   },
 
-  // 끝까지 흘렀거나 건너뛰었을 때 — 글을 멈추고 돌아갈 길을 연다
+  CREDIT_SPEED: 46,          // 평소 흐르는 속도 (초당 픽셀)
+
+  // 누르고 있는 동안만 빨라진다. 건너뛰는 게 아니라 감는 것이라
+  // 지나간 이름은 그대로 다 지나간다.
+  creditsFast(on) {
+    if (this.creditsRolling()) this._creditFast = !!on;
+  },
+
+  // 끝까지 흘렀을 때 — 멈추고 돌아갈 길을 연다
   endCredits() {
-    clearTimeout(this._creditsTimer);
+    cancelAnimationFrame(this._creditRaf);
+    this._creditRaf = 0;
+    this._creditFast = false;
     const box = document.getElementById('credits-roll');
     box.style.animation = 'none';
     box.style.transform = 'translateY(0)';
@@ -248,7 +269,8 @@ const UI = {
   },
 
   hideCredits() {
-    clearTimeout(this._creditsTimer);
+    cancelAnimationFrame(this._creditRaf);
+    this._creditRaf = 0;
     document.getElementById('credits-screen').classList.add('hidden');
     const done = this._creditsDone;
     this._creditsDone = null;
@@ -259,8 +281,7 @@ const UI = {
     return !document.getElementById('credits-screen').classList.contains('hidden');
   },
   creditsRolling() {
-    return this.creditsOpen() &&
-           document.getElementById('credits-close').classList.contains('hidden');
+    return this.creditsOpen() && !!this._creditRaf;
   },
 
   /* ---------- 결말 ---------- */

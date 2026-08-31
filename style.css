@@ -644,11 +644,13 @@ canvas#view {
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
           mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
+/* 흐르는 것은 JS 가 직접 옮긴다 (UI.showCredits) — 누르고 있는 동안 빨라져야 하는데
+   CSS 애니메이션은 도중에 속도를 바꾸면 진행한 만큼을 잃고 처음부터 다시 흐른다. */
 .credits-roll {
   position: absolute; left: 0; right: 0; top: 100%;
   text-align: center; padding: 0 24px;
+  will-change: transform;
 }
-@keyframes credit-roll { to { transform: translateY(calc(var(--roll) * -1)); } }
 
 .cr-big {
   font-family: "Cinzel", "Gowun Batang", serif;

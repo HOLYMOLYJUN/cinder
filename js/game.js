@@ -1478,9 +1478,10 @@ function onKeyDown(e) {
   }
 
   /* 크레딧이 열려 있으면 다른 것은 아무것도 안 받는다.
-     한 번 누르면 끝으로 건너뛰고, 그다음 누르면 닫힌다. */
+     누르고 있는 동안 빨리 감기고, 다 흐른 뒤에 누르면 닫힌다.
+     건너뛰지 않는 이유 — 이름은 지나가라고 적은 것이라 지나가긴 해야 한다. */
   if (UI.creditsOpen()) {
-    if (UI.creditsRolling()) UI.endCredits();
+    if (UI.creditsRolling()) UI.creditsFast(true);
     else UI.hideCredits();
     e.preventDefault();
     return;
@@ -1558,6 +1559,9 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
+  // 손을 떼면 크레딧이 다시 제 속도로 흐른다
+  if (UI.creditsOpen()) { UI.creditsFast(false); return; }
+
   // Z 를 방향키 없이 눌렀다 뗐으면 그것만으로 던진다.
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
@@ -1747,9 +1751,19 @@ window.addEventListener('DOMContentLoaded', () => {
      한 번 더 눌러야 닫힌다 — 건너뛰자마자 닫히면 마지막 줄을 못 읽는다. */
   document.getElementById('btn-credits').addEventListener('click', () => UI.showCredits());
   document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
-  document.getElementById('credits-screen').addEventListener('click', e => {
+  // 손가락으로도 같게 — 누르고 있는 동안 빨라진다
+  const credits = document.getElementById('credits-screen');
+  credits.addEventListener('pointerdown', e => {
     if (e.target.closest('#credits-close')) return;
-    if (UI.creditsRolling()) UI.endCredits();
+    UI.creditsFast(true);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    credits.addEventListener(ev, () => UI.creditsFast(false));
+  }
+  // 다 흐른 뒤에는 아무 데나 눌러도 닫힌다
+  credits.addEventListener('click', e => {
+    if (e.target.closest('#credits-close')) return;
+    if (!UI.creditsRolling()) UI.hideCredits();
   });
 
   window.addEventListener('keydown', onKeyDown);

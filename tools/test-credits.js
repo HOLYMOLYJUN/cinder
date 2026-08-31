@@ -34,19 +34,44 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(/0x72/.test(open.text) && /CC0/.test(open.text), '빌려 쓴 그림의 출처를 적는다');
   check(/Web Audio/.test(open.text), '소리를 어떻게 만들었는지도');
 
-  console.log('\n[ 건너뛰고 닫는다 ]');
-  await p.keyboard.press('Space');
-  await p.waitForTimeout(200);
-  const skipped = await p.evaluate(() => ({
+  console.log('\n[ 누르고 있으면 빨리 감긴다 ]');
+  // 같은 시간 동안 얼마나 흘렀는지를 잰다 — 건너뛰는 게 아니라 빨라지는 것이어야 한다
+  const pos = () => p.evaluate(() => UI._creditPos);
+  const a0 = await pos();
+  await p.waitForTimeout(700);
+  const a1 = await pos();
+  const slow = a1 - a0;
+
+  await p.keyboard.down('Space');
+  const b0 = await pos();
+  await p.waitForTimeout(700);
+  const b1 = await pos();
+  await p.keyboard.up('Space');
+  const fast = b1 - b0;
+
+  check(fast > slow * 3, `누르면 눈에 띄게 빨라진다 (${slow.toFixed(0)}px → ${fast.toFixed(0)}px / 0.7초)`);
+  check(await p.evaluate(() => UI.creditsRolling()), '그래도 계속 흐른다 — 끝으로 건너뛰지 않는다');
+
+  await p.waitForTimeout(400);
+  const released = await pos();
+  await p.waitForTimeout(700);
+  const backToSlow = (await pos()) - released;
+  check(backToSlow < fast / 2, `손을 떼면 다시 제 속도 (${backToSlow.toFixed(0)}px / 0.7초)`);
+
+  console.log('\n[ 다 흐르면 닫을 수 있다 ]');
+  // 끝까지 감아 놓고 본다
+  await p.evaluate(() => { UI._creditPos = UI._creditDist - 1; });
+  await p.waitForTimeout(400);
+  const done = await p.evaluate(() => ({
     open: UI.creditsOpen(), rolling: UI.creditsRolling(),
     closeShown: !document.getElementById('credits-close').classList.contains('hidden'),
   }));
-  check(skipped.open && !skipped.rolling, '한 번 누르면 끝으로 건너뛴다 (아직 닫히지는 않는다)');
-  check(skipped.closeShown, '그때 돌아갈 단추가 나온다');
+  check(done.open && !done.rolling, '끝까지 흐르면 멈춘다');
+  check(done.closeShown, '그때 돌아갈 단추가 나온다');
 
   await p.keyboard.press('Space');
   await p.waitForTimeout(200);
-  check(await p.evaluate(() => !UI.creditsOpen()), '한 번 더 누르면 닫힌다');
+  check(await p.evaluate(() => !UI.creditsOpen()), '그다음 누르면 닫힌다');
 
   console.log('\n[ 결말 뒤에 흐른다 ]');
   await p.click('#btn-start');
