@@ -138,6 +138,9 @@ Object.assign(MANIFEST, {
   /* 물약 — 큰 병이 작은 아이콘으로 줄여도 형태가 남는다 */
   'potion':     one('flask_big_red'),
   'potionIcon': one('flask_big_red'),
+
+  /* 화살 — 활이 쏘는 투사체. 그림은 위를 보고 있고, 그리는 쪽에서 돌린다 */
+  'arrow':      one('weapon_arrow'),
 });
 
 /* 장비 아이콘.
@@ -151,6 +154,9 @@ const GEAR_ICONS = {
   '대검':        'weapon_knight_sword',
   '불씨 단검':   'weapon_red_gem_sword',
   '불씨 검':     'weapon_lavish_sword',
+  '사냥 활':     'weapon_bow',
+  '긴 활':       'weapon_bow_2',
+  '재의 활':     'icon_bow_ash',
   '나무 지팡이': 'weapon_green_magic_staff',
   '주술 지팡이': 'weapon_red_magic_staff',
   '재의 지팡이': 'icon_staff_ash',

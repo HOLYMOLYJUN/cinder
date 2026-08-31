@@ -3,7 +3,7 @@
    기억을 직접 쥐여주고 각 효과가 실제로 도는지 확인한다. */
 
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 const SHOT = __dirname + '/shots';
 require('fs').mkdirSync(SHOT, { recursive: true });
 
@@ -24,6 +24,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
 
   /* ---------- 1. 처음에는 아무 기억도 없다 ---------- */
   await page.click('#btn-start');
+  await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+  // 기본 캐릭터(기사)는 원거리가 통째로 없다 — 기억 검증은 리자드로 돈다
+  await page.evaluate(() => { chooseHero('lizard'); startRun(); UI.closeIntro(); });
+  // running 은 연출이 닫힌 뒤에야 true 가 된다
   await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
 
   const fresh = await page.evaluate(() => ({
@@ -85,6 +89,28 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   } else {
     check(false, '원거리를 시험할 직선 통로를 못 찾음');
   }
+
+  /* ---------- 4b. 기사에게는 같은 기억이 완력으로 붙는다 ---------- */
+  const kn = await page.evaluate(() => {
+    chooseHero('knight');
+    startRun();
+    state.memories = new Set([]);
+    recalcStats(state.player);
+    const base = state.player.stats.atk;
+    state.memories = new Set(['throw']);
+    recalcStats(state.player);
+    const withMem = state.player.stats.atk;
+    const can = canRanged();
+    // 다음 절을 위해 리자드로 되돌린다
+    chooseHero('lizard');
+    startRun();
+    UI.closeIntro();
+    state.memories = new Set(MEMORIES.map(m => m.id));
+    recalcStats(state.player);
+    return { base, withMem, can };
+  });
+  check(kn.withMem === kn.base + 2, `기사의 「던지던 손」은 공격 +2 (${kn.base} → ${kn.withMem})`);
+  check(kn.can === false, '기사는 기억이 있어도 원거리를 못 쓴다');
 
   /* ---------- 5. 불씨 밝기 ---------- */
   const ember = await page.evaluate(() => {

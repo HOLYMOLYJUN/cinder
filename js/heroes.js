@@ -17,37 +17,43 @@ const HEROES = [
   {
     id: 'knight', name: '기사', sprite: 'knight_m',
     line: '무엇을 지키던 사람이었는지는 기억나지 않는다.',
-    note: '치우침 없음. 처음 오른다면 이쪽.',
-    base: { atk: 6, sp: 0, def: 1, md: 0, spd: 10, maxHp: 42 },
-    grow: { pow: 0.60, maxHp: 4.0, def: 0.30, md: 0.20 },
+    note: '원거리를 쓰지 않는다. 대신 단단하고, 맞부딪히면 세다.',
+    // 난이도: 표준. 아래 리자드·드워프가 도전, 마법사가 입문이다 — README 밸런싱 절 참고.
+    /* melee: 원거리 자체가 없다. 활도 지팡이 던지기도 아니고 Z 가 통째로 없다 —
+       대신 기본기와 성장이 한 급 위다. 「던지던 손」은 기사에겐 완력으로 붙는다. */
+    melee: true,
+    base: { atk: 8, sp: 0, def: 3, md: 1, spd: 10, maxHp: 50 },
+    grow: { pow: 0.70, maxHp: 4.8, def: 0.40, md: 0.30 },
   },
   {
     id: 'elf', name: '엘프', sprite: 'elf_f',
     line: '발이 먼저 기억한다.',
-    note: '빠르지만 얇다. 한 턴에 두 번 움직이는 적을 앞설 수 있다.',
-    base: { atk: 5, sp: 0, def: 1, md: 1, spd: 14, maxHp: 34 },
-    grow: { pow: 0.60, maxHp: 2.6, def: 0.20, md: 0.20, spd: 0.22 },
+    note: '활을 들고 시작한다. 빠르지만 얇다.',
+    // 활은 엘프의 정체성이라 처음부터 쥐여 준다. 고르는 순간 다른 게임이 되도록.
+    startWeapon: '사냥 활',
+    base: { atk: 5, sp: 0, def: 1, md: 1, spd: 13, maxHp: 30 },
+    grow: { pow: 0.54, maxHp: 2.4, def: 0.20, md: 0.20, spd: 0.14 },
   },
   {
     id: 'wizard', name: '마법사', sprite: 'wizzard_m',
     line: '불을 다루던 손이 아직 뜨겁다.',
-    note: '처음부터 마법으로 싸운다. 방어가 두꺼운 적에게 강하다.',
-    base: { atk: 3, sp: 9, def: 0, md: 4, spd: 10, maxHp: 34 },
-    grow: { pow: 0.72, maxHp: 2.6, def: 0.12, md: 0.45 },
+    note: '처음부터 마법으로 싸운다. 다섯 중 가장 순하다 — 처음 오른다면 이쪽.',
+    base: { atk: 3, sp: 8, def: 0, md: 4, spd: 10, maxHp: 30 },
+    grow: { pow: 0.56, maxHp: 2.6, def: 0.12, md: 0.38 },
   },
   {
     id: 'lizard', name: '리자드', sprite: 'lizard_m',
     line: '비늘이 재를 견딘다.',
     note: '단단하고 느리다. 맞아가며 밀고 올라간다.',
     base: { atk: 6, sp: 0, def: 4, md: 1, spd: 8, maxHp: 52 },
-    grow: { pow: 0.55, maxHp: 5.2, def: 0.50, md: 0.12 },
+    grow: { pow: 0.55, maxHp: 5.8, def: 0.62, md: 0.12 },
   },
   {
     id: 'dwarf', name: '드워프', sprite: 'dwarf_f',
     line: '깊은 곳이라면 익숙하다.',
     note: '묵직하게 때린다. 대신 굼뜨다.',
     base: { atk: 8, sp: 0, def: 2, md: 0, spd: 8, maxHp: 46 },
-    grow: { pow: 0.78, maxHp: 4.6, def: 0.25, md: 0.06 },
+    grow: { pow: 0.88, maxHp: 5.2, def: 0.45, md: 0.20 },
   },
 ];
 

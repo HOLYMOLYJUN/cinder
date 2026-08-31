@@ -126,6 +126,7 @@ function loadRun(d, opts) {
   // 레벨은 스탯을 다시 세우기 전에 넣어야 recalcStats 가 제대로 계산한다
   state.level = d.level || 1; state.xp = d.xp || 0;
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
+  state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
   state.campUses = d.campUses; state.revived = d.revived;
   state.hurtThisFloor = d.hurt; state.gotMemoryThisRun = d.gotMemory;
   state.seenMonsters = new Set(d.seen || []);

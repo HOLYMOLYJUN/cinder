@@ -7,7 +7,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   /* --- 파이어볼 --- */
   const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('file:///c:/Users/vlck1/Desktop/dev/game/index.html');
+  await p.goto(require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href);
   await p.evaluate(() => localStorage.clear());
   await p.reload(); await p.waitForTimeout(600);
   await p.click('#btn-start');
@@ -15,6 +15,9 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
 
   console.log('\n[ 무기에 따라 원거리가 달라진다 ]');
   const res = await p.evaluate(() => {
+    // 기사는 원거리가 통째로 없다 — 던지기/불덩이는 물리 기반인 리자드로 본다
+    chooseHero('lizard');
+    startRun();
     state.memories = new Set(['throw']);
     const pl = state.player;
     // 직선 통로를 찾아 표적 셋을 뭉쳐 놓는다
@@ -57,7 +60,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     pl.gear.weapon = makeGear(GEAR.find(g => g.name === '짧은 검')); recalcStats(pl);
     let { main, near } = put();
     const calls1 = []; const real = Sound.play.bind(Sound); Sound.play = n => { calls1.push(n); return real(n); };
-    rangedAttack(dir);
+    (state.rangedCd = 0), rangedAttack(dir);
     const sword = { magic: isMagicAttack(pl), mainHit: 200 - main.hp,
                     splash: near.map(m => 200 - m.hp), calls: calls1.slice() };
 
@@ -65,7 +68,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     pl.gear.weapon = makeGear(GEAR.find(g => g.name === '재의 지팡이')); recalcStats(pl);
     ({ main, near } = put());
     const calls2 = []; Sound.play = n => { calls2.push(n); return real(n); };
-    rangedAttack(dir);
+    (state.rangedCd = 0), rangedAttack(dir);
     const staff = { magic: isMagicAttack(pl), mainHit: 200 - main.hp,
                     splash: near.map(m => 200 - m.hp), calls: calls2.slice(),
                     orbs: Render.orbs.length, blasts: Render.blasts.length };
@@ -112,14 +115,14 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     const diag = put(3, 3);
     refreshFov();
     out.diagBefore = diag.hp;
-    rangedAttack(null);
+    (state.rangedCd = 0), rangedAttack(null);
     out.diagAfter = diag.hp;
 
     // 2) 대각선과 직선이 같이 있을 때 — 가까운 쪽
     state.monsters.length = 0;
     const far = put(0, -5), near = put(2, 1);
     refreshFov();
-    rangedAttack(null);
+    (state.rangedCd = 0), rangedAttack(null);
     out.nearHit = near.hp < near.maxHp;
     out.farHit  = far.hp < far.maxHp;
 
@@ -127,7 +130,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     state.monsters.length = 0;
     const left = put(-2, 0), right = put(4, 0);
     refreshFov();
-    rangedAttack('right');
+    (state.rangedCd = 0), rangedAttack('right');
     out.dirRespected = right.hp < right.maxHp && left.hp === left.maxHp;
 
     // 4) 벽 너머는 못 겨눈다
@@ -135,12 +138,14 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     const behind = put(4, 0);
     m.tiles[cy][cx + 2] = T.WALL;
     refreshFov();
+    state.rangedCd = 0;
     out.wallBlocked = rangedAttack(null) === false && behind.hp === behind.maxHp;
     m.tiles[cy][cx + 2] = T.FLOOR;
 
     // 5) 아무것도 없으면 턴을 쓰지 않는다
     state.monsters.length = 0;
     refreshFov();
+    state.rangedCd = 0;
     out.noTargetNoTurn = rangedAttack(null) === false;
     return out;
   });
@@ -156,7 +161,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   const m = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
   const mp = await m.newPage();
   mp.on('pageerror', e => errs.push(e.message));
-  await mp.goto('file:///c:/Users/vlck1/Desktop/dev/game/index.html');
+  await mp.goto(require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href);
   await mp.evaluate(() => localStorage.clear());
   await mp.reload(); await mp.waitForTimeout(700);
   await mp.click('#btn-start');
@@ -182,7 +187,9 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(lock.aim && lock.ember, '아직 기억하지 못한 기능은 잠겨 보인다');
 
   // 겨누기 → 방향, 두 번 두드리던 것이 한 번으로 줄었다.
-  // 버튼 한 번에 실제로 나가야 한다.
+  // 버튼 한 번에 실제로 나가야 한다. 기사는 원거리가 없으므로 리자드로 본다.
+  await mp.evaluate(() => { chooseHero('lizard'); startRun(); UI.closeIntro(); });
+  await mp.waitForFunction(() => state.running === true, null, { timeout: 8000 });
   const aim = await mp.evaluate(() => {
     state.memories = new Set(['throw']);
     recalcStats(state.player);

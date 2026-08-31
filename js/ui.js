@@ -174,8 +174,11 @@ const UI = {
       this.el.gearRows.appendChild(tr);
     }
 
+    // 활을 버리면 원거리가 같이 사라진다 — 스탯 표에는 안 보이는 값이라 말로 적어 준다
+    const losesBow = current && current.bow && !gear.bow && !MEM.has('throw');
     this.el.gearOld.textContent = current
-      ? '지금 낀 것 — ' + gearFullName(current) + ' (교체하면 버려집니다)'
+      ? '지금 낀 것 — ' + gearFullName(current) +
+        (losesBow ? ' (교체하면 버려지고, 활이 없으면 쏠 수 없습니다)' : ' (교체하면 버려집니다)')
       : '이 자리는 비어 있습니다.';
 
     this.el.gearModal.classList.remove('hidden');
@@ -442,9 +445,10 @@ const UI = {
       }
       const mods = STAT_ORDER.filter(k => g.mod[k])
         .map(k => `${STAT_LABEL[k]} ${g.mod[k] > 0 ? '+' : ''}${g.mod[k]}`).join(' · ');
+      const only = g.only ? ` <span class="cx-tag">${(HEROES.find(h => h.id === g.only) || {}).name || g.only} 전용</span>` : '';
       rows.push(`<tr><td>${this.gearThumb(g)}</td>` +
         `<td class="cx-name" style="color:${RARITY[g.rarity].color}">` +
-        `${gearFullName(g)}</td><td>${SLOT_NAME[g.slot]}</td><td>${g.min}</td>` +
+        `${gearFullName(g)}${only}</td><td>${SLOT_NAME[g.slot]}</td><td>${g.min}</td>` +
         `<td class="cx-mod">${mods}</td></tr>`);
     }
     rows.push('</tbody>');

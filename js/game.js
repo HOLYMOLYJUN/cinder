@@ -38,6 +38,7 @@ const state = {
   hasKey: false,          // 보물방 열쇠를 들고 있는가
   chill: 0,               // 몸이 굳은 턴 수
   burn: 0,                // 불이 붙은 턴 수
+  rangedCd: 0,            // 던진 손이 돌아오기까지 남은 턴
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -78,6 +79,7 @@ function startRun() {
   state.hasKey = false;
   state.chill = 0;
   state.burn = 0;
+  state.rangedCd = 0;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -88,6 +90,12 @@ function startRun() {
   state.pity = save.pity || 0;
 
   state.player = makePlayer();
+  // 시작 무기가 정해진 사람은 들고 내려온다 (엘프의 활)
+  const startW = currentHero().startWeapon;
+  if (startW) {
+    const def = GEAR.find(g => g.name === startW);
+    if (def) state.player.gear.weapon = makeGear(def);
+  }
   recalcStats(state.player);
   state.player.hp = state.player.maxHp;
   UI.clearLog();
@@ -502,6 +510,9 @@ function tryRecallMemory() {
    한 판에 하나라는 제한과 pity 는 건드리지 않는다 —
    이건 보상이 아니라 조작이므로 기억의 경제와 따로 논다. */
 function grantThrowIfDue(depth) {
+  // 기사에겐 열어줄 조작이 없다 — 보장은 조작을 위한 것이므로 기사는 건너뛴다.
+  // 기억 자체는 여전히 확률로 얻을 수 있고, 그때는 완력(공격)으로 붙는다.
+  if (currentHero().melee) return;
   if (depth < CFG.THROW_FLOOR) return;
   if (MEM.has('throw')) return;
   const def = MEM.def('throw');
@@ -526,9 +537,30 @@ function grantThrowIfDue(depth) {
    줄을 맞추려 한 칸 옮기는 동안 두 대를 맞는다. 그 한 칸이 재미있는 판단이었으면
    모르겠는데, 실제로는 그냥 손해만 보는 절차였다.
    그래서 방향은 힌트로만 쓰고, 맞힐 수 있는 것 중 가장 가까운 것을 고른다. */
+/* 원거리를 쓸 수 있는가.
+   기사는 못 쓴다 — 근거리만 남긴 사람이다.
+   활을 들었으면 기억 없이도 쏜다. 활이 곧 그 조작이므로.
+   나머지는 「던지던 손」을 되찾아야 한다. */
+function canRanged() {
+  if (!state.player) return false;               // 판 밖(타이틀)에서도 불릴 수 있다
+  if (currentHero().melee) return false;
+  const w = state.player.gear.weapon;
+  return !!(w && w.bow) || MEM.has('throw');
+}
+
+// 지금 이 턴에 쏠 수 있는가 — 쓸 줄 아는 것(canRanged)과 손이 돌아왔는가는 다른 물음이다
+function rangedReady() {
+  return canRanged() && !(state.rangedCd > 0);
+}
+
 function rangedTarget(dir) {
   const p = state.player;
-  const range = isMagicAttack(p) ? 7 : 6;
+  const w = p.gear.weapon;
+  /* 활만 한 칸 멀리 간다 — 가장 멀리 보는 것이 엘프의 정체성이다.
+     불덩이도 7이었지만 6으로 줄였다. 위력을 30% 깎아도(두 번 쟀다) 클리어율이
+     안 움직이는 게임이라, 원거리의 값은 피해량이 아니라 "닿기 전에 정리하는 것"이고
+     그 값을 정하는 건 사거리와 리듬뿐이다. */
+  const range = (w && w.bow) ? 7 : 6;
   const d = dir ? DIRS[dir] : null;
 
   let best = null, bestScore = Infinity;
@@ -559,8 +591,20 @@ function clearShot(x0, y0, x1, y1) {
 
 function rangedAttack(dir) {
   const p = state.player;
-  if (!MEM.has('throw')) {
+  if (currentHero().melee) {
+    UI.log('몸이 기억하는 싸움은 하나뿐입니다 — 붙어서.', 'sys');
+    return false;
+  }
+  if (!canRanged()) {
     UI.log('멀리 있는 것을 맞히는 법이 기억나지 않습니다.', 'sys');
+    return false;
+  }
+  /* 한 번 던지면 다음 한 턴은 못 던진다.
+     겨누는 수고가 사라지자 매 턴 던지는 게 언제나 최선이 되어
+     몬스터가 닿기도 전에 판이 끝났다. 위력을 깎는 것으로는 안 잡혔고
+     (30%를 깎아도 클리어율이 1%p 밖에 안 움직였다), 빈도가 실제 레버다. */
+  if (state.rangedCd > 0) {
+    UI.log('던진 손이 아직 돌아오지 않았습니다.', 'sys');
     return false;
   }
 
@@ -579,18 +623,32 @@ function rangedAttack(dir) {
     if (m && m.alive) { target = m; break; }
   }
 
-  // 한 번 던지면 다음 한 턴은 못 던진다.
-  // 겨누는 수고가 사라지자 매 턴 던지는 게 언제나 최선이 되어,
-  // 몬스터가 닿기도 전에 판이 끝나 버렸다. 붙어서 싸울 이유를 남겨 둔다.
+  /* 이번 턴에 하나 줄므로 2 는 "다음 턴만 막힌다", 3 은 "두 턴 막힌다".
+     불덩이는 광역이라 화살·던지기와 같은 리듬을 주면 언제나 불덩이가 이긴다.
+     3에서 4로 조여도 클리어율이 안 움직였다(마법사는 근접도 마법이라 흡수한다) —
+     더 조이는 것은 느낌만 해친다. */
+  state.rangedCd = isMagicAttack(p) ? 3 : 2;
+
   // 던지는 쪽을 바라보게 한다
   if (target.x !== p.x) p.face = target.x > p.x ? 1 : -1;
 
   const fire = isMagicAttack(p);
-  if (fire) Render.addOrb(p.x, p.y, target.x, target.y);
-  else      Render.addBeam(p.x, p.y, target.x, target.y, COLORS.ember);
+  const bow = !fire && p.gear.weapon && p.gear.weapon.bow;
+  if (fire)     Render.addOrb(p.x, p.y, target.x, target.y);
+  else if (bow) Render.addArrow(p.x, p.y, target.x, target.y);
+  else          Render.addBeam(p.x, p.y, target.x, target.y, COLORS.ember);
   Sound.play(fire ? 'fireball' : 'throw');
 
   const { dmg } = rollDamage(p, target);
+
+  if (bow) {
+    // 활은 이 사람의 본업이라 던지기보다 덜 깎인다. 그래도 근접보다는 약하다.
+    const hit = Math.max(1, Math.round(dmg * 0.85));
+    hurtMonster(target, hit, COLORS.damage);
+    UI.log(target.name + '에게 화살이 꽂힙니다. ' + hit + '의 피해.', 'hit');
+    UI.updateHud(state);
+    return true;
+  }
 
   if (!fire) {
     // 근접보다 약하다. 거리를 얻는 대신 위력을 내주는 것.
@@ -714,6 +772,8 @@ function spendPlayerTurn() {
   state.player.energy -= CFG.ENERGY_COST;
   state.awaitingInput = false;
   state.turns++;
+  // 던진 손이 돌아온다 — 원거리는 연사가 아니라 리듬이다
+  if (state.rangedCd > 0) state.rangedCd--;
   if (state.chill > 0) state.chill--;
   // 붙은 불은 저절로 꺼지지 않는다. 물약을 마시든 죽이든 결판을 내야 한다.
   if (state.burn > 0) {
@@ -1295,7 +1355,9 @@ function paintTouch() {
   const pot = document.getElementById('t-potion');
   if (pot) pot.textContent = state.potions;
   if (aim) {
-    aim.classList.toggle('locked', !MEM.has('throw'));
+    // 기사에겐 원거리가 아예 없는 조작이다 — 잠긴 버튼이 아니라 없는 버튼
+    aim.hidden = !!currentHero().melee;
+    aim.classList.toggle('locked', !canRanged());
     aim.textContent = '원거리';
   }
   if (ember) ember.classList.toggle('locked', !MEM.has('douse'));

@@ -10,9 +10,13 @@
    ========================================================= */
 
 const MEMORIES = [
+  /* 기사는 원거리가 없는 사람이라 이 기억이 조작을 열지 못한다.
+     그렇다고 기사에게만 꽝인 기억을 남겨 두면 수집이 벌이 되므로,
+     기사가 들고 있는 동안은 그 완력이 근접에 실린다 (heroMod). */
   { id: 'throw',  name: '던지던 손',
-    effect: '원거리 공격 — Z + 방향',
-    line: '당신은 무언가를 멀리 던져본 적이 있다.' },
+    effect: '원거리 공격 — Z + 방향 (기사는 공격 +2)',
+    line: '당신은 무언가를 멀리 던져본 적이 있다.',
+    heroMod: { knight: { atk: 2 } } },
 
   { id: 'climb',  name: '오르던 발',
     effect: '속도 +2',
@@ -60,12 +64,15 @@ const MEM = {
     return left.length ? choice(left) : null;
   },
 
-  // 기억으로 붙는 스탯 보정
+  // 기억으로 붙는 스탯 보정. 사람에 따라 다르게 붙는 기억(heroMod)이 있다.
   mod() {
     const out = {};
+    const hero = currentHero().id;
     for (const m of MEMORIES) {
-      if (!m.mod || !this.has(m.id)) continue;
-      for (const [k, n] of Object.entries(m.mod)) out[k] = (out[k] || 0) + n;
+      if (!this.has(m.id)) continue;
+      const mod = (m.heroMod && m.heroMod[hero]) || m.mod;
+      if (!mod) continue;
+      for (const [k, n] of Object.entries(mod)) out[k] = (out[k] || 0) + n;
     }
     return out;
   },

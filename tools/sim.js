@@ -18,6 +18,9 @@ const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const RUNS = Number(process.argv[2]) || 300;
+// 잴 사람. 비우면 기본(기사). 클래스마다 싸움이 달라졌으므로 따로 재야 한다.
+//   node tools/sim.js 120 elf
+const HERO = (process.argv[3] || '').trim();
 
 /* ---------- 껍데기 ---------- */
 
@@ -85,7 +88,7 @@ ctx.UI = {
 
 ctx.Render = {
   init(){}, resize(){}, step(){}, draw(){},
-  addFloater(){}, addShake(){}, addBeam(){}, addOrb(){}, addBlast(){},
+  addFloater(){}, addShake(){}, addBeam(){}, addOrb(){}, addArrow(){}, addBlast(){},
   img: {}, ready: false,
 };
 
@@ -101,7 +104,7 @@ const G = vm.runInContext(`({
   state, startRun, enterFloor, playerAction, drinkPotion, resolveGear, buyFromShop,
   monsterAt, isWalkable, blocksSight, DIRS, T, MONSTERS, GEAR, SLOTS, CFG,
   MEMORIES, ACHIEVEMENTS, BOSSES, isMagicAttack, chebyshev, compareRows, POTION_MAX, tileAt, LV,
-  rangedTarget,
+  rangedTarget, canRanged, rangedReady, chooseHero, HEROES,
 })`, ctx);
 
 /* ---------- 봇 ---------- */
@@ -156,6 +159,9 @@ function gearScore(g) {
   const w = { atk: 3, sp: 3, def: 3.4, md: 2.2, spd: 2.6, maxHp: 0.9 };
   let v = 0;
   for (const [k, n] of Object.entries(g.mod)) v += n * (w[k] || 1);
+  // 활은 스탯 밖의 값어치가 있다 — 들고 있는 것 자체가 원거리를 연다.
+  // 이걸 안 치면 봇 엘프가 활을 검으로 바꿔 들고 정체성을 버린다.
+  if (g.bow) v += 6;
   return v;
 }
 
@@ -182,9 +188,10 @@ function botTurn() {
     if (t) return { dir: name, intent: 'move' };
   }
 
-  // 원거리를 배웠으면 쏜다. 겨누는 것은 게임이 알아서 하므로
-  // 봇도 사람과 똑같이 "쏠 게 있나"만 물어보면 된다.
-  if (s.memories.has('throw') && G.rangedTarget(null)) {
+  // 원거리를 쏠 수 있는 턴이면 쏜다. 쓸 줄 아는지(기사 제외·활·기억)도,
+  // 손이 돌아왔는지(재사용 간격)도 게임이 알아서 하므로
+  // 봇도 사람과 똑같이 물어보기만 하면 된다.
+  if (G.rangedReady() && G.rangedTarget(null)) {
     return { dir: null, intent: 'ranged' };
   }
 
@@ -225,6 +232,7 @@ function botTurn() {
 function playRun() {
   ctx.__result = null; ctx.__ending = false; ctx.__gearPending = false; ctx.__shopOpen = false;
   declined = new Set();
+  if (HERO) G.chooseHero(HERO);   // localStorage 를 매 판 비우므로 매 판 다시 고른다
   G.startRun();
   drainTimers();
 
@@ -351,9 +359,17 @@ function report(label, runs) {
   }
 }
 
-console.log(`${RUNS}판씩 두 집단 시뮬레이션...`);
+// --fresh: 처음 집단만 잰다. 숫자를 반복해서 만질 때는 이것부터 본다.
+const FRESH_ONLY = process.argv.includes('--fresh');
+
+console.log(`${RUNS}판씩 ${FRESH_ONLY ? '처음 집단만' : '두 집단'} 시뮬레이션...` + (HERO ? ` (${HERO})` : ''));
 const t0 = Date.now();
 const freshRuns = runCohort(RUNS, true);
+if (FRESH_ONLY) {
+  report('처음 오르는 사람 — 기억 0개' + (HERO ? ` · ${HERO}` : ''), freshRuns);
+  console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)}초)`);
+  process.exit(0);
+}
 const fullRuns  = runCohort(RUNS, false);
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
 report('처음 오르는 사람 — 기억 0개', freshRuns);

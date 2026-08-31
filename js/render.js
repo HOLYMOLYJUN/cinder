@@ -107,6 +107,14 @@ const Render = {
 
   orbs: [],
   blasts: [],
+  arrows: [],
+
+  // 날아가는 화살 (활). 각도는 떠날 때 한 번만 계산한다.
+  addArrow(x0, y0, x1, y1) {
+    const dist = Math.abs(x1 - x0) + Math.abs(y1 - y0);
+    this.arrows.push({ x0, y0, x1, y1, t: 0, life: 0.04 + dist * 0.02,
+                       ang: Math.atan2(y1 - y0, x1 - x0) });
+  },
 
   // 날아가는 불덩이. 타일셋에 투사체 그림이 없어서 직접 그린다.
   addOrb(x0, y0, x1, y1) {
@@ -134,6 +142,9 @@ const Render = {
 
     for (const o of this.orbs) o.t += dt;
     this.orbs = this.orbs.filter(o => o.t < o.life);
+
+    for (const a of this.arrows) a.t += dt;
+    this.arrows = this.arrows.filter(a => a.t < a.life);
 
     for (const b of this.blasts) b.t += dt;
     this.blasts = this.blasts.filter(b => b.t < b.life);
@@ -363,6 +374,29 @@ const Render = {
       ctx.globalAlpha = 1;
     }
 
+    /* ----- 날아가는 화살 ----- */
+    for (const a of this.arrows) {
+      const p = a.t / a.life;
+      const ax = (lerp(a.x0, a.x1, p) + 0.5) * TS;
+      const ay = (lerp(a.y0, a.y1, p) + 0.5) * TS;
+      const s = this.img['arrow'];
+      const im = s && s.f[0];
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(a.ang + Math.PI / 2);          // 그림이 위를 보고 있다
+      if (im && im.complete && im.naturalWidth) {
+        const k = TS / 16;
+        ctx.drawImage(im, -im.width * k / 2, -im.height * k / 2,
+                      im.width * k, im.height * k);
+      } else {
+        // 그림이 아직 없어도 게임은 돌아간다 — 짧은 선으로 대신한다
+        ctx.strokeStyle = '#D8CDBB';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(0, -6); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     /* ----- 날아가는 불덩이 ----- */
     for (const o of this.orbs) {
       const p = o.t / o.life;
@@ -460,6 +494,11 @@ const Render = {
                  : (e.defId === 'keeper' ? [COLORS.ember, 0.5] : null);
       this.sprite(ctx, key + (moving ? '.run' : '.idle'), px, py,
                   e.boss ? 1.25 : 1, 1, tint, e.face, f);
+
+      // 주운 무기는 손에 들려 보인다 — 장비창을 열지 않아도 지금 뭘 들었는지 읽히게
+      if (e.kind === 'player' && e.gear && e.gear.weapon) {
+        this.heldWeapon(ctx, e, px, py);
+      }
 
       // 열쇠를 들고 있으면 알려준다 — 이걸 안 보이게 하면 층 전체를 뒤져야 한다
       if (e.hasKey) this.keyMark(ctx, px + TS/2, py - TS*0.12, 0.85);
@@ -775,6 +814,42 @@ const Render = {
     } else {
       ctx.drawImage(src, x, y, w, h);
     }
+    ctx.restore();
+  },
+
+  /* 손에 든 무기.
+     비교창 아이콘(gear.<이름>)을 그대로 쓴다 — 무기 그림은 날이 위, 그립이 아래라
+     그립을 회전축에 놓고 진행 방향으로 기울이면 든 것처럼 보인다.
+     px·py 는 bump·피격 흔들림·부유까지 반영된 값이라 몸을 그대로 따라간다. */
+  heldWeapon(ctx, e, px, py) {
+    const s = this.img['gear.' + e.gear.weapon.name];
+    if (!s) return;
+    const im = s.f[0];
+    if (!im || !im.complete || !im.naturalWidth) return;
+
+    const TS = CFG.TILE;
+    // 지팡이류는 원본이 몸의 두 배 가까이 길다. 몸보다 길면 든 게 아니라 떠 있는 것처럼
+    // 보이므로, 몸 높이 조금 넘는 선에서 잘라 맞춘다.
+    const k = (TS / 16) * Math.min(1, (TS * 1.2) / (im.height * (TS / 16)));
+    const w = im.width * k, h = im.height * k;
+    const face = e.face || 1;
+
+    // 손 위치 — 몸 앞쪽, 허리께
+    const hx = px + TS / 2 + face * TS * 0.28;
+    const hy = py + TS * 0.66;
+
+    // 평소엔 살짝 기울여 들고, 공격(bump) 중에는 휘둘렀다 돌아온다
+    let angle = 0.55;
+    if (e.bump) {
+      const p = e.bump.t / CFG.BUMP_ANIM;
+      angle = 0.55 + Math.sin(p * Math.PI) * 1.15;
+    }
+
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(face, 1);          // 몸과 같은 쪽을 본다
+    ctx.rotate(angle);
+    ctx.drawImage(im, -w / 2, -h + 2 * k, w, h);   // 그립이 회전축에 오게
     ctx.restore();
   },
 

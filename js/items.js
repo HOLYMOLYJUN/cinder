@@ -31,6 +31,13 @@ const GEAR = [
   { slot:'weapon', name:'대검',        min:8,  rarity:'fine',    mod:{ atk:10, spd:-2 } },
   { slot:'weapon', name:'불씨 단검',   min:4,  rarity:'ancient', mod:{ atk:7, spd:2 } },
   { slot:'weapon', name:'불씨 검',     min:9,  rarity:'ancient', mod:{ atk:12, sp:3 } },
+  // ---- 무기 : 활 (엘프 전용) ----
+  // 활은 물리 원거리라는 세 번째 방식이다. 들고 있으면 기억 없이도 Z 로 쏜다.
+  // only 가 붙은 장비는 그 사람일 때만 나온다 — 다른 사람에게는 "주워도 못 쓰는
+  // 함정 아이템"이 되므로 애초에 굴리지 않는다.
+  { slot:'weapon', name:'사냥 활',     min:1,  rarity:'common',  mod:{ atk:3, spd:1 },  bow:true, only:'elf' },
+  { slot:'weapon', name:'긴 활',       min:5,  rarity:'fine',    mod:{ atk:6, spd:1 },  bow:true, only:'elf' },
+  { slot:'weapon', name:'재의 활',     min:9,  rarity:'ancient', mod:{ atk:9, spd:2 },  bow:true, only:'elf' },
   // ---- 무기 : 마법 ----
   // 지팡이의 주문은 반드시 기본 공격(5)보다 확실히 높아야 한다.
   // 같거나 낮으면 들어도 물리 판정이 유지되어 주울 이유가 없는 함정 아이템이 된다.
@@ -64,7 +71,8 @@ const STAT_ORDER = ['atk', 'sp', 'def', 'md', 'spd', 'maxHp'];
 // luck: 기억을 오래 못 얻었을수록 커진다. 고대의 등급이 더 자주 나와
 //       기억을 굴릴 기회 자체가 늘어난다.
 function rollGear(depth, luck) {
-  const pool = GEAR.filter(g => g.min <= depth);
+  const hero = currentHero().id;
+  const pool = GEAR.filter(g => g.min <= depth && (!g.only || g.only === hero));
   if (!pool.length) return null;
 
   // 깊이 들어갈수록 좋은 것이 나오지만, 고대의는 항상 드물다.

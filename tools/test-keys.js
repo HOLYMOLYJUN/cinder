@@ -4,7 +4,7 @@
    모디파이어(Z·X)는 눌린 채로 방향키를 받거나, 방향 없이 떼이거나,
    두 경우가 갈리는 곳이라 여기서만 확인할 수 있는 실수가 난다. */
 const { chromium } = require('playwright');
-const GAME = 'file:///c:/Users/vlck1/Desktop/dev/game/index.html';
+const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 let fails = 0;
 const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails++; };
 (async () => {
@@ -17,6 +17,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   await page.reload();
   await page.waitForTimeout(900);
   await page.click('#btn-start');
+  await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+  // 기본 캐릭터(기사)는 원거리가 없다 — Z 검사는 리자드로 돈다
+  await page.evaluate(() => { chooseHero('lizard'); startRun(); UI.closeIntro(); });
+  // running 은 연출이 닫힌 뒤에야 true 가 된다
   await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
 
   const setup = await page.evaluate(() => {
@@ -40,7 +44,8 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(afterZ.turns > setup.turns, '턴이 지나감');
 
   // Z + 방향은 그대로 움직임이 아니라 원거리여야 한다
-  const before2 = await page.evaluate(() => ({ hp: state.monsters[0].hp, x: state.player.x }));
+  // (직전 검사에서 쐈으므로 재사용 간격을 풀어 준다 — 리듬은 test-classes 가 본다)
+  const before2 = await page.evaluate(() => { state.rangedCd = 0; return { hp: state.monsters[0].hp, x: state.player.x }; });
   await page.keyboard.down('KeyZ');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.up('KeyZ');
