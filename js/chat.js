@@ -236,9 +236,23 @@ const Chat = {
 
   join() {
     const name = this.el.name.value;
-    const room = this.el.room.value;
+    const raw = this.el.room.value.trim();
+
+    /* 비워 둔 채로 들어가면 아무도 모르는 새 방이 열린다.
+       여기에 기본값을 두면 — 플레이스홀더든 상수든 — 아무 생각 없이 누른 사람들이
+       전부 같은 방에서 만난다. 적어 두지 않은 이름이 곧 아무나 들어올 수 있는 이름이다.
+       다만 뭔가 치기는 했는데 걸러내고 나니 빈 것은 다른 얘기다 —
+       그건 오타이므로 조용히 딴 방을 파 주는 대신 말해 준다. */
+    let room;
+    if (!raw) {
+      room = this.newRoom();
+    } else {
+      room = Net.cleanRoom(raw);
+      if (!room) { this.system('방 이름은 영문·숫자·붙임표만 됩니다.'); return; }
+    }
+
     if (!Net.connect(room, name)) {
-      this.system('방 이름은 영문·숫자·붙임표만 됩니다.');
+      this.system('방에 들어가지 못했습니다.');
       return;
     }
     this.store({ name: Net.name, room: Net.room, joined: true });

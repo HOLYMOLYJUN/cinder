@@ -261,7 +261,43 @@ const joined = page => page.waitForFunction(
     (await shy.isVisible('#chat')) && (await shy.inputValue('#chat-room')) === room);
   await shy.close();
 
-  /* ---------- 9. 끊겼다 다시 붙는다 ---------- */
+  /* ---------- 9. 기본값으로 같은 방에 모이면 안 된다 ---------- */
+
+  // 플레이스홀더가 방 이름처럼 생기면 보이는 대로 치고, 그러면 다 같은 방이 된다
+  const ph = await a.getAttribute('#chat-room', 'placeholder');
+  check('플레이스홀더가 방 이름처럼 생기지 않았다', !/^[a-z0-9-]+$/i.test(ph), ph);
+
+  // 비워 둔 채로 들어가면 사람마다 다른 방이 열려야 한다
+  const empties = [];
+  for (let i = 0; i < 2; i++) {
+    const p = await newTab(browser, PARTY, { saved: { name: '아무개' } });
+    await p.keyboard.press('KeyC');
+    await p.waitForTimeout(200);
+    await p.fill('#chat-room', '');
+    await p.click('#chat-enter');
+    await joined(p).catch(() => {});
+    empties.push(await p.evaluate(() => Net.room));
+    await p.close();
+  }
+  check('비워 두고 들어가면 방이 열린다', empties.every(Boolean), empties.join(' / '));
+  check('비워 두고 들어간 둘이 같은 방이 아니다', empties[0] !== empties[1],
+    empties.join(' / '));
+  check('그 방도 무작위 8글자를 쓴다',
+    empties.every(r => /^[a-z]+-[a-z0-9]{8}$/.test(r)), empties[0]);
+
+  // 오타는 조용히 딴 방을 파 주는 대신 말해 준다
+  const typo = await newTab(browser, PARTY, { saved: { name: '아무개' } });
+  await typo.keyboard.press('KeyC');
+  await typo.fill('#chat-room', '한글방');
+  await typo.click('#chat-enter');
+  await typo.waitForTimeout(700);
+  check('걸러낼 수 없는 이름은 오류로 알린다',
+    (await typo.textContent('#chat-lines')).includes('영문·숫자·붙임표'));
+  check('오류일 때는 아무 방에도 안 들어간다',
+    (await typo.evaluate(() => Net.status)) === 'off');
+  await typo.close();
+
+  /* ---------- 10. 끊겼다 다시 붙는다 ---------- */
   await a.evaluate(() => Net.ws && Net.ws.close());   // 서버가 끊은 것처럼
   await a.waitForTimeout(300);
   await joined(a).then(() => check('끊기면 스스로 다시 붙는다', true))
