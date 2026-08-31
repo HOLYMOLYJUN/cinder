@@ -70,6 +70,9 @@ function startRun() {
   }
   clearRun();
   state.resumable = false;
+  /* 이 판이 오르는 탑은 「시작한 날」의 탑이다. 매 층 새로 물으면
+     자정(UTC)을 넘기는 순간 오르던 탑이 발밑에서 바뀐다. */
+  state.day = towerDay();
   state.depth = 1;
   state.gold = 0;
   state.potions = 2;
@@ -130,17 +133,29 @@ function enterFloor(depth) {
   // 초반 층은 튜토리얼을 겸하므로 플레이어를 몰아붙이는 속성을 뽑지 않는다.
   const harsh = ['dense', 'dark'];
   const pool = depth <= 2 ? FLOOR_TAGS.filter(t => !harsh.includes(t.id)) : FLOOR_TAGS;
-  const tag = isRest ? { id: null, hint: '', monsterMul: 0, fovAdd: 1 } : choice(pool);
-
-  // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
-  // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
-  // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
   const isRoof = depth >= CFG.TOP_FLOOR;
-  const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
-  const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
+
+  /* 여기서부터 지형이 만들어질 때까지만 씨앗 달린 난수를 쓴다.
+     오늘 오르는 사람은 모두 같은 탑을 본다 — 그래야 남이 좌표로 남긴 흔적이
+     내 지도에서도 같은 자리를 가리킨다. (지형이 판마다 달랐을 때는
+     남의 쪽지를 실제로 읽을 수 있는 확률이 14% 였다.)
+
+     층 속성과 보물방 여부도 여기 넣는다. 보물방은 방 하나가 통째로 생기는
+     일이라 지형이고, 층 속성은 보물방 확률을 흔들기 때문이다.
+     몬스터와 전리품은 이 밖에서 뽑히므로 판마다 그대로 다르다. */
+  const { tag, wantVault, map } = withSeed(floorSeed(depth, state.day), () => {
+    const tag = isRest ? { id: null, hint: '', monsterMul: 0, fovAdd: 1 } : choice(pool);
+    // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
+    // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
+    // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
+    const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
+    return { tag, wantVault, map: isRoof ? makeRoof(depth) : makeFloor(depth, wantVault) };
+  });
   state.floorTag = tag;
   Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
-  Marks.enterFloor(depth);       // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다)
+  // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다).
+  // state.map 은 아직 지난 층이라 이번 지도를 직접 넘긴다 — 길잡이가 이걸 보고 자리를 잡는다
+  Marks.enterFloor(depth, map);
   state.noteHinted = false;      // 벽에 부딪혔을 때의 귀띔은 층마다 한 번
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
@@ -843,20 +858,22 @@ function touchMode() {
    키보드는 N 을 눌러보면 알지만 손가락은 눌러볼 버튼이 없다.
    그래서 「할 수 있는가」를 한 군데서 답하고, 모바일 버튼이 이걸 보고 나타난다. */
 function noteAction() {
-  if (!Marks.on() || !state.running || !state.player.alive) return null;
+  if (!state.running || !state.player.alive) return null;
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
+  // 길잡이는 탑이 스스로 남긴 것이라 서버가 없어도 거기 있다. 끄덕임도 마찬가지다.
   if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
-  if (Marks.wroteThisFloor) return null;
+  if (!Marks.on() || Marks.wroteThisFloor) return null;
   return tileAt(state.map, p.x, p.y - 1) === T.WALL ? 'write' : null;
 }
 
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
    같은 키에 둘을 묶은 이유는 하나다: 벽 앞에 섰을 때 할 일이 그 둘뿐이다. */
 function noteKey() {
-  if (!Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
+  // 남기는 것만 서버가 필요하다 — 읽고 끄덕이는 것은 길잡이만으로도 성립한다
+  if (!m && !Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
 
   if (m && !m.mine) {
     if (Marks.nodded.has(m.id)) { UI.log('이미 끄덕였습니다.', 'sys'); return; }

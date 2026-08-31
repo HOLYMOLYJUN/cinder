@@ -130,12 +130,16 @@ npx wrangler dev          # http://127.0.0.1:8787
 받아 오면 끝이다. Durable Object 는 `idFromName('global')` 하나만 쓴다 — 층 번호로 나누면
 사람이 흩어져서 아무 자리에도 흔적이 안 쌓인다.
 
+**열쇠에 날짜가 들어간다.** 게임은 날짜로 지형을 고정하므로(「오늘의 탑」, 저장소 뿌리
+README 참고) 어제의 좌표는 오늘 지형에서 아무 뜻도 없다. 안 나누면 흔적이 벽 속에 박히고,
+박힌 것은 화면에 아예 안 나오므로 「기능이 고장 났다」로 보인다.
+
 | | |
 |---|---|
-| `GET /marks/floor/:n?uid=` | 그 층의 흔적. `mine` 이 붙어 온다 |
+| `GET /marks/floor/:day/:n?uid=` | 그날 그 층의 흔적. `mine` 이 붙어 온다 |
 | `GET /marks/nods?uid=` | 내가 남긴 말을 몇 명이 읽었는가 |
-| `POST /marks/add` | `{v,uid,kind:'grave'\|'note',floor,x,y,by, a,b \| killer,turns}` |
-| `POST /marks/nod` | `{v,uid,floor,id}` — 남의 쪽지에 끄덕인다 |
+| `POST /marks/add` | `{v,uid,kind:'grave'\|'note',day,floor,x,y,by, a,b \| killer,turns}` |
+| `POST /marks/nod` | `{v,uid,day,floor,id}` — 남의 쪽지에 끄덕인다 |
 
 **쪽지는 자유 입력이 아니다.** 낯선 사람의 글이 남의 화면에 뜨는 순간 욕설·광고·스포일러를
 전부 감당해야 한다. 다크소울처럼 틀에 낱말을 끼우고, **서버에는 문장이 아니라 번호 둘(`a`,`b`)만

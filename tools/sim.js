@@ -98,7 +98,7 @@ ctx.Render = {
 /* ---------- 게임 코드 ---------- */
 
 const FILES = ['js/config.js','js/util.js','js/sound.js','js/map.js','js/fov.js','js/actors.js',
-               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
+               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/guide.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
 for (const f of FILES) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
@@ -242,11 +242,19 @@ function botTurn() {
 
 /* ---------- 한 판 ---------- */
 
+let runIndex = 0;
+
 function playRun() {
+  runIndex++;
   ctx.__result = null; ctx.__ending = false; ctx.__gearPending = false; ctx.__shopOpen = false;
   declined = new Set();
   if (HERO) G.chooseHero(HERO);   // localStorage 를 매 판 비우므로 매 판 다시 고른다
   G.startRun();
+  /* 지형은 이제 날짜로 고정된다(오늘의 탑). 그대로 두면 수백 판이 전부
+     같은 열다섯 층을 오르게 되어, 재는 것이 「이 게임의 난이도」가 아니라
+     「오늘 탑의 난이도」가 된다. 판마다 다른 날을 준다. */
+  G.state.day = 20200101 + (runIndex % 4000);
+  G.enterFloor(1);
   drainTimers();
 
   const perFloor = [];      // 층 진입 시점의 체력 비율

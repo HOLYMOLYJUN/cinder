@@ -31,6 +31,7 @@ const JS_FILES = [
   'js/pets.js',
   'js/story.js',
   'js/marks.js',
+  'js/guide.js',
   'js/bosses.js',
   'js/achievements.js',
   'js/render.js',

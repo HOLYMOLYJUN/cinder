@@ -86,16 +86,21 @@ const Marks = {
   url(p) { return NET.HOST.replace(/\/+$/, '') + '/marks' + p; },
 
   /* 층에 들어설 때 한 번. 못 받아도 게임은 그대로 돈다 —
-     서버가 꺼져 있다고 판이 멈추면 그건 없는 편이 나은 기능이다. */
-  async enterFloor(depth) {
-    this.list = [];
+     서버가 꺼져 있다고 판이 멈추면 그건 없는 편이 나은 기능이다.
+
+     날짜가 열쇠에 들어간다. 탑이 매일 새로 서므로 어제의 좌표는 오늘
+     지형에서 아무 뜻도 없다 — 날짜를 안 섞으면 흔적이 벽 속에 박힌다.
+     대신 아침마다 층이 비므로, 길잡이는 서버가 아니라 이쪽에서 채운다. */
+  async enterFloor(depth, map) {
+    this.list = Guide.forFloor(depth, state.day, map);
     this.wroteThisFloor = false;
     if (!this.on()) return;
     try {
-      const r = await fetch(this.url('/floor/' + depth + '?uid=' + encodeURIComponent(this.uid)));
+      const r = await fetch(this.url('/floor/' + state.day + '/' + depth +
+                                     '?uid=' + encodeURIComponent(this.uid)));
       if (!r.ok) return;
       const d = await r.json();
-      if (d && Array.isArray(d.marks)) this.list = d.marks;
+      if (d && Array.isArray(d.marks)) this.list = this.list.concat(d.marks);
     } catch (e) { /* 조용히 없던 일로 */ }
   },
 
@@ -113,7 +118,7 @@ const Marks = {
   async add(kind, x, y, extra) {
     if (!this.on() || !this.uid) return;
     const body = Object.assign({
-      v: 1, uid: this.uid, kind: kind, floor: state.depth,
+      v: 1, uid: this.uid, kind: kind, day: state.day, floor: state.depth,
       x: x, y: y, by: this.who(),
     }, extra || {});
     try {
@@ -126,14 +131,16 @@ const Marks = {
   },
 
   async nod(m) {
-    if (!this.on() || !m || m.mine || this.nodded.has(m.id)) return false;
+    if (!m || m.mine || this.nodded.has(m.id)) return false;
     this.nodded.add(m.id);
     m.nods = (m.nods || 0) + 1;
+    // 길잡이는 탑이 남긴 말이라 서버에 셀 것이 없다. 끄덕임은 화면에서만 산다.
+    if (!this.on() || m.guide) return true;
     try {
       await fetch(this.url('/nod'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ v: 1, uid: this.uid, floor: state.depth, id: m.id }),
+        body: JSON.stringify({ v: 1, uid: this.uid, day: state.day, floor: state.depth, id: m.id }),
       });
     } catch (e) {}
     return true;

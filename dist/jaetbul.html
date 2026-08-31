@@ -1635,16 +1635,67 @@ const SPRITES = {"hero.knight.idle":{"w":16,"h":28,"f":["data:image/png;base64,i
    util.js — 잡다한 도구
    ========================================================= */
 
+/* ---------- 난수 ----------
+
+   이 게임의 난수는 한 군데로 모인다. 그래야 「오늘의 탑」이 가능하다 —
+   지형을 만드는 동안만 난수를 씨앗 달린 것으로 바꿔치기하면
+   map.js 는 한 줄도 고치지 않고 모두가 같은 탑을 오르게 된다.
+
+   바꿔치기하는 것은 지형뿐이다. 몬스터도 전리품도 그대로 무작위다.
+   「탑」은 지형이지 내용물이 아니고, 하루에 두 판째부터 전리품까지 똑같으면
+   같은 판을 두 번 하는 것이 된다. 흔적이 필요로 하는 것도 지형뿐이다. */
+
+let RAND_SRC = Math.random;
+
+/* mulberry32 — 32비트 하나로 도는 작고 고른 난수.
+   던전을 만드는 데 쓰는 것이므로 예측 가능해도 된다.
+   (열쇠를 깎는 난수는 여기가 아니라 crypto 다 — chat.js 참고) */
+function seededRand(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* fn 이 도는 동안만 난수를 씨앗 달린 것으로 바꾼다.
+   중간에 예외가 나도 반드시 되돌린다 — 여기서 새면 그 뒤로 게임 전체가
+   같은 수를 반복하게 되고, 그건 아주 찾기 어려운 버그가 된다. */
+function withSeed(seed, fn) {
+  const prev = RAND_SRC;
+  RAND_SRC = seededRand(seed);
+  try { return fn(); } finally { RAND_SRC = prev; }
+}
+
 function randInt(min, max) {            // min 이상 max 이하
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(RAND_SRC() * (max - min + 1)) + min;
 }
 
 function choice(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(RAND_SRC() * arr.length)];
 }
 
 function chance(p) {                    // p 확률(0~1)로 true
-  return Math.random() < p;
+  return RAND_SRC() < p;
+}
+
+/* 오늘의 탑 — 오르는 사람 모두가 같은 지형을 본다.
+
+   UTC 를 쓴다. 시간대별로 다른 탑을 주면 흔적이 국경에서 끊긴다 —
+   한국에서 남긴 쪽지가 같은 시각 유럽 사람에게는 다른 지형의 좌표가 된다.
+   날짜가 바뀌는 시각(한국 기준 오전 9시)이 어중간한 것보다 그게 낫다. */
+function towerDay(d) {
+  const t = d || new Date();
+  return t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate();
+}
+
+/* 층마다 다른 씨앗을 준다. 날짜만 쓰면 15개 층이 전부 같은 지형이 된다.
+   곱하는 수는 서로 안 겹치게 벌려 두기만 하면 되므로 아무 홀수나 좋다. */
+function floorSeed(depth, day) {
+  return ((day || towerDay()) * 2654435761 + depth * 40503) >>> 0;
 }
 
 function clamp(v, lo, hi) {
@@ -3941,16 +3992,21 @@ const Marks = {
   url(p) { return NET.HOST.replace(/\/+$/, '') + '/marks' + p; },
 
   /* 층에 들어설 때 한 번. 못 받아도 게임은 그대로 돈다 —
-     서버가 꺼져 있다고 판이 멈추면 그건 없는 편이 나은 기능이다. */
-  async enterFloor(depth) {
-    this.list = [];
+     서버가 꺼져 있다고 판이 멈추면 그건 없는 편이 나은 기능이다.
+
+     날짜가 열쇠에 들어간다. 탑이 매일 새로 서므로 어제의 좌표는 오늘
+     지형에서 아무 뜻도 없다 — 날짜를 안 섞으면 흔적이 벽 속에 박힌다.
+     대신 아침마다 층이 비므로, 길잡이는 서버가 아니라 이쪽에서 채운다. */
+  async enterFloor(depth, map) {
+    this.list = Guide.forFloor(depth, state.day, map);
     this.wroteThisFloor = false;
     if (!this.on()) return;
     try {
-      const r = await fetch(this.url('/floor/' + depth + '?uid=' + encodeURIComponent(this.uid)));
+      const r = await fetch(this.url('/floor/' + state.day + '/' + depth +
+                                     '?uid=' + encodeURIComponent(this.uid)));
       if (!r.ok) return;
       const d = await r.json();
-      if (d && Array.isArray(d.marks)) this.list = d.marks;
+      if (d && Array.isArray(d.marks)) this.list = this.list.concat(d.marks);
     } catch (e) { /* 조용히 없던 일로 */ }
   },
 
@@ -3968,7 +4024,7 @@ const Marks = {
   async add(kind, x, y, extra) {
     if (!this.on() || !this.uid) return;
     const body = Object.assign({
-      v: 1, uid: this.uid, kind: kind, floor: state.depth,
+      v: 1, uid: this.uid, kind: kind, day: state.day, floor: state.depth,
       x: x, y: y, by: this.who(),
     }, extra || {});
     try {
@@ -3981,14 +4037,16 @@ const Marks = {
   },
 
   async nod(m) {
-    if (!this.on() || !m || m.mine || this.nodded.has(m.id)) return false;
+    if (!m || m.mine || this.nodded.has(m.id)) return false;
     this.nodded.add(m.id);
     m.nods = (m.nods || 0) + 1;
+    // 길잡이는 탑이 남긴 말이라 서버에 셀 것이 없다. 끄덕임은 화면에서만 산다.
+    if (!this.on() || m.guide) return true;
     try {
       await fetch(this.url('/nod'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ v: 1, uid: this.uid, floor: state.depth, id: m.id }),
+        body: JSON.stringify({ v: 1, uid: this.uid, day: state.day, floor: state.depth, id: m.id }),
       });
     } catch (e) {}
     return true;
@@ -4004,6 +4062,104 @@ const Marks = {
       const d = await r.json();
       return Number(d && d.nods) || 0;
     } catch (e) { return 0; }
+  },
+};
+
+
+/* ===== js/guide.js ===== */
+/* =========================================================
+   guide.js — 탑이 남긴 길잡이
+
+   흔적은 좌표로 저장된다. 탑이 매일 새로 서므로 흔적도 날짜별로 나뉘고,
+   그래서 **매일 아침 모든 층이 텅 빈다.** 사람이 적을수록 오래 비어 있는다.
+   처음 올라온 사람이 보는 것은 "아직 아무도 없구나"가 아니라
+   "이 기능은 없는 건가"이다 — 그 둘은 화면에서 구별되지 않는다.
+
+   그래서 층마다 한둘씩 탑이 스스로 남긴다. 서버에 넣지 않고 여기서 만든다:
+   지형이 오늘 것으로 정해져 있으므로 같은 날 오르는 사람은 같은 자리에서
+   같은 말을 보고, 내일 지형이 바뀌면 이 말들도 알아서 그 지형을 따라간다.
+   서버에 심어 두었으면 내일 아침 전부 벽 속에 박혔을 것이다.
+
+   하는 말은 전부 **사실이다.** 계단 옆에서 「계단이 있다」라고 한다.
+   거짓을 심으면 사람이 남긴 말까지 못 믿게 되고, 그러면 흔적 전체가 죽는다.
+   ========================================================= */
+
+const GUIDE_NAMES = ['먼저 오른 사람', '이름이 지워진 자', '돌아오지 못한 이', '앞서 간 사람'];
+
+const Guide = {
+  /* 지형지물 하나에 대고 「그 옆에서 벽을 마주보고 설 수 있는 칸」을 찾는다.
+     흔적은 (x, y) 에 서서 (x, y-1) 의 벽을 읽는 것이므로 둘 다 맞아야 한다.
+     가까운 데서부터 넓혀 가며 처음 맞는 것을 쓴다 — 씨앗이 같으면 결과도 같다. */
+  spot(map, at, taken) {
+    if (!at) return null;
+    for (let r = 1; r <= 9; r++) {
+      const found = [];
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;   // 껍질만 훑는다
+          const x = at.x + dx, y = at.y + dy;
+          if (y < 1 || !map.tiles[y] || map.tiles[y][x] === undefined) continue;
+          if (!isWalkable(map, x, y)) continue;
+          if (map.tiles[y - 1][x] !== T.WALL) continue;
+          if (taken.some(t => t.x === x && t.y === y)) continue;
+          found.push({ x, y });
+        }
+      }
+      // 같은 껍질 안에서는 항상 같은 것을 고른다 (왼쪽 위부터)
+      if (found.length) {
+        found.sort((p, q) => (p.y - q.y) || (p.x - q.x));
+        return found[0];
+      }
+    }
+    return null;
+  },
+
+  /* 이 층에서 사실인 말들. 앞에서부터 자리가 잡히는 대로 쓴다. */
+  lines(map, depth) {
+    const out = [];
+    // 계단 — 어느 층에나 있고, 찾고 있는 것이기도 하다
+    if (map.stairs) out.push({ at: map.stairs, a: 1, b: 4 });          // 계단이 있다
+    // 보물방 문 — 열쇠를 찾기 전에 알아두면 값이 있다
+    if (map.vault) out.push({ at: map.vault, a: 1, b: 8 });            // 보물이 있다
+    // 모닥불 — 안식처
+    if (map.camp) out.push({ at: map.camp, a: 1, b: 2 });              // 불이 있다
+    // 상인
+    if (map.shop) out.push({ at: map.shop, a: 1, b: 7 });              // 물약이 있다
+    // 하수도의 이끼는 밟으면 아프다. 이건 정말로 조심해야 하는 것이다.
+    if (depth >= CFG.SEWER_FLOOR && map.props && map.props.length) {
+      const moss = map.props.find(p => typeof isPoisonProp === 'function' && isPoisonProp(p));
+      if (moss) out.push({ at: moss, a: 0, b: 0 });                    // 함정 조심
+    }
+    return out;
+  },
+
+  /* 오늘 이 층의 길잡이. 지형과 같은 씨앗을 쓰므로 같은 날 오르는 사람은
+     모두 같은 말을 같은 자리에서 본다. */
+  forFloor(depth, day, map) {
+    const m = map || (typeof state !== 'undefined' && state.map);
+    if (!m || !m.tiles) return [];
+
+    return withSeed(floorSeed(depth, day) ^ 0x9E3779B9, () => {
+      const cand = this.lines(m, depth);
+      const taken = [], out = [];
+      // 한 층에 둘까지. 셋을 넘으면 탑이 수다스러워지고, 사람이 남긴 말이 묻힌다.
+      const want = Math.min(2, cand.length);
+      for (const c of cand) {
+        if (out.length >= want) break;
+        const s = this.spot(m, c.at, taken);
+        if (!s) continue;
+        taken.push(s);
+        out.push({
+          id: 'guide-' + depth + '-' + out.length,
+          kind: 'note', x: s.x, y: s.y - 1,   // 그림은 벽에 붙는다
+          a: c.a, b: c.b,
+          by: choice(GUIDE_NAMES),
+          nods: randInt(1, 6),                // 오래 걸려 있던 것처럼
+          mine: false, guide: true,
+        });
+      }
+      return out;
+    });
   },
 };
 
@@ -6711,6 +6867,9 @@ function packRun() {
       /* 기억을 함께 싣는다. 예전에는 복원할 때 그 브라우저 주인의 저장값에서 읽었는데,
          남의 판을 그렇게 복원하면 관전자의 기억으로 스탯을 세워 수치가 딴판이 된다. */
       memories: [...(state.memories || [])],
+      // 이 판이 오르던 탑이 어느 날의 것인가. 없으면 자정을 넘겨 이어했을 때
+      // 다음 층부터 다른 지형이 나오고, 흔적도 남의 날짜를 가리키게 된다
+      day: state.day,
       depth: state.depth, gold: state.gold, potions: state.potions,
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
@@ -6798,6 +6957,7 @@ function loadRun(d, opts) {
   if (opts.spectate) setHeroOverride(d.hero);
   else { setHeroOverride(null); chooseHero(d.hero); }
 
+  state.day = d.day || towerDay();      // 옛날 저장에는 없다 — 오늘 것으로 본다
   state.depth = d.depth; state.gold = d.gold; state.potions = d.potions;
   state.kills = d.kills; state.turns = d.turns; state.ember = d.ember;
   // 레벨은 스탯을 다시 세우기 전에 넣어야 recalcStats 가 제대로 계산한다
@@ -7193,6 +7353,9 @@ function startRun() {
   }
   clearRun();
   state.resumable = false;
+  /* 이 판이 오르는 탑은 「시작한 날」의 탑이다. 매 층 새로 물으면
+     자정(UTC)을 넘기는 순간 오르던 탑이 발밑에서 바뀐다. */
+  state.day = towerDay();
   state.depth = 1;
   state.gold = 0;
   state.potions = 2;
@@ -7253,17 +7416,29 @@ function enterFloor(depth) {
   // 초반 층은 튜토리얼을 겸하므로 플레이어를 몰아붙이는 속성을 뽑지 않는다.
   const harsh = ['dense', 'dark'];
   const pool = depth <= 2 ? FLOOR_TAGS.filter(t => !harsh.includes(t.id)) : FLOOR_TAGS;
-  const tag = isRest ? { id: null, hint: '', monsterMul: 0, fovAdd: 1 } : choice(pool);
-
-  // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
-  // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
-  // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
   const isRoof = depth >= CFG.TOP_FLOOR;
-  const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
-  const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
+
+  /* 여기서부터 지형이 만들어질 때까지만 씨앗 달린 난수를 쓴다.
+     오늘 오르는 사람은 모두 같은 탑을 본다 — 그래야 남이 좌표로 남긴 흔적이
+     내 지도에서도 같은 자리를 가리킨다. (지형이 판마다 달랐을 때는
+     남의 쪽지를 실제로 읽을 수 있는 확률이 14% 였다.)
+
+     층 속성과 보물방 여부도 여기 넣는다. 보물방은 방 하나가 통째로 생기는
+     일이라 지형이고, 층 속성은 보물방 확률을 흔들기 때문이다.
+     몬스터와 전리품은 이 밖에서 뽑히므로 판마다 그대로 다르다. */
+  const { tag, wantVault, map } = withSeed(floorSeed(depth, state.day), () => {
+    const tag = isRest ? { id: null, hint: '', monsterMul: 0, fovAdd: 1 } : choice(pool);
+    // 보물방. 열쇠를 든 몬스터가 있어야 하므로 몬스터가 없는 안식처에는 두지 않는다.
+    // '쇠붙이 냄새가 나는' 층에는 반드시 있다 — 그 문장이 예고가 된다.
+    // 맨 위층만 옥상이다. 보물방도 층 속성도 여기서는 의미가 없다.
+    const wantVault = !isRoof && !isRest && depth >= 2 && (tag.id === 'treasure' || chance(0.4));
+    return { tag, wantVault, map: isRoof ? makeRoof(depth) : makeFloor(depth, wantVault) };
+  });
   state.floorTag = tag;
   Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
-  Marks.enterFloor(depth);       // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다)
+  // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다).
+  // state.map 은 아직 지난 층이라 이번 지도를 직접 넘긴다 — 길잡이가 이걸 보고 자리를 잡는다
+  Marks.enterFloor(depth, map);
   state.noteHinted = false;      // 벽에 부딪혔을 때의 귀띔은 층마다 한 번
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
@@ -7966,20 +8141,22 @@ function touchMode() {
    키보드는 N 을 눌러보면 알지만 손가락은 눌러볼 버튼이 없다.
    그래서 「할 수 있는가」를 한 군데서 답하고, 모바일 버튼이 이걸 보고 나타난다. */
 function noteAction() {
-  if (!Marks.on() || !state.running || !state.player.alive) return null;
+  if (!state.running || !state.player.alive) return null;
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
+  // 길잡이는 탑이 스스로 남긴 것이라 서버가 없어도 거기 있다. 끄덕임도 마찬가지다.
   if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
-  if (Marks.wroteThisFloor) return null;
+  if (!Marks.on() || Marks.wroteThisFloor) return null;
   return tileAt(state.map, p.x, p.y - 1) === T.WALL ? 'write' : null;
 }
 
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
    같은 키에 둘을 묶은 이유는 하나다: 벽 앞에 섰을 때 할 일이 그 둘뿐이다. */
 function noteKey() {
-  if (!Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
+  // 남기는 것만 서버가 필요하다 — 읽고 끄덕이는 것은 길잡이만으로도 성립한다
+  if (!m && !Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
 
   if (m && !m.mine) {
     if (Marks.nodded.has(m.id)) { UI.log('이미 끄덕였습니다.', 'sys'); return; }

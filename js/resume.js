@@ -40,6 +40,9 @@ function packRun() {
       /* 기억을 함께 싣는다. 예전에는 복원할 때 그 브라우저 주인의 저장값에서 읽었는데,
          남의 판을 그렇게 복원하면 관전자의 기억으로 스탯을 세워 수치가 딴판이 된다. */
       memories: [...(state.memories || [])],
+      // 이 판이 오르던 탑이 어느 날의 것인가. 없으면 자정을 넘겨 이어했을 때
+      // 다음 층부터 다른 지형이 나오고, 흔적도 남의 날짜를 가리키게 된다
+      day: state.day,
       depth: state.depth, gold: state.gold, potions: state.potions,
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
@@ -127,6 +130,7 @@ function loadRun(d, opts) {
   if (opts.spectate) setHeroOverride(d.hero);
   else { setHeroOverride(null); chooseHero(d.hero); }
 
+  state.day = d.day || towerDay();      // 옛날 저장에는 없다 — 오늘 것으로 본다
   state.depth = d.depth; state.gold = d.gold; state.potions = d.potions;
   state.kills = d.kills; state.turns = d.turns; state.ember = d.ember;
   // 레벨은 스탯을 다시 세우기 전에 넣어야 recalcStats 가 제대로 계산한다

@@ -2,16 +2,67 @@
    util.js — 잡다한 도구
    ========================================================= */
 
+/* ---------- 난수 ----------
+
+   이 게임의 난수는 한 군데로 모인다. 그래야 「오늘의 탑」이 가능하다 —
+   지형을 만드는 동안만 난수를 씨앗 달린 것으로 바꿔치기하면
+   map.js 는 한 줄도 고치지 않고 모두가 같은 탑을 오르게 된다.
+
+   바꿔치기하는 것은 지형뿐이다. 몬스터도 전리품도 그대로 무작위다.
+   「탑」은 지형이지 내용물이 아니고, 하루에 두 판째부터 전리품까지 똑같으면
+   같은 판을 두 번 하는 것이 된다. 흔적이 필요로 하는 것도 지형뿐이다. */
+
+let RAND_SRC = Math.random;
+
+/* mulberry32 — 32비트 하나로 도는 작고 고른 난수.
+   던전을 만드는 데 쓰는 것이므로 예측 가능해도 된다.
+   (열쇠를 깎는 난수는 여기가 아니라 crypto 다 — chat.js 참고) */
+function seededRand(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* fn 이 도는 동안만 난수를 씨앗 달린 것으로 바꾼다.
+   중간에 예외가 나도 반드시 되돌린다 — 여기서 새면 그 뒤로 게임 전체가
+   같은 수를 반복하게 되고, 그건 아주 찾기 어려운 버그가 된다. */
+function withSeed(seed, fn) {
+  const prev = RAND_SRC;
+  RAND_SRC = seededRand(seed);
+  try { return fn(); } finally { RAND_SRC = prev; }
+}
+
 function randInt(min, max) {            // min 이상 max 이하
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(RAND_SRC() * (max - min + 1)) + min;
 }
 
 function choice(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(RAND_SRC() * arr.length)];
 }
 
 function chance(p) {                    // p 확률(0~1)로 true
-  return Math.random() < p;
+  return RAND_SRC() < p;
+}
+
+/* 오늘의 탑 — 오르는 사람 모두가 같은 지형을 본다.
+
+   UTC 를 쓴다. 시간대별로 다른 탑을 주면 흔적이 국경에서 끊긴다 —
+   한국에서 남긴 쪽지가 같은 시각 유럽 사람에게는 다른 지형의 좌표가 된다.
+   날짜가 바뀌는 시각(한국 기준 오전 9시)이 어중간한 것보다 그게 낫다. */
+function towerDay(d) {
+  const t = d || new Date();
+  return t.getUTCFullYear() * 10000 + (t.getUTCMonth() + 1) * 100 + t.getUTCDate();
+}
+
+/* 층마다 다른 씨앗을 준다. 날짜만 쓰면 15개 층이 전부 같은 지형이 된다.
+   곱하는 수는 서로 안 겹치게 벌려 두기만 하면 되므로 아무 홀수나 좋다. */
+function floorSeed(depth, day) {
+  return ((day || towerDay()) * 2654435761 + depth * 40503) >>> 0;
 }
 
 function clamp(v, lo, hi) {

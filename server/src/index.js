@@ -203,6 +203,13 @@ export class CinderRoom extends Server {
    문장으로 만드는 것은 클라이언트가 한다. 그래서 검열할 것이 아예 없다.
    ========================================================= */
 
+/* 날짜(YYYYMMDD)를 상식선으로 자른다. 클라이언트가 주는 값이지만
+   엉뚱한 날짜를 넣어 봐야 아무도 안 보는 칸 하나가 생길 뿐이라 깊이 따지지 않는다. */
+function dayOf(v) {
+  const n = Number(v) | 0;
+  return (n >= 20200101 && n <= 21001231) ? n : 20200101;
+}
+
 const MARK_TTL     = 14 * 24 * 60 * 60 * 1000;   // 끄덕임 없는 흔적의 수명 (2주)
 const MARK_PER_FLOOR = 40;                        // 한 층이 들고 있는 최대
 const MARK_RATE_MS = 3000;                        // 같은 사람이 연달아 남기는 간격
@@ -212,10 +219,13 @@ export class CinderMarks extends Server {
 
   async onStart() { this.rate = new Map(); }
 
-  key(floor) { return 'floor:' + floor; }
+  /* 날짜가 열쇠에 들어간다. 탑은 매일 새로 서므로 어제의 좌표는 오늘 지형에서
+     아무 뜻도 없다 — 날짜를 안 섞으면 흔적이 벽 속에 박히고, 그렇게 박힌 것은
+     화면에 아예 안 나오므로 「기능이 고장 났다」로 보인다. */
+  key(day, floor) { return 'floor:' + day + ':' + floor; }
 
-  async load(floor) {
-    return (await this.ctx.storage.get(this.key(floor))) || [];
+  async load(day, floor) {
+    return (await this.ctx.storage.get(this.key(day, floor))) || [];
   }
 
   /* 나이가 찬 것은 내보낼 때 거른다 — 따로 청소하는 일을 만들지 않는다.
@@ -226,13 +236,13 @@ export class CinderMarks extends Server {
     return list.filter(m => t - m.at < MARK_TTL * (1 + Math.min(4, m.nods || 0)));
   }
 
-  async put(floor, list) {
+  async put(day, floor, list) {
     /* 넘치면 버린다. 끄덕임이 적고 오래된 것부터 — 층이 표지판으로 도배되면
        흔적이 아니라 배경이 되고, 그러면 아무도 안 읽는다. */
     const keep = list
       .sort((a, b) => (b.nods || 0) - (a.nods || 0) || b.at - a.at)
       .slice(0, MARK_PER_FLOOR);
-    await this.ctx.storage.put(this.key(floor), keep);
+    await this.ctx.storage.put(this.key(day, floor), keep);
     return keep;
   }
 
@@ -256,11 +266,15 @@ export class CinderMarks extends Server {
       }) });
     }
 
-    /* 한 층에 남은 것들을 준다. 판이 층에 들어설 때 한 번만 부른다. */
+    /* 한 층에 남은 것들을 준다. 판이 층에 들어설 때 한 번만 부른다.
+       /floor/<날짜>/<층> — 날짜 없이 오는 옛날 판은 그날의 탑을 모르므로 빈손으로 보낸다. */
     if (request.method === 'GET' && path.startsWith('/floor/')) {
-      const floor = Math.max(1, Math.min(99, Number(path.slice(7)) || 1));
+      const parts = path.slice(7).split('/');
+      if (parts.length < 2) return Response.json({ v: PROTO, marks: [] }, { headers: cors });
+      const day = dayOf(parts[0]);
+      const floor = Math.max(1, Math.min(99, Number(parts[1]) || 1));
       const uid = clean(url.searchParams.get('uid'), 40);
-      const list = this.fresh(await this.load(floor));
+      const list = this.fresh(await this.load(day, floor));
       return Response.json({
         v: PROTO,
         marks: list.map(m => ({
@@ -298,15 +312,16 @@ export class CinderMarks extends Server {
        보상이 「읽혔다」가 아니라 「도움이 됐다」에 붙어야
        웃긴 글이 아니라 쓸모 있는 글을 쓰게 된다. */
     if (path === '/nod') {
+      const day = dayOf(body.day);
       const floor = Math.max(1, Math.min(99, Number(body.floor) || 1));
-      const list = await this.load(floor);
+      const list = await this.load(day, floor);
       const m = list.find(v => v.id === body.id);
       if (!m || m.kind !== 'note') return Response.json({ v: PROTO, ok: false }, { headers: cors });
       if (m.uid === uid) return Response.json({ v: PROTO, ok: false }, { headers: cors });
 
       m.nods = (m.nods || 0) + 1;
       m.nodders = (m.nodders || []).concat(uid).slice(-200);
-      await this.put(floor, list);
+      await this.put(day, floor, list);
 
       const had = (await this.ctx.storage.get('nods:' + m.uid)) || 0;
       await this.ctx.storage.put('nods:' + m.uid, had + 1);
@@ -317,8 +332,9 @@ export class CinderMarks extends Server {
     if (this.limited(uid)) return Response.json({ v: PROTO, ok: false, reason: 'rate' }, { headers: cors });
 
     const kind = body.kind === 'note' ? 'note' : 'grave';
+    const day = dayOf(body.day);
     const floor = Math.max(1, Math.min(99, Number(body.floor) || 1));
-    const list = this.fresh(await this.load(floor));
+    const list = this.fresh(await this.load(day, floor));
 
     /* 좌표는 클라이언트가 준다. 서버는 지도를 모르므로 확인할 방법이 없고,
        확인할 값어치도 없다 — 엉뚱한 자리에 남겨 봐야 벽 안에 표지판이 하나 생길 뿐이다.
@@ -348,7 +364,7 @@ export class CinderMarks extends Server {
     }
 
     list.push(mark);
-    await this.put(floor, list);
+    await this.put(day, floor, list);
     return Response.json({ v: PROTO, ok: true, id: mark.id }, { headers: cors });
   }
 }
