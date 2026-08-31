@@ -938,9 +938,14 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
 .chat-line.sys { color: var(--muted); font-size: 11.5px; }
 
 .chat-form { display: flex; gap: 6px; padding: 8px; border-top: 2px solid var(--line); }
-.chat-leave {
-  margin: 0 8px 8px; padding: 4px 8px !important;
-  font-size: 11.5px !important; align-self: flex-start;
+
+.chat-foot { padding: 0 8px 8px; }
+.chat-foot button { padding: 4px 8px !important; font-size: 11.5px !important; }
+
+/* 클립보드가 막힌 곳(비-https 등)에서 직접 골라 복사하라고 내주는 칸 */
+.chat-link {
+  margin: 0 8px 6px; width: calc(100% - 16px);
+  font-size: 11.5px !important; color: var(--muted) !important;
 }
 
 /* 좁은 화면에서는 아래에 붙는 판으로. 폭을 다 쓴다 —
@@ -1203,7 +1208,7 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
         <button id="chat-enter">들어가기</button>
         <button id="chat-dice" class="ghost">새 방</button>
       </div>
-      <p class="chat-note">방 이름이 곧 열쇠입니다. 친구에게 그대로 불러 주세요.</p>
+      <p class="chat-note">방 이름이 곧 열쇠입니다. 들어간 뒤 <b>링크 복사</b>로 친구를 부르세요.</p>
     </div>
 
     <div class="chat-live hidden" id="chat-live">
@@ -1212,7 +1217,11 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
         <input id="chat-text" maxlength="200" autocomplete="off" placeholder="말하기">
         <button type="submit">보내기</button>
       </form>
-      <button id="chat-leave" class="ghost chat-leave">나가기</button>
+      <input id="chat-link" class="chat-link hidden" readonly>
+      <div class="chat-row chat-foot">
+        <button id="chat-copy" class="ghost">링크 복사</button>
+        <button id="chat-leave" class="ghost">나가기</button>
+      </div>
     </div>
   </div>
 
@@ -4504,8 +4513,73 @@ const Chat = {
   unread: 0,
   lines: 0,
 
-  /* 방 이름은 친구에게 말로 불러 줘야 한다. 읽어 주기 쉬운 것만 쓴다. */
+  /* 방 이름이 곧 열쇠다. 링크로 건네므로 외울 필요가 없고, 그래서 길어도 된다.
+     앞의 단어는 사람이 "아 그 방" 하고 알아보라고 붙인 꼬리표일 뿐이다. */
   WORDS: ['ember', 'ash', 'torch', 'cinder', 'dusk', 'soot', 'flint', 'kiln'],
+
+  /* 헷갈리는 l·1·o·0 을 뺀 32글자. 32 가 256 을 나누어떨어지므로
+     바이트를 그냥 나머지 연산해도 한쪽으로 치우치지 않는다. */
+  ALPHA: 'abcdefghijkmnpqrstuvwxyz23456789',
+
+  /* Math.random 을 쓰지 않는다. 이 게임의 난수는 던전을 만드는 것이고
+     이건 열쇠를 만드는 것이다 — 예측 가능한 난수로 열쇠를 깎으면 안 된다. */
+  token(n) {
+    const out = [];
+    const cr = window.crypto;
+    if (cr && cr.getRandomValues) {
+      const b = new Uint8Array(n);
+      cr.getRandomValues(b);
+      for (let i = 0; i < n; i++) out.push(this.ALPHA[b[i] % this.ALPHA.length]);
+    } else {
+      // 아주 오래된 브라우저. 없느니 낫다.
+      for (let i = 0; i < n; i++) {
+        out.push(this.ALPHA[Math.floor(Math.random() * this.ALPHA.length)]);
+      }
+    }
+    return out.join('');
+  },
+
+  newRoom() {
+    return choice(this.WORDS) + '-' + this.token(8);   // 8.8조 가지
+  },
+
+  /* ---------- 링크 ----------
+     방 이름을 주소의 해시에 담는다. `?r=` 가 아니라 `#r=` 인 이유는
+     해시가 서버로 전송되지 않기 때문이다 — 물음표로 넣으면 방 이름이
+     정적 호스팅의 접근 로그에 그대로 남는다. 열쇠 노릇을 하는 값을 로그에 남길 이유가 없다.
+     (같은 이유로 바깥으로 나가는 Referer 에도 안 실린다) */
+  roomFromHash() {
+    const m = String(location.hash || '').match(/[#&]r=([A-Za-z0-9-]{1,32})/);
+    return m ? Net.cleanRoom(m[1]) : '';   // 걸러내는 규칙은 Net 한 곳에만 둔다
+  },
+
+  link() {
+    return location.origin + location.pathname + '#r=' + Net.room;
+  },
+
+  // 주소창 자체가 곧 초대장이 되도록. 뒤로 가기 기록은 늘리지 않는다.
+  setHash(room) {
+    try { history.replaceState(null, '', location.pathname + '#r=' + room); } catch (e) {}
+  },
+
+  clearHash() {
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  },
+
+  copyLink() {
+    const url = this.link();
+    const show = () => {
+      this.el.linkBox.classList.remove('hidden');
+      this.el.linkBox.value = url;
+      this.el.linkBox.select();
+      this.system('복사가 막혔습니다. 위 주소를 직접 복사하세요.');
+    };
+    // 클립보드는 https 나 localhost 에서만 열린다. 막히면 직접 고르게 한다.
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(
+        () => this.system('링크를 복사했습니다. 친구에게 보내세요.'), show);
+    } else show();
+  },
 
   /* ---------- 저장 ----------
      기억(save)·이어하기(run)와 수명이 다르므로 칸을 따로 쓴다.
@@ -4545,6 +4619,7 @@ const Chat = {
       lines: $('chat-lines'),
       form:  $('chat-form'), text:  $('chat-text'),
       badge: $('chat-badge'),
+      copy:  $('chat-copy'), linkBox: $('chat-link'),
     };
     if (!this.el.panel) return;
 
@@ -4557,8 +4632,10 @@ const Chat = {
     this.el.tab.classList.remove('hidden');
 
     const saved = this.restore() || {};
+    const invited = this.roomFromHash();          // 링크를 타고 들어온 경우
+
     this.el.name.value = saved.name || '';
-    this.el.room.value = saved.room || '';
+    this.el.room.value = invited || saved.room || '';
 
     /* ---------- 소켓에서 오는 것 ---------- */
     Net.on('status', s => this.paintStatus(s.status));
@@ -4581,12 +4658,23 @@ const Chat = {
     this.el.close.addEventListener('click', () => this.show(false));
     this.el.enter.addEventListener('click', () => this.join());
     this.el.dice.addEventListener('click', () => {
-      this.el.room.value = choice(this.WORDS) + '-' + randInt(1000, 9999);
+      this.el.room.value = this.newRoom();
+    });
+    this.el.copy.addEventListener('click', () => this.copyLink());
+
+    /* 같은 탭에 다른 초대 링크를 붙여 넣었을 때. 새로고침 없이 그 방으로 옮겨 간다. */
+    window.addEventListener('hashchange', () => {
+      const r = this.roomFromHash();
+      if (r && r !== Net.room) {
+        this.el.room.value = r;
+        this.join();
+      }
     });
     this.el.leave.addEventListener('click', () => {
       Net.close();
-      this.toJoin();
-    });
+      this.clearHash();     // 스스로 나간 것이므로 주소의 초대장도 거둔다.
+      this.toJoin();        // (그냥 끊긴 것과 달라서 toJoin 에 넣지 않았다 —
+    });                     //  링크로 들어와 아직 별명을 못 넣은 사람의 해시를 지우면 안 된다)
 
     // 방 이름 칸에서 Enter 로도 들어가진다
     this.el.room.addEventListener('keydown', e => {
@@ -4610,8 +4698,14 @@ const Chat = {
       b.addEventListener('click', () => b.blur());
     }
 
-    // 지난번에 들어가 본 방이 있으면 알아서 다시 붙는다
-    if (saved.joined && saved.room && saved.name) {
+    /* 링크를 타고 왔으면 그 방이 우선이다. 다만 별명이 없으면 바로 넣지 않는다 —
+       이름도 모르는 채로 남의 방에 떨어뜨려 놓으면 "누구세요"가 된다.
+       그때는 방만 채워 두고 별명 칸에 커서를 둔다. */
+    if (invited) {
+      if (saved.name) this.join();
+      else { this.show(true); this.el.name.focus(); }
+    } else if (saved.joined && saved.room && saved.name) {
+      // 지난번에 들어가 본 방이 있으면 알아서 다시 붙는다
       Net.connect(saved.room, saved.name);
     }
     this.paintStatus(Net.status);
@@ -4644,6 +4738,8 @@ const Chat = {
     this.store({ name: Net.name, room: Net.room, joined: true });
     this.el.name.value = Net.name;
     this.el.room.value = Net.room;
+    this.setHash(Net.room);          // 주소창 자체가 초대장이 된다
+    this.el.linkBox.classList.add('hidden');
   },
 
   send() {
@@ -4661,6 +4757,7 @@ const Chat = {
   toJoin() {
     this.el.live.classList.add('hidden');
     this.el.join.classList.remove('hidden');
+    this.el.linkBox.classList.add('hidden');
     this.clear();
     const saved = this.restore() || {};
     this.store({ name: saved.name, room: saved.room, joined: false });

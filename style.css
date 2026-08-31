@@ -932,9 +932,14 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
 .chat-line.sys { color: var(--muted); font-size: 11.5px; }
 
 .chat-form { display: flex; gap: 6px; padding: 8px; border-top: 2px solid var(--line); }
-.chat-leave {
-  margin: 0 8px 8px; padding: 4px 8px !important;
-  font-size: 11.5px !important; align-self: flex-start;
+
+.chat-foot { padding: 0 8px 8px; }
+.chat-foot button { padding: 4px 8px !important; font-size: 11.5px !important; }
+
+/* 클립보드가 막힌 곳(비-https 등)에서 직접 골라 복사하라고 내주는 칸 */
+.chat-link {
+  margin: 0 8px 6px; width: calc(100% - 16px);
+  font-size: 11.5px !important; color: var(--muted) !important;
 }
 
 /* 좁은 화면에서는 아래에 붙는 판으로. 폭을 다 쓴다 —

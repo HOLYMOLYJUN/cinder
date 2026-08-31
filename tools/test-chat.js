@@ -41,8 +41,16 @@ async function withHost(page, host) {
   });
 }
 
-async function newTab(browser, host) {
+async function newTab(browser, host, opt) {
+  opt = opt || {};
   const page = await browser.newPage();
+
+  /* 링크를 타고 들어온 사람을 흉내 내려면 페이지가 뜨기 전에 저장값이 있어야 한다 */
+  if (opt.saved) {
+    await page.addInitScript(v => {
+      try { localStorage.setItem('jaetbul.chat.v1', v); } catch (e) {}
+    }, JSON.stringify(opt.saved));
+  }
 
   /* 자바스크립트가 터진 것은 무조건 실패다. */
   page.on('pageerror', e => bad.push('페이지 예외: ' + e.message));
@@ -60,7 +68,7 @@ async function newTab(browser, host) {
   });
 
   await withHost(page, host);
-  await page.goto(GAME);
+  await page.goto(GAME + (opt.hash || ''));
   await page.waitForTimeout(700);
   return page;
 }
@@ -199,8 +207,61 @@ const joined = page => page.waitForFunction(
   });
   check('닫은 뒤에는 방향키가 다시 먹는다', moved);
 
-  /* ---------- 8. 끊겼다 다시 붙는다 ---------- */
-  await a.keyboard.press('KeyC');
+  /* ---------- 8. 링크 하나가 곧 초대장이다 ---------- */
+  await a.keyboard.press('KeyC');        // 7번에서 닫아 두었다
+  await a.waitForTimeout(200);
+
+  // 방 이름은 추측할 수 없어야 한다. 링크로 건네므로 길어도 상관없다.
+  const rooms = await a.evaluate(() =>
+    Array.from({ length: 20 }, () => Chat.newRoom()));
+  check('새 방 이름이 단어+무작위 8글자', rooms.every(r => /^[a-z]+-[a-z0-9]{8}$/.test(r)),
+    rooms[0]);
+  check('스무 번 만들어도 겹치지 않는다', new Set(rooms).size === 20);
+  check('헷갈리는 l·1·o·0 을 쓰지 않는다',
+    rooms.every(r => !/[l1o0]/.test(r.split('-')[1])));
+
+  // 들어가면 주소창이 곧 초대장이 된다
+  check('방에 들어가면 해시가 붙는다', (await a.evaluate(() => location.hash)) === '#r=' + room,
+    await a.evaluate(() => location.hash));
+  check('링크가 해시까지 포함해 만들어진다',
+    (await a.evaluate(() => Chat.link())).endsWith('#r=' + room));
+
+  // 링크 복사
+  await a.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await a.click('#chat-copy');
+  await a.waitForTimeout(400);
+  const clip = await a.evaluate(() => navigator.clipboard.readText().catch(() => ''));
+  check('링크 복사 버튼이 주소를 클립보드에 넣는다', clip.endsWith('#r=' + room), clip);
+
+  // 링크를 받은 사람 — 별명이 있으면 바로 들어간다
+  const inv = await newTab(browser, PARTY,
+    { hash: '#r=' + room, saved: { name: '초대받은이', room: 'somewhere-else', joined: false } });
+  let invOk = true;
+  await joined(inv).catch(() => { invOk = false; });
+  check('링크로 들어오면 그 방에 자동 입장', invOk,
+    '상태=' + await inv.evaluate(() => Net.status));
+  check('저장된 방이 아니라 링크의 방으로 간다',
+    (await inv.evaluate(() => Net.room)) === room,
+    await inv.evaluate(() => Net.room));
+
+  await a.fill('#chat-text', '초대 확인');
+  await a.press('#chat-text', 'Enter');
+  await inv.waitForTimeout(700);
+  check('링크로 들어온 사람에게 말이 닿는다',
+    (await inv.textContent('#chat-lines')).includes('초대 확인'));
+  await inv.close();
+
+  // 별명이 없으면 함부로 넣지 않는다
+  const shy = await newTab(browser, PARTY, { hash: '#r=' + room });
+  await shy.waitForTimeout(900);
+  check('별명이 없으면 링크만으로 입장하지 않는다',
+    (await shy.evaluate(() => Net.status)) === 'off',
+    await shy.evaluate(() => Net.status));
+  check('대신 창을 열고 방을 채워 둔다',
+    (await shy.isVisible('#chat')) && (await shy.inputValue('#chat-room')) === room);
+  await shy.close();
+
+  /* ---------- 9. 끊겼다 다시 붙는다 ---------- */
   await a.evaluate(() => Net.ws && Net.ws.close());   // 서버가 끊은 것처럼
   await a.waitForTimeout(300);
   await joined(a).then(() => check('끊기면 스스로 다시 붙는다', true))

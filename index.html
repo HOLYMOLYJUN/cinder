@@ -257,7 +257,7 @@
         <button id="chat-enter">들어가기</button>
         <button id="chat-dice" class="ghost">새 방</button>
       </div>
-      <p class="chat-note">방 이름이 곧 열쇠입니다. 친구에게 그대로 불러 주세요.</p>
+      <p class="chat-note">방 이름이 곧 열쇠입니다. 들어간 뒤 <b>링크 복사</b>로 친구를 부르세요.</p>
     </div>
 
     <div class="chat-live hidden" id="chat-live">
@@ -266,7 +266,11 @@
         <input id="chat-text" maxlength="200" autocomplete="off" placeholder="말하기">
         <button type="submit">보내기</button>
       </form>
-      <button id="chat-leave" class="ghost chat-leave">나가기</button>
+      <input id="chat-link" class="chat-link hidden" readonly>
+      <div class="chat-row chat-foot">
+        <button id="chat-copy" class="ghost">링크 복사</button>
+        <button id="chat-leave" class="ghost">나가기</button>
+      </div>
     </div>
   </div>
 
