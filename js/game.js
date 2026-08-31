@@ -1281,6 +1281,30 @@ function stepRandom(m) {
    판 종료
    ========================================================= */
 
+/* 첫 화면으로 나간다.
+
+   이야기를 끝낸 판에서만 쓴다 — 결말을 보고 이름까지 지나간 뒤에 곧장 1층에
+   떨어뜨리면 방금 끝낸 것이 없던 일이 된다. 여기서 다시 시작할지는 사람이 정한다.
+
+   판을 지우고 나가야 한다. 끝난 판이 이어하기로 남아 있으면 첫 화면에
+   「15층부터 이어서 오른다」가 뜬다 — 이미 끝난 곳으로 돌아가는 문이다. */
+let repaintTitle = () => {};
+
+function backToTitle() {
+  clearRun();
+  state.running = false;
+  state.awaitingInput = false;
+  state.resumable = false;
+  state.pet = null;
+  UI.hideResult();
+  UI.hideEnding();
+  UI.hideCredits();
+  UI.clearLog();
+  UI.showTitle();
+  repaintTitle();
+  updateRecordText(loadData() || {});
+}
+
 // 되찾은 기억과 본 것들을 남긴다.
 // 저장은 이 함수와 loadData 만 거치므로, 나중에 클라우드로 옮길 때 여기만 바꾸면 된다.
 function persist(extra) {
@@ -1352,8 +1376,9 @@ function chooseEnding(which) {
      순서를 이렇게 잡은 이유가 있다. 결과표는 숫자(도달 층·걸음 수)라서
      그걸 먼저 보면 방금 고른 결말이 성적표가 되어 버린다.
      이름이 먼저 지나가고 그다음에 숫자가 오면, 끝난 것은 판이 아니라 이야기가 된다. */
+  // 이야기를 끝낸 판이라 다시 오르는 문이 아니라 첫 화면으로 나가는 문을 낸다
   const toCredits = (title, body) =>
-    UI.showCredits(() => UI.showResult(title, body, rows));
+    UI.showCredits(() => UI.showResult(title, body, rows, { toLobby: true }));
 
   if (which === 'light') {
     Render.lightDawn();
@@ -1540,7 +1565,9 @@ function onKeyDown(e) {
     if (code === 'Enter' || code === 'Space') {
       const resultVisible = !UI.el.result.classList.contains('hidden');
       const titleVisible  = !UI.el.title.classList.contains('hidden');
-      if (resultVisible || titleVisible) { startRun(); e.preventDefault(); }
+      // 결과 화면의 단추와 같은 곳으로 간다 — 손과 키가 다른 데로 가면 안 된다
+      if (resultVisible && UI.resultToLobby()) { backToTitle(); e.preventDefault(); }
+      else if (resultVisible || titleVisible) { startRun(); e.preventDefault(); }
     }
     return;
   }
@@ -1707,7 +1734,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-start').addEventListener('click', () => { Sound.unlock(); startRun(); });
 
-  document.getElementById('btn-retry').addEventListener('click', startRun);
+  // 쓰러졌으면 그 자리에서 한 번 더, 이야기를 끝냈으면 첫 화면으로
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    if (UI.resultToLobby()) backToTitle();
+    else startRun();
+  });
 
   // 하던 판이 남아 있으면 이어서 오를 수 있게 한다
   const resumeBtn = document.getElementById('btn-resume');
@@ -1723,6 +1754,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
   paintResume();
+  repaintTitle = paintResume;      // 로비로 돌아갈 때 다시 그리려고 밖에서 잡아 둔다
   resumeBtn.addEventListener('click', () => {
     Sound.unlock();
     if (!resumeRun()) { paintResume(); startRun(); }

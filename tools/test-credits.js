@@ -109,6 +109,44 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(!after.credits && after.resultUp, `크레딧이 끝나면 결과표가 온다 (${after.title})`);
   check(/불을 든 채로/.test(after.title), '고른 결말의 결과표가 맞다');
 
+  console.log('\n[ 끝낸 판은 로비로 나간다 ]');
+  const btn = await p.evaluate(() => ({
+    label: document.getElementById('btn-retry').textContent,
+    toLobby: UI.resultToLobby(),
+  }));
+  check(/로비/.test(btn.label), `단추가 로비로 간다고 말한다 (${btn.label})`);
+  check(btn.toLobby, '결말을 본 판이라고 표시되어 있다');
+
+  await p.click('#btn-retry');
+  await p.waitForTimeout(400);
+  const lobby = await p.evaluate(() => ({
+    title: !document.getElementById('title-screen').classList.contains('hidden'),
+    result: !document.getElementById('result-screen').classList.contains('hidden'),
+    running: state.running,
+    saved: !!savedRun(),
+    resumeShown: !document.getElementById('btn-resume').classList.contains('hidden'),
+  }));
+  check(lobby.title && !lobby.result, '첫 화면으로 나간다 (판을 새로 시작하지 않는다)');
+  check(!lobby.running, '판이 돌고 있지 않다');
+  check(!lobby.saved && !lobby.resumeShown,
+        '끝난 판은 이어하기로 남지 않는다 — 이미 끝난 곳으로 돌아가는 문을 만들지 않는다');
+
+  console.log('\n[ 쓰러진 판은 그대로 다시 오른다 ]');
+  const dead = await p.evaluate(async () => {
+    startRun();
+    UI.closeIntro();
+    state.player.hp = 0; kill(state.player);
+    await new Promise(r => setTimeout(r, 900));
+    return {
+      label: document.getElementById('btn-retry').textContent,
+      toLobby: UI.resultToLobby(),
+      up: !document.getElementById('result-screen').classList.contains('hidden'),
+    };
+  });
+  check(dead.up, '쓰러지면 결과표가 뜬다');
+  check(!dead.toLobby && /다시 오른다/.test(dead.label),
+        `그때는 단추가 그대로다 (${dead.label})`);
+
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
   console.log(fails ? `\n실패 ${fails}건` : '\n전부 통과');
   await b.close();

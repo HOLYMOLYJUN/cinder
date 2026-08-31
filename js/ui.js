@@ -492,8 +492,17 @@ const UI = {
   _fullLine: '',
   _nl(s) { return String(s).replace(/\n/g, '<br>'); },
 
-  /* ---------- 결과 ---------- */
-  showResult(title, line, rows) {
+  /* ---------- 결과 ----------
+
+     끝난 방식에 따라 나가는 문이 다르다.
+
+     쓰러진 판은 「다시 오른다」다 — 그 자리에서 한 번 더 하고 싶은 마음이
+     아직 남아 있고, 그걸 붙잡는 것이 로그라이크가 하는 일이다.
+
+     이야기를 끝낸 판은 「로비로 돌아간다」다. 결말을 보고 이름까지 지나간 뒤에
+     곧장 1층에 떨어뜨리면 방금 끝낸 것이 없던 일이 된다.
+     한 번 첫 화면으로 돌려보내면 거기서 다시 시작할지는 사람이 정한다. */
+  showResult(title, line, rows, opts) {
     this.el.resultTitle.textContent = title;
     this.el.resultLine.innerHTML = String(line).replace(/\n/g, '<br>');
     this.el.resultStats.innerHTML = '';
@@ -502,8 +511,13 @@ const UI = {
       const dd = document.createElement('dd'); dd.textContent = v;
       this.el.resultStats.append(dt, dd);
     }
+    const toLobby = !!(opts && opts.toLobby);
+    this._resultToLobby = toLobby;
+    const btn = document.getElementById('btn-retry');
+    if (btn) btn.textContent = toLobby ? '로비로 돌아간다' : '다시 오른다';
     this.el.result.classList.remove('hidden');
   },
+  resultToLobby() { return !!this._resultToLobby; },
   hideResult() { this.el.result.classList.add('hidden'); },
 
   /* ---------- 화면 전환 ---------- */
