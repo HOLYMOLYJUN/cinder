@@ -136,8 +136,58 @@ function makeFloor(depth, withVault) {
 
   if (withVault) addVault(map);
   addTorches(map);
+  addProps(map, depth);
 
   return map;
+}
+
+/* 하수도 층의 장식.
+
+   배경 타일만 바꾸면 "색만 다른 같은 던전"이 된다. 방이 텅 비어 있으면
+   넓기만 하고 어디였는지 기억에 안 남아서, 층이 바뀌었다는 것이 눈에만 스치고
+   지나간다. 벽에서 물이 쏟아지고 구석에 항아리가 놓여 있어야 다른 곳이 된다.
+
+   전부 장식이다. 지나갈 수 있고, 맞히지도 막지도 않는다 —
+   지형 규칙에 손을 대면 이미 재어 둔 난이도가 통째로 흔들린다.
+
+   두 종류로 나뉜다.
+     wall  — 벽에 붙는다. 아래가 바닥이어야 방 안에서 보인다 (횃불과 같은 조건).
+     floor — 바닥에 놓인다. 지나다니는 길을 가리지 않게 계단·모닥불·상인은 피한다. */
+const SEWER_WALL_PROPS  = ['sewer_fall', 'sewer_vent', 'sewer_pipe', 'sewer_barrel2', 'sewer_web'];
+const SEWER_FLOOR_PROPS = ['sewer_jar_a', 'sewer_jar_b', 'sewer_barrel',
+                           'sewer_moss_a', 'sewer_moss_b', 'sewer_grate'];
+
+function addProps(map, depth) {
+  map.props = [];
+  if (depth < CFG.SEWER_FLOOR || depth >= CFG.TOP_FLOOR) return;
+
+  const taken = (x, y) => map.props.some(p => p.x === x && p.y === y);
+
+  for (const r of map.rooms) {
+    /* --- 벽에 붙는 것 --- */
+    if (r.w >= 5 && r.h >= 4) {
+      for (let i = 0, tries = 0; i < randInt(1, 2) && tries < 20; tries++) {
+        const x = randInt(r.x + 1, r.x + r.w - 2);
+        const y = r.y - 1;
+        if (y < 0) continue;
+        if (map.tiles[y][x] !== T.WALL || map.tiles[y + 1][x] !== T.FLOOR) continue;
+        // 횃불 자리는 비켜 준다 — 겹치면 둘 다 안 읽힌다
+        if (map.torches.some(t => t.x === x && t.y === y)) continue;
+        if (taken(x, y)) continue;
+        map.props.push({ x, y, kind: choice(SEWER_WALL_PROPS), seed: randInt(0, 7) });
+        i++;
+      }
+    }
+
+    /* --- 바닥에 놓이는 것 --- */
+    for (let i = 0, tries = 0; i < randInt(0, 3) && tries < 24; tries++) {
+      const c = randomTileIn(r);
+      if (map.tiles[c.y][c.x] !== T.FLOOR) continue;   // 계단·모닥불·상인 칸은 걸러진다
+      if (taken(c.x, c.y)) continue;
+      map.props.push({ x: c.x, y: c.y, kind: choice(SEWER_FLOOR_PROPS), seed: randInt(0, 7) });
+      i++;
+    }
+  }
 }
 
 /* 벽에 거는 횃불.
@@ -228,6 +278,7 @@ function makeRoof(depth) {
   map.stairs = { x: room.cx, y: room.cy };
   map.stairsRoom = room;
   map.torches = [];
+  map.props = [];
   return map;
 }
 

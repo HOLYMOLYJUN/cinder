@@ -282,6 +282,12 @@ const Render = {
           if (tor) this.wallTorch(ctx, tor, lit);
         }
 
+        // 장식 — 하수도 층의 폭포·항아리·이끼. 지형이 아니라 그림일 뿐이다.
+        if (this.ready && map.props) {
+          const pr = map.props.find(v => v.x === x && v.y === y);
+          if (pr) this.prop(ctx, pr, px, py, lit);
+        }
+
         // 상인은 타일이 아니라 사람이라 스프라이트로 세워둔다
         if (t === T.SHOP) {
           if (this.ready) this.sprite(ctx, 'merchant.idle', px, py, 1, lit ? 1 : 0.42, null);
@@ -783,6 +789,34 @@ const Render = {
     g.addColorStop(1, 'rgba(255,140,60,0)');
     ctx.fillStyle = g;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  },
+
+  /* 하수도 층의 장식. 지형이 아니라 그 자리에 얹는 그림일 뿐이라
+     밟고 지나갈 수 있고 무엇도 막지 않는다.
+
+     폭포만 움직인다. 나머지는 한 장짜리라 여기서 갈라 준다 —
+     흔들리는 것이 많으면 화면이 소란스러워서 정작 움직이는 몬스터가 안 읽힌다. */
+  prop(ctx, p, px, py, lit) {
+    const TS = CFG.TILE;
+    const a = lit ? 1 : 0.4;
+
+    if (p.kind === 'sewer_fall') {
+      // 물은 벽을 타고 아래 칸까지 흐른다 — 벽에만 그리면 벽에 붙은 무늬로 보인다
+      this.anim(ctx, 'sewerFall', 130, px, py, TS, TS, a, p.seed);
+      ctx.globalAlpha = a * 0.45;
+      this.anim(ctx, 'sewerFall', 130, px, py + TS, TS, TS, a * 0.45, p.seed + 1);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    ctx.globalAlpha = a;
+    this.tile(ctx, this.propKey(p.kind), 0, px, py);
+    ctx.globalAlpha = 1;
+  },
+
+  // map.props 의 이름과 sprites.js 의 키를 잇는다
+  propKey(kind) {
+    return 'prop.' + kind;
   },
 
   /* 여러 장짜리 그림을 시간에 맞춰 한 장 골라 원하는 크기로 그린다.

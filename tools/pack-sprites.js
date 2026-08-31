@@ -154,7 +154,17 @@ Object.assign(MANIFEST, {
                      'sewer_floor_4.png','sewer_floor_5.png','sewer_floor_6.png','sewer_floor_7.png'],
   'sewer.wallFace': one('sewer_wall_mid'),
   'sewer.wallTop':  one('sewer_wall_top'),
+
+  /* 장식. map.props 의 kind 앞에 'prop.' 을 붙인 것이 키다 (Render.propKey).
+     폭포만 여러 장이라 따로 두고, 나머지는 한 장씩. */
+  'sewerFall': ['sewer_fall_0.png', 'sewer_fall_1.png', 'sewer_fall_2.png'],
 });
+
+for (const p of ['sewer_vent', 'sewer_pipe', 'sewer_barrel2', 'sewer_web',
+                 'sewer_jar_a', 'sewer_jar_b', 'sewer_barrel',
+                 'sewer_moss_a', 'sewer_moss_b', 'sewer_grate', 'sewer_hole']) {
+  MANIFEST['prop.' + p] = [p + '.png'];
+}
 
 /* 장비 아이콘.
    무기는 팩에 그림이 있다. 방어구와 장신구는 어느 팩에도 없어서

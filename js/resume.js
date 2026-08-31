@@ -69,6 +69,7 @@ function packRun() {
         rooms: m.rooms, start: m.start, stairs: m.stairs,
         camp: m.camp || null, shop: m.shop || null,
         vault: m.vault || null, doors: m.doors || null, torches: m.torches || null,
+        props: m.props || null,
         items: m.items,
       },
   };
@@ -169,6 +170,7 @@ function loadRun(d, opts) {
     camp: M.camp || undefined, shop: M.shop || undefined,
     vault: M.vault || undefined, doors: M.doors || undefined,
     torches: M.torches || [],
+    props: M.props || [],
     items: M.items || [],
   };
 

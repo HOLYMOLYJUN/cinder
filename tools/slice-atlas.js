@@ -52,9 +52,31 @@ const CUTS = [
   { src: 'atlas_walls_high-16x32.png', cellW: 16, cellH: 32, cells: [[2,3]],
     name: () => 'sewer_wall_top', crop: [0, 11, 16, 16] },
 
-  /* ---- 소품 ---- 층에 하수도라는 표를 남기는 것들 */
-  { src: 'floor.png', cell: 16, cells: [[1,4]], name: () => 'sewer_grate' },
-  { src: 'floor.png', cell: 16, cells: [[4,2]], name: () => 'sewer_hole' },
+  /* ---- 바닥에 나는 표 ---- 밟고 지나가는 것들이라 눈에 안 띄어야 한다 */
+  { src: 'floor.png', cell: 16, cells: [[1,4]], name: () => 'sewer_grate' },   // 배수구
+  { src: 'floor.png', cell: 16, cells: [[4,2]], name: () => 'sewer_hole' },    // 뚫린 구멍
+
+  /* ---- 벽에서 쏟아지는 물 ---- 세 장짜리 애니메이션.
+     하수도라는 것을 한눈에 말해 주는 물건이라 제일 먼저 골랐다. */
+  { src: 'items.png', cell: 16, cells: [[11,7],[12,7],[13,7]],
+    name: i => `sewer_fall_${i}` },
+
+  /* ---- 벽에 붙는 것 ---- 방마다 하나씩 걸어 같은 벽이 이어지는 느낌을 끊는다 */
+  { src: 'items.png', cell: 16, cells: [[4,9]],  name: () => 'sewer_vent' },   // 쇠창살
+  { src: 'items.png', cell: 16, cells: [[0,10]], name: () => 'sewer_pipe' },   // 이끼 낀 관
+  { src: 'items.png', cell: 16, cells: [[9,7]],  name: () => 'sewer_web' },    // 거미줄
+
+  /* ---- 바닥에 놓이는 것 ---- 항아리와 이끼.
+     방 안이 텅 비어 있으면 넓기만 하고 어디였는지 기억에 안 남는다. */
+  /* 항아리는 두 칸에 걸쳐 그려져 있다 — 한 칸만 떼면 반쪽이 된다.
+     32 폭으로 떼어 두면 tile() 이 가운데 맞춰 그리므로 칸을 조금 넘어 놓인다.
+     사람 그림도 칸을 넘으므로(16x28) 이 팩에서는 그게 어긋난 게 아니다. */
+  { src: 'items.png', cell: 16, cells: [[2,10]], name: () => 'sewer_jar_a', crop: [0, 0, 32, 16] },
+  { src: 'items.png', cell: 16, cells: [[4,10]], name: () => 'sewer_jar_b', crop: [0, 0, 32, 16] },
+  { src: 'items.png', cell: 16, cells: [[0,11]], name: () => 'sewer_barrel' },
+  { src: 'items.png', cell: 16, cells: [[1,11]], name: () => 'sewer_barrel2' },
+  { src: 'items.png', cell: 16, cells: [[9,2]],  name: () => 'sewer_moss_a' },
+  { src: 'items.png', cell: 16, cells: [[11,2]], name: () => 'sewer_moss_b' },
 ];
 
 (async () => {
