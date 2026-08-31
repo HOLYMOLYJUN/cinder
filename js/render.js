@@ -288,6 +288,14 @@ const Render = {
           if (pr) this.prop(ctx, pr, px, py, lit);
         }
 
+        /* 남이 지나간 자리. 지형이 아니라 그 위에 얹는 그림이라 아무것도 막지 않는다.
+           쪽지는 은은하게 깜빡인다 — 어둠 속에서 「저기 뭔가 있다」가 보여야
+           읽으러 갈 마음이 생긴다. 해골은 스스로 빛나지 않는다(죽은 것이므로). */
+        if (this.ready && typeof Marks !== 'undefined' && Marks.list.length) {
+          const mk = Marks.at(x, y);
+          if (mk) this.mark(ctx, mk, px, py, lit);
+        }
+
         // 상인은 타일이 아니라 사람이라 스프라이트로 세워둔다
         if (t === T.SHOP) {
           if (this.ready) this.sprite(ctx, 'merchant.idle', px, py, 1, lit ? 1 : 0.42, null);
@@ -813,6 +821,33 @@ const Render = {
 
     const f = Math.floor(performance.now() / 180) % 4;
     this.sprite(ctx, 'pet.' + pet.id, px, py + bob, 1, 1, null, pet.face || 1, f);
+  },
+
+  /* 남이 지나간 자리 — 해골(쓰러진 곳)과 표지판(벽에 긁어 둔 말). */
+  mark(ctx, m, px, py, lit) {
+    const TS = CFG.TILE;
+    const a = lit ? 1 : 0.42;
+
+    if (m.kind === 'grave') {
+      ctx.globalAlpha = m.taken ? a * 0.45 : a;   // 주운 자리는 흐려진다
+      this.tile(ctx, 'markGrave', 0, px, py);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    // 쪽지 — 끄덕임을 많이 받은 것일수록 밝다
+    const heat = Math.min(1, (m.nods || 0) / 4);
+    const pulse = 0.4 + Math.abs(Math.sin(performance.now() / 800 + m.x)) * 0.35;
+    const cx = px + TS / 2, cy = py + TS * 0.6;
+    const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, TS * (0.7 + heat * 0.3));
+    g.addColorStop(0, `rgba(240,194,74,${(0.16 + heat * 0.16) * pulse})`);
+    g.addColorStop(1, 'rgba(240,194,74,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - TS, cy - TS, TS * 2, TS * 2);
+
+    ctx.globalAlpha = Math.max(a, 0.7);
+    this.tile(ctx, m.mine ? 'markMine' : 'markNote', 0, px, py);
+    ctx.globalAlpha = 1;
   },
 
   /* 하수도 층의 장식. 지형이 아니라 그 자리에 얹는 그림일 뿐이라

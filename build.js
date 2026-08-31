@@ -30,6 +30,7 @@ const JS_FILES = [
   'js/memories.js',
   'js/pets.js',
   'js/story.js',
+  'js/marks.js',
   'js/bosses.js',
   'js/achievements.js',
   'js/render.js',

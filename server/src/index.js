@@ -187,6 +187,172 @@ export class CinderRoom extends Server {
   }
 }
 
+/* =========================================================
+   CinderMarks — 층에 남는 흔적 (죽은 자리 · 벽의 쪽지)
+
+   방과 반대다. 방은 「방 하나 = 인스턴스 하나」인데, 흔적은 모두가 같은 것을
+   봐야 하므로 **인스턴스 하나에 전부 모은다**(idFromName('global')).
+
+   왜 이걸 만드는가:
+     확성기와 관전은 둘 다 「동시에 두 명」이 있어야 쓸모가 생긴다.
+     혼자 하는 게임에서 그런 순간은 거의 안 온다. 흔적은 비동기라
+     아무도 접속해 있지 않아도 남이 지나간 자리가 내 판에 남아 있다.
+
+   서버는 여전히 게임을 모른다. 좌표와 번호만 받아 적는다 —
+   쪽지 본문조차 여기 없다. 틀 번호와 낱말 번호만 오고,
+   문장으로 만드는 것은 클라이언트가 한다. 그래서 검열할 것이 아예 없다.
+   ========================================================= */
+
+const MARK_TTL     = 14 * 24 * 60 * 60 * 1000;   // 끄덕임 없는 흔적의 수명 (2주)
+const MARK_PER_FLOOR = 40;                        // 한 층이 들고 있는 최대
+const MARK_RATE_MS = 3000;                        // 같은 사람이 연달아 남기는 간격
+
+export class CinderMarks extends Server {
+  static options = { hibernate: true };
+
+  async onStart() { this.rate = new Map(); }
+
+  key(floor) { return 'floor:' + floor; }
+
+  async load(floor) {
+    return (await this.ctx.storage.get(this.key(floor))) || [];
+  }
+
+  /* 나이가 찬 것은 내보낼 때 거른다 — 따로 청소하는 일을 만들지 않는다.
+     끄덕임을 받은 쪽지는 오래 산다. 쓸모없는 것은 알아서 사라지고,
+     도움이 된 것만 남는 것이 이 기능이 원하는 모습이다. */
+  fresh(list) {
+    const t = now();
+    return list.filter(m => t - m.at < MARK_TTL * (1 + Math.min(4, m.nods || 0)));
+  }
+
+  async put(floor, list) {
+    /* 넘치면 버린다. 끄덕임이 적고 오래된 것부터 — 층이 표지판으로 도배되면
+       흔적이 아니라 배경이 되고, 그러면 아무도 안 읽는다. */
+    const keep = list
+      .sort((a, b) => (b.nods || 0) - (a.nods || 0) || b.at - a.at)
+      .slice(0, MARK_PER_FLOOR);
+    await this.ctx.storage.put(this.key(floor), keep);
+    return keep;
+  }
+
+  limited(uid) {
+    const t = now();
+    const last = this.rate.get(uid) || 0;
+    if (t - last < MARK_RATE_MS) return true;
+    this.rate.set(uid, t);
+    return false;
+  }
+
+  async onRequest(request) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/.*\/marks/, '') || '/';
+    const cors = { 'Access-Control-Allow-Origin': '*' };
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: Object.assign({}, cors, {
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        'Access-Control-Allow-Headers': 'content-type',
+      }) });
+    }
+
+    /* 한 층에 남은 것들을 준다. 판이 층에 들어설 때 한 번만 부른다. */
+    if (request.method === 'GET' && path.startsWith('/floor/')) {
+      const floor = Math.max(1, Math.min(99, Number(path.slice(7)) || 1));
+      const uid = clean(url.searchParams.get('uid'), 40);
+      const list = this.fresh(await this.load(floor));
+      return Response.json({
+        v: PROTO,
+        marks: list.map(m => ({
+          id: m.id, kind: m.kind, x: m.x, y: m.y,
+          a: m.a, b: m.b,                  // 쪽지: 틀·낱말 번호
+          by: m.by, killer: m.killer, turns: m.turns,
+          nods: m.nods || 0,
+          mine: uid && m.uid === uid,      // 내 것에는 끄덕일 수 없다
+        })),
+      }, { headers: cors });
+    }
+
+    /* 내 흔적이 몇 번이나 읽혔는가. 타이틀에서 한 번 부른다 —
+       접속해 있지도 않은 사람과 이어져 있다는 느낌은 이 숫자 하나가 만든다. */
+    if (request.method === 'GET' && path === '/nods') {
+      const uid = clean(url.searchParams.get('uid'), 40);
+      if (!uid) return Response.json({ v: PROTO, nods: 0 }, { headers: cors });
+      const seen = (await this.ctx.storage.get('nods:' + uid)) || 0;
+      return Response.json({ v: PROTO, nods: seen }, { headers: cors });
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Not Found', { status: 404, headers: cors });
+    }
+
+    let body;
+    try { body = await request.json(); } catch (e) { return new Response('bad', { status: 400, headers: cors }); }
+    if (!body || body.v !== PROTO) return new Response('bad', { status: 400, headers: cors });
+
+    const uid = clean(body.uid, 40);
+    if (!uid) return new Response('bad', { status: 400, headers: cors });
+
+    /* 끄덕임. 쓴 사람에게 쌓인다 — 다음 판을 시작할 때 알게 된다.
+       다크소울에서 좋아요가 쓴 사람의 체력을 채우는 것과 같은 자리다.
+       보상이 「읽혔다」가 아니라 「도움이 됐다」에 붙어야
+       웃긴 글이 아니라 쓸모 있는 글을 쓰게 된다. */
+    if (path === '/nod') {
+      const floor = Math.max(1, Math.min(99, Number(body.floor) || 1));
+      const list = await this.load(floor);
+      const m = list.find(v => v.id === body.id);
+      if (!m || m.kind !== 'note') return Response.json({ v: PROTO, ok: false }, { headers: cors });
+      if (m.uid === uid) return Response.json({ v: PROTO, ok: false }, { headers: cors });
+
+      m.nods = (m.nods || 0) + 1;
+      m.nodders = (m.nodders || []).concat(uid).slice(-200);
+      await this.put(floor, list);
+
+      const had = (await this.ctx.storage.get('nods:' + m.uid)) || 0;
+      await this.ctx.storage.put('nods:' + m.uid, had + 1);
+      return Response.json({ v: PROTO, ok: true, nods: m.nods }, { headers: cors });
+    }
+
+    if (path !== '/add') return new Response('Not Found', { status: 404, headers: cors });
+    if (this.limited(uid)) return Response.json({ v: PROTO, ok: false, reason: 'rate' }, { headers: cors });
+
+    const kind = body.kind === 'note' ? 'note' : 'grave';
+    const floor = Math.max(1, Math.min(99, Number(body.floor) || 1));
+    const list = this.fresh(await this.load(floor));
+
+    /* 좌표는 클라이언트가 준다. 서버는 지도를 모르므로 확인할 방법이 없고,
+       확인할 값어치도 없다 — 엉뚱한 자리에 남겨 봐야 벽 안에 표지판이 하나 생길 뿐이다.
+       범위만 상식선으로 자른다. */
+    const mark = {
+      id: crypto.randomUUID().slice(0, 8),
+      uid: uid,
+      kind: kind,
+      x: Math.max(0, Math.min(999, Number(body.x) | 0)),
+      y: Math.max(0, Math.min(999, Number(body.y) | 0)),
+      by: clean(body.by, MAX_NAME) || '누군가',
+      at: now(),
+      nods: 0,
+    };
+
+    if (kind === 'note') {
+      /* 본문이 아니라 번호만 받는다. 클라이언트가 아무 문자열이나 보내도
+         여기 저장되지 않으므로, 욕설도 광고도 스포일러도 들어올 자리가 없다. */
+      mark.a = Math.max(0, Math.min(31, Number(body.a) | 0));
+      mark.b = Math.max(0, Math.min(31, Number(body.b) | 0));
+      // 한 사람이 한 층에 하나만
+      const i = list.findIndex(m => m.uid === uid && m.kind === 'note');
+      if (i >= 0) list.splice(i, 1);
+    } else {
+      mark.killer = clean(body.killer, 24);
+      mark.turns  = Math.max(0, Math.min(999999, Number(body.turns) | 0));
+    }
+
+    list.push(mark);
+    await this.put(floor, list);
+    return Response.json({ v: PROTO, ok: true, id: mark.id }, { headers: cors });
+  }
+}
+
 /* ---------- Origin 검사 ----------
    WebSocket 은 CORS 프리플라이트를 타지 않는다. 브라우저가 막아 주지 않으므로
    여기서 직접 보지 않으면 아무 사이트나 이 방에 붙을 수 있다.
@@ -225,6 +391,20 @@ export default {
         allowed: allowList(env),
         verdict: originAllowed(request, env) ? 'allowed' : 'blocked',
       }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+
+    /* 흔적. 방과 달리 인스턴스가 하나뿐이라 여기서 직접 넘긴다
+       (routePartykitRequest 는 URL 에서 방 이름을 읽는데, 여기는 방이 없다).
+       WebSocket 이 아니라 평범한 요청이므로 CORS 프리플라이트를 타지만,
+       Origin 검사는 그것과 별개로 여기서도 한다. */
+    if (path.startsWith('/marks')) {
+      if (request.method !== 'OPTIONS' && !originAllowed(request, env)) {
+        return new Response('forbidden origin: ' + request.headers.get('Origin'), {
+          status: 403, headers: { 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      const id = env.CinderMarks.idFromName('global');
+      return env.CinderMarks.get(id).fetch(request);
     }
 
     const routed = await routePartykitRequest(request, env, {

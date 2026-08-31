@@ -156,6 +156,13 @@ Object.assign(MANIFEST, {
   /* 화살 — 활이 쏘는 투사체. 그림은 위를 보고 있고, 그리는 쪽에서 돌린다 */
   'arrow':      one('weapon_arrow'),
 
+  /* 남이 지나간 자리 (js/marks.js).
+     해골은 쓰러진 자리, 표지판은 벽에 긁어 둔 말.
+     둘 다 팩에 있던 것이라 새로 그린 것이 없다. */
+  'markGrave':  one('skull'),
+  'markNote':   one('sign_grey'),
+  'markMine':   one('sign_orange'),   // 내가 남긴 것은 색으로 갈린다
+
   /* 하수도 — 11층부터 쓰는 두 번째 바이옴.
      키 이름을 'sewer.<원래 키>' 로 맞춰 둔다. Render.biomeKey 가 앞에 'sewer.' 를
      붙여 보고 없으면 원래 키로 돌아가므로, 여기 있는 것만 갈아 끼워지고

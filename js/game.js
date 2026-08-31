@@ -43,6 +43,7 @@ const state = {
   campSpot: null,         // 지금 고르고 있는 모닥불 자리
   pet: null,              // 따라오는 것 — 5층 문지기를 넘으면 붙는다 (js/pets.js)
   regen: 0,               // 스스로 아무는 사람이 지금까지 걸은 걸음 (리자드)
+  lastKiller: '',         // 마지막으로 나를 때린 것 — 쓰러진 자리에 남는다
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -139,6 +140,7 @@ function enterFloor(depth) {
   const map = isRoof ? makeRoof(depth) : makeFloor(depth, wantVault);
   state.floorTag = tag;
   Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
+  Marks.enterFloor(depth);       // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다)
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
@@ -430,6 +432,24 @@ function onPlayerEnter(x, y) {
       if (it.gear.rarity === 'ancient') tryRecallMemory();
     }
     map.items.splice(map.items.indexOf(it), 1);
+  }
+
+  /* 남이 쓰러진 자리. 밟으면 누구였는지 알려주고, 그 사람이 갖고 있던 것을 준다.
+     골드로 정한 이유 — 밟을 이유는 생기고 밸런스는 거의 안 건드린다.
+     장비를 주면 8층에서 남이 쓰던 고대의 것이 나와 판이 통째로 뒤집힌다. */
+  readNoteHere();               // 앞 벽에 남의 말이 있으면 읽는다
+
+  const grave = Marks.at(x, y);
+  if (grave && grave.kind === 'grave' && !grave.taken) {
+    grave.taken = true;
+    const gold = 8 + state.depth * 3;
+    state.gold += gold;
+    Sound.play('gold');
+    Render.addFloater(x, y, '+' + gold, COLORS.gold);
+    UI.log('여기서 ' + josa(grave.by, '이', '가') + ' ' +
+           (grave.killer ? josa(grave.killer, '에게', '에게') + ' ' : '') +
+           '쓰러졌습니다. 남은 것을 주웠습니다.', 'sys');
+    UI.updateHud(state);
   }
 
   /* 이끼를 밟았다. 막지는 않고 아프기만 하다 —
@@ -780,6 +800,78 @@ function resolveGear(take) {
   UI.updateHud(state);
 }
 
+/* =========================================================
+   벽의 쪽지 — 읽고, 끄덕이고, 남긴다
+   ========================================================= */
+
+/* 앞의 벽에 남이 긁어 둔 것이 있으면 읽는다. 층에 들어설 때가 아니라
+   그 자리에 섰을 때 읽히는 것이 맞다 — 벽에 긁힌 글이므로. */
+function readNoteHere() {
+  const p = state.player;
+  const m = Marks.noteNear(p.x, p.y);
+  if (!m || m.read) return;
+  m.read = true;
+  UI.log('벽에 누군가 긁어 둔 말이 있습니다.', 'sys');
+  UI.log('「' + Marks.text(m) + '」', 'hit');
+  if (!m.mine) UI.log('끄덕이려면 N' + (m.nods ? ' — ' + m.nods + '명이 이미 끄덕였습니다.' : ''), 'sys');
+}
+
+/* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
+   같은 키에 둘을 묶은 이유는 하나다: 벽 앞에 섰을 때 할 일이 그 둘뿐이다. */
+function noteKey() {
+  if (!Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
+  const p = state.player;
+  const m = Marks.noteNear(p.x, p.y);
+
+  if (m && !m.mine) {
+    if (Marks.nodded.has(m.id)) { UI.log('이미 끄덕였습니다.', 'sys'); return; }
+    Marks.nod(m);
+    Sound.play('good' in Sound ? 'good' : 'gearCommon');
+    UI.log('끄덕였습니다. 쓴 사람이 다음에 올라올 때 알게 됩니다.', 'good');
+    return;
+  }
+  if (m && m.mine) { UI.log('당신이 남긴 말입니다.', 'sys'); return; }
+
+  // 위가 벽이어야 긁을 수 있다 (횃불이 걸리는 조건과 같다)
+  if (tileAt(state.map, p.x, p.y - 1) !== T.WALL) {
+    UI.log('긁을 벽이 앞에 없습니다.', 'sys');
+    return;
+  }
+  if (Marks.wroteThisFloor) { UI.log('이 층에는 이미 하나 남겼습니다.', 'sys'); return; }
+  openNoteCompose();
+}
+
+/* 두 걸음으로 쓴다 — 낱말을 고르고, 그 낱말이 끼워진 틀을 고른다.
+   두 번째 화면에서 완성된 문장이 그대로 보이므로 무엇을 남기는지 헷갈리지 않는다. */
+function openNoteCompose() {
+  Marks.pending = { word: 0 };
+  UI.showCamp(
+    NOTE_WORDS.map((w, i) => ({ id: String(i), name: w, desc: '' })),
+    (id) => { Marks.pending.word = Number(id); openNoteForm(); },
+    '벽에 무엇을 긁어 두겠습니까.');
+}
+
+function openNoteForm() {
+  const w = NOTE_WORDS[Marks.pending.word];
+  UI.showCamp(
+    NOTE_FORMS.map((f, i) => ({ id: String(i), name: noteText(i, Marks.pending.word), desc: '' })),
+    (id) => writeNote(Number(id), Marks.pending.word),
+    '「' + w + '」 — 어떻게 적겠습니까.');
+}
+
+function writeNote(a, b) {
+  UI.hideCamp();
+  Marks.pending = null;
+  const p = state.player;
+  Marks.wroteThisFloor = true;
+  Marks.add('note', p.x, p.y - 1, { a: a, b: b });
+  // 내 판에도 바로 보이게 — 서버 응답을 기다리면 남긴 실감이 안 난다
+  Marks.list.push({ id: 'mine-' + Date.now(), kind: 'note', x: p.x, y: p.y - 1,
+                    a: a, b: b, by: Marks.who(), nods: 0, mine: true, read: true });
+  Sound.play('key');
+  UI.log('벽에 「' + noteText(a, b) + '」라고 긁어 두었습니다.', 'good');
+}
+
 /* 하수도 층의 형광 이끼. 밟으면 1 깎인다.
 
    1 은 무시해도 되는 값이다. 그게 요점이다 — 무시해도 되는지를 정하는 것이
@@ -1075,6 +1167,9 @@ function attack(attacker, defender, dir) {
     }
   }
 
+  // 마지막으로 나를 때린 것. 쓰러진 자리에 같이 남긴다 (js/marks.js)
+  if (defender.kind === 'player') state.lastKiller = attacker.name;
+
   if (defender.hp <= 0) kill(defender);
   UI.updateHud(state);
 }
@@ -1094,6 +1189,12 @@ function kill(entity) {
     }
     entity.alive = false;
     Sound.play('death');
+    /* 쓰러진 자리를 남긴다. 다음 사람이 이 층에 오면 여기 해골이 서 있다 —
+       이 탑이 원래 「아무도 내려오지 않는」 곳이라, 그게 설정 그 자체다.
+       무엇에게 당했는지도 같이 남긴다. 다음 사람에게 그게 곧 경고다. */
+    Marks.add('grave', entity.x, entity.y, {
+      killer: state.lastKiller || '', turns: state.turns,
+    });
     endRun(false);
     return;
   }
@@ -1517,6 +1618,23 @@ function endRun(reachedTop) {
   }, 700);
 }
 
+/* 내가 남긴 말을 몇 명이 읽었는가. 타이틀에서 한 번만 부른다.
+
+   이게 이 기능의 심장이다 — 다크소울에서 좋아요가 쓴 사람의 체력을 채우는 자리다.
+   보상이 「읽혔다」가 아니라 「도움이 됐다」에 붙어 있어야
+   웃긴 말이 아니라 쓸모 있는 말을 남기게 된다.
+   그리고 접속해 있지도 않은 사람과 이어져 있다는 느낌은 이 숫자 하나가 만든다. */
+async function showMyNods() {
+  const n = await Marks.myNods();
+  if (!n) return;
+  const el = document.getElementById('best-record');
+  if (!el) return;
+  const line = document.createElement('div');
+  line.className = 'record-nods';
+  line.textContent = '당신이 남긴 말을 ' + n + '명이 읽었습니다.';
+  el.appendChild(line);
+}
+
 function updateRecordText(save) {
   if (!save || !save.runs) { UI.setRecord(''); return; }
   let t = '최고 ' + save.best + '층 · ' + save.runs + '번 올랐다';
@@ -1651,6 +1769,7 @@ function onKeyDown(e) {
 
   if (code === 'Escape') { UI.showCodex(); e.preventDefault(); return; }
   if (code === 'KeyF') { toggleEmber(); e.preventDefault(); return; }
+  if (code === 'KeyN') { noteKey(); e.preventDefault(); return; }
   if (code === 'Digit1' || code === 'Numpad1') { drinkPotion(); e.preventDefault(); return; }
   if (code === 'Space') { playerAction(null, 'wait'); e.preventDefault(); return; }
 
@@ -1797,8 +1916,10 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.init();
   Chat.init();
   Cast.init();
+  Marks.init();
 
   updateRecordText(loadData());
+  showMyNods();
 
   // 브라우저는 사용자가 무언가를 누르기 전에는 소리를 내주지 않는다
   const wake = () => Sound.unlock();

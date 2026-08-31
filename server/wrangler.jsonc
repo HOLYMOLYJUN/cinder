@@ -11,7 +11,9 @@
   //   CinderRoom  ->  /parties/cinder-room/<방이름>
   "durable_objects": {
     "bindings": [
-      { "name": "CinderRoom", "class_name": "CinderRoom" }
+      { "name": "CinderRoom", "class_name": "CinderRoom" },
+      // 흔적은 반대다 — 모두가 같은 것을 봐야 하므로 인스턴스 하나에 전부 모은다
+      { "name": "CinderMarks", "class_name": "CinderMarks" }
     ]
   },
 
@@ -19,7 +21,8 @@
   // 무료 플랜에서는 SQLite 백엔드 DO 만 쓸 수 있고,
   // 옛날 글을 따라 new_classes 로 적으면 배포가 거절된다.
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["CinderRoom"] }
+    { "tag": "v1", "new_sqlite_classes": ["CinderRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["CinderMarks"] }
   ],
 
   "vars": {

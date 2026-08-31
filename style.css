@@ -627,6 +627,15 @@ canvas#view {
 .camp-inner .ending-title { margin-bottom: 14px; }
 .camp-inner .ending-body { margin-bottom: 22px; }
 
+/* 내가 남긴 말이 읽힌 횟수. 기록 줄 아래에 조용히 붙는다 —
+   자랑하는 자리가 아니라 「혼자가 아니다」를 알리는 자리다. */
+.record-nods {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--ember);
+  opacity: .7;
+}
+
 /* ---------- 되짚기 ----------
    삽화가 아니라 표식이다. 불 하나, 계단 하나, 이름 한 줄.
    그림이 위, 글이 아래 — 무성영화의 자막과 같은 자리다. */
