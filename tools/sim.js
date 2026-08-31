@@ -70,7 +70,7 @@ ctx.UI = {
   hideResult: () => {}, hideGearCompare: () => {}, hideShop: () => {}, hideCodex: () => {},
   gearOpen: () => false, shopOpen: () => false, codexOpen: () => false, campOpen: () => false,
   // 봇은 늘 몸을 녹인다 — 예전 모닥불과 같은 행동이라 이전 측정과 이어진다
-  showCamp: (opts, pick) => { ctx.__campPick = pick; }, hideCamp: () => {},
+  showCamp: (opts, pick) => { ctx.__campPick = pick; ctx.__campOpts = opts; }, hideCamp: () => {},
   intro: { active: false },
   setRecord: () => {},
   toast: (t) => { ctx.__lastToast = t; },
@@ -91,13 +91,14 @@ ctx.UI = {
 ctx.Render = {
   init(){}, resize(){}, step(){}, draw(){},
   addFloater(){}, addShake(){}, addBeam(){}, addOrb(){}, addArrow(){}, addBlast(){},
+  setBiome(){}, biomeKey: k => k,
   img: {}, ready: false,
 };
 
 /* ---------- 게임 코드 ---------- */
 
 const FILES = ['js/config.js','js/util.js','js/sound.js','js/map.js','js/fov.js','js/actors.js',
-               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
+               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
 for (const f of FILES) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
@@ -263,11 +264,14 @@ function playRun() {
       G.resolveGear(!!take);
       continue;
     }
-    // 모닥불 앞에 섰으면 고른다
+    /* 모닥불 앞이거나 동행을 고르는 자리. 같은 창을 쓰므로 여기서 함께 받는다.
+       모닥불은 늘 몸을 녹이고(예전과 같은 행동이라 이전 측정과 이어진다),
+       동행은 먼저 나온 것을 고른다. */
     if (ctx.__campPick) {
       const pick = ctx.__campPick;
-      ctx.__campPick = null;
-      pick('warm');
+      const opts = ctx.__campOpts || [];
+      ctx.__campPick = null; ctx.__campOpts = null;
+      pick(opts.some(o => o.id === 'warm') ? 'warm' : (opts[0] && opts[0].id));
       continue;
     }
     // 상점이 열렸으면 살 수 있는 것을 산다

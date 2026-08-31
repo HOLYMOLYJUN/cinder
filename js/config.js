@@ -35,6 +35,7 @@ const CFG = {
 
   TOP_FLOOR: 15,
   SEWER_FLOOR: 11,         // 여기서부터 배경이 하수도로 바뀐다 (두 번째 바이옴)
+  PET_FLOOR: 5,            // 이 층의 보스를 넘으면 동행을 하나 고른다
   THROW_FLOOR: 3,          // 「던지던 손」을 확정으로 주는 층
   REST_FLOORS: [3, 6, 9, 12],
   BOSS_FLOORS: [5, 10],

@@ -132,8 +132,10 @@ const UI = {
   /* ---------- 모닥불 선택 ----------
      안식처가 회복소이기만 하면 밟는 것 말고 할 일이 없다.
      같은 자리에서 무엇을 얻을지 고르게 하면 판마다 다른 길이 난다. */
-  showCamp(options, onPick) {
+  showCamp(options, onPick, say) {
     const box = document.getElementById('camp-choices');
+    document.getElementById('camp-say').textContent =
+      say || '불이 아직 살아 있습니다. 무엇에 쓰겠습니까.';
     box.innerHTML = '';
     options.forEach((o, i) => {
       const b = document.createElement('button');
@@ -173,6 +175,11 @@ const UI = {
              (ic ? `<img class="g-ico" src="${ic}" alt="">` : '') +
              `<b style="color:${c}">${gearFullName(g)}</b></span>`;
     });
+    // 곁에 있는 것 — 스탯이 왜 그런지 설명하는 자리라 능력치 옆에 둔다
+    if (typeof PET !== 'undefined' && PET.has()) {
+      const d = PET.current();
+      parts.push(`<span class="g-slot"><i>동행</i><b style="color:var(--ember)">${d.name}</b></span>`);
+    }
     const s = player.stats;
     parts.push(`<span class="g-slot"><i>공${s.atk} 주${s.sp} 방${s.def} 마${s.md} 속${s.spd}</i></span>`);
     this.el.gearStrip.innerHTML = parts.join('');

@@ -387,6 +387,10 @@ const Render = {
     actors.sort((a, b) => a.ry - b.ry);
     for (const e of actors) this.drawEntity(ctx, e, 0);
 
+    /* 따라오는 것. 싸우지 않으므로 몬스터 목록에 넣지 않고 여기서 따로 그린다 —
+       목록에 섞으면 겨누기·전투가 전부 이것을 볼 수 있는 것으로 셈하게 된다. */
+    if (state.pet) this.drawPet(ctx, state.pet);
+
     /* ----- 불씨 빛무리 ----- */
     const cx = (player.rx + 0.5) * TS, cy = (player.ry + 0.5) * TS;
     const r = (state.fovRadius + 0.5) * TS;
@@ -789,6 +793,26 @@ const Render = {
     g.addColorStop(1, 'rgba(255,140,60,0)');
     ctx.fillStyle = g;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  },
+
+  /* 따라오는 것.
+     16x16 한 칸짜리라 사람(16x28)보다 작다 — 그게 맞다. 같은 크기로 키우면
+     두 사람이 나란히 걷는 것으로 보여서 "데리고 다닌다"가 안 된다.
+     발밑에 작은 빛을 깔아 바닥의 물건과 헷갈리지 않게 한다. */
+  drawPet(ctx, pet) {
+    const TS = CFG.TILE;
+    const px = pet.rx * TS, py = pet.ry * TS;
+    const bob = Math.sin(performance.now() / 380 + pet.x) * 0.8;
+
+    const cx = px + TS / 2, cy = py + TS * 0.82;
+    const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, TS * 0.45);
+    g.addColorStop(0, 'rgba(233,149,74,.22)');
+    g.addColorStop(1, 'rgba(233,149,74,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - TS, cy - TS, TS * 2, TS * 2);
+
+    const f = Math.floor(performance.now() / 180) % 4;
+    this.sprite(ctx, 'pet.' + pet.id, px, py + bob, 1, 1, null, pet.face || 1, f);
   },
 
   /* 하수도 층의 장식. 지형이 아니라 그 자리에 얹는 그림일 뿐이라

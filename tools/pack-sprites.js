@@ -29,10 +29,12 @@ const FRAMES_CUSTOM = path.join(ROOT, 'assets', 'custom', 'frames');
    원본은 아틀라스라 그대로는 못 쓴다 — tools/slice-atlas.js 가 쓸 칸만 낱장으로 뽑아
    여기에 둔다. 그러니 이 폴더는 '자동 생성'이고, 고칠 곳은 slice-atlas.js 쪽이다. */
 const FRAMES_SEWERS = path.join(ROOT, 'assets', 'tileset-sewers', 'frames');
+// 따라오는 것들 (Basic Asset Pack). 가로 한 줄 시트라 slice-atlas.js 가 네 장으로 뗀다.
+const FRAMES_PETS = path.join(ROOT, 'assets', 'animals', 'frames');
 
 // 같은 이름이면 원본(v1.7)이 이긴다 — 확장 팩 쪽이 구버전이라 몇 픽셀 다르다.
 function findFrame(file) {
-  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS]) {
+  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS]) {
     const p = path.join(dir, file);
     if (fs.existsSync(p)) return p;
   }
@@ -158,6 +160,10 @@ Object.assign(MANIFEST, {
   /* 장식. map.props 의 kind 앞에 'prop.' 을 붙인 것이 키다 (Render.propKey).
      폭포만 여러 장이라 따로 두고, 나머지는 한 장씩. */
   'sewerFall': ['sewer_fall_0.png', 'sewer_fall_1.png', 'sewer_fall_2.png'],
+
+  /* 따라오는 것 — 네 장짜리 대기 애니메이션 (js/pets.js 의 id 와 열쇠가 맞아야 한다) */
+  'pet.cat': ['pet_cat_0.png', 'pet_cat_1.png', 'pet_cat_2.png', 'pet_cat_3.png'],
+  'pet.dog': ['pet_dog_0.png', 'pet_dog_1.png', 'pet_dog_2.png', 'pet_dog_3.png'],
 });
 
 for (const p of ['sewer_vent', 'sewer_pipe', 'sewer_barrel2', 'sewer_web',

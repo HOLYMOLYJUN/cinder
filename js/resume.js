@@ -45,6 +45,8 @@ function packRun() {
       level: state.level, xp: state.xp,
       hasKey: state.hasKey, chill: state.chill, burn: state.burn,
       ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
+      // 곁에 있는 것. 스탯과 불씨 반경이 여기 달려 있어서 빠뜨리면 조용히 약해진다
+      pet: state.pet ? { id: state.pet.id, x: state.pet.x, y: state.pet.y } : null,
       campUses: state.campUses, revived: state.revived,
       hurt: state.hurtThisFloor, gotMemory: state.gotMemoryThisRun,
       seen: [...state.seenMonsters],
@@ -151,6 +153,12 @@ function loadRun(d, opts) {
   const p = makePlayer();
   p.gear = d.player.gear;
   state.ashHp = d.ashHp || 0;           // recalcStats 가 이걸 보므로 그 전에 넣는다
+  // 곁에 있는 것도 스탯에 얹히므로 역시 그 전에 (그려지는 자리는 아래에서 이어받는다)
+  const prevPet = state.pet;
+  state.pet = d.pet ? { ...d.pet, rx: d.pet.x, ry: d.pet.y, face: 1 } : null;
+  if (state.pet && prevPet && prevPet.id === state.pet.id) {
+    state.pet.rx = prevPet.rx; state.pet.ry = prevPet.ry; state.pet.face = prevPet.face;
+  }
   recalcStats(p);                       // 장비와 기억에서 스탯을 다시 만든다
   p.x = d.player.x; p.y = d.player.y;
   p.rx = p.x; p.ry = p.y;

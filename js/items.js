@@ -226,6 +226,10 @@ function recalcStats(player) {
   /* 모닥불에서 재를 삼킨 만큼. 장비에 얹으면 그 장비를 버릴 때 같이 사라지므로
      판 상태에 따로 들고 있다가 여기서 더한다 — 스탯을 세우는 곳은 언제나 여기 하나다. */
   if (typeof state !== 'undefined' && state.ashHp) s.maxHp += state.ashHp;
+  // 곁에 있는 것이 주는 것도 여기서 (js/pets.js)
+  if (typeof PET !== 'undefined') {
+    for (const [k, n] of Object.entries(PET.mod())) s[k] = (s[k] || 0) + n;
+  }
 
   const beforeMax = player.maxHp;
   player.maxHp = Math.max(1, s.maxHp);

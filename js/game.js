@@ -41,6 +41,7 @@ const state = {
   rangedCd: 0,            // 던진 손이 돌아오기까지 남은 턴
   ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
   campSpot: null,         // 지금 고르고 있는 모닥불 자리
+  pet: null,              // 따라오는 것 — 5층 문지기를 넘으면 붙는다 (js/pets.js)
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -84,6 +85,7 @@ function startRun() {
   state.rangedCd = 0;
   state.ashHp = 0;
   state.campSpot = null;
+  state.pet = null;       // 판을 넘어 남지 않는다 — 이번 판의 동행이다
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -149,6 +151,7 @@ function enterFloor(depth) {
   p.rx = p.x; p.ry = p.y;
   p.energy = CFG.ENERGY_COST;
   p.bump = null; p.flash = 0;
+  PET.onFloor();          // 계단을 같이 내려온다
 
   // 바닥의 물건 목록은 몬스터보다 먼저 만들어 둔다 —
   // findSpawnSpot 이 "이미 물건이 놓인 칸"을 피하려면 목록이 있어야 한다
@@ -305,7 +308,7 @@ function refreshFov() {
 function applyFov() {
   if (state.map && state.map.roof) { state.fovRadius = 40; return; }
   const tagAdd = (state.floorTag && state.floorTag.fovAdd) || 0;
-  state.fovRadius = clamp(CFG.FOV_RADIUS + tagAdd + state.ember * 2, 3, 12);
+  state.fovRadius = clamp(CFG.FOV_RADIUS + tagAdd + state.ember * 2 + PET.fovBonus(), 3, 12);
 }
 
 function monsterSight() {
@@ -793,6 +796,28 @@ function campOptions() {
   ];
 }
 
+/* 동행 고르기. 모닥불과 같은 창을 쓴다 —
+   "같은 자리에서 하나를 고른다"는 같은 물음이라 같은 얼굴이어야 한다. */
+function openPetChoice() {
+  UI.showCamp(PETS.map(p => ({
+    id: p.id,
+    name: p.kind + ' 「' + p.name + '」',
+    desc: p.line + ' — ' + p.effect,
+  })), pickPet, '문지기가 무너진 자리에 무언가 남아 있습니다.');
+}
+
+function pickPet(id) {
+  UI.hideCamp();
+  const d = PET.def(id);
+  if (!d) return;
+  PET.take(id);
+  Sound.play('memory');
+  UI.log(d.kind + ' 「' + d.name + '」' + '이(가) 당신을 따라옵니다. ' + d.effect + '.', 'good');
+  UI.updateHud(state);
+  persist();
+  saveRun();
+}
+
 function openCamp(x, y) {
   state.campSpot = { x, y };
   UI.showCamp(campOptions(), pickCamp);
@@ -895,6 +920,7 @@ function spendPlayerTurn() {
   state.player.energy -= CFG.ENERGY_COST;
   state.awaitingInput = false;
   state.turns++;
+  PET.step();             // 곁에 있는 것이 한 칸 따라온다
   // 던진 손이 돌아온다 — 원거리는 연사가 아니라 리듬이다
   if (state.rangedCd > 0) state.rangedCd--;
   if (state.chill > 0) state.chill--;
@@ -1025,6 +1051,14 @@ function kill(entity) {
     const s = state.map.stairs;
     state.map.tiles[s.y][s.x] = T.STAIRS;
     UI.log('막혀 있던 계단이 드러납니다.', 'good');
+
+    /* 첫 보스를 넘긴 자리에서 동행을 고른다.
+       여기가 이 게임에서 처음으로 "해냈다"가 되는 자리라,
+       무언가를 얻어야 다음 열 층을 오를 이유가 생긴다.
+       연출(무너지는 소리와 흔들림)이 끝난 뒤에 띄운다. */
+    if (state.depth === CFG.PET_FLOOR && !PET.has()) {
+      setTimeout(() => openPetChoice(), 900);
+    }
   }
 
   /* 「재를 뒤집어쓴」 — 쓰러지는 순간 터진다.
@@ -1595,7 +1629,8 @@ function frame(now) {
 
   if (state.map) {
     // 연출: 그려지는 위치가 실제 좌표를 쫓아간다
-    const all = [state.player, ...state.monsters];
+    // 곁에 있는 것도 같은 보간을 탄다 — 안 그러면 혼자 순간이동한다
+    const all = [state.player, ...state.monsters, state.pet];
     for (const e of all) {
       if (!e) continue;
       // 바라보는 쪽 — 좌우로 움직였거나 때린 방향을 기억한다

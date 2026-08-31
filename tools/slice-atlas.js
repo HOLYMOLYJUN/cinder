@@ -25,6 +25,9 @@ const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'assets', 'tileset-sewers');
 const OUT = path.join(SRC, 'frames');
+// 동물 팩도 가로 한 줄짜리 시트라 같은 도구로 뗀다
+const SRC_ANIMALS = path.join(ROOT, 'assets', 'animals');
+const OUT_ANIMALS = path.join(SRC_ANIMALS, 'frames');
 
 /* 어느 칸을 쓸 것인가.  [열, 행] 은 칸 단위 좌표다.
    floor 와 walls_low 는 16x16, walls_high 는 16x32 격자다. */
@@ -79,11 +82,21 @@ const CUTS = [
   { src: 'items.png', cell: 16, cells: [[11,2]], name: () => 'sewer_moss_b' },
 ];
 
+/* 따라다니는 것들. 시트가 64x16 — 가로로 네 칸이 곧 네 프레임이다.
+   여기만 나가는 폴더가 다르므로 따로 둔다. */
+const ANIMAL_CUTS = [
+  { src: 'MeowingCat.png', cell: 16, cells: [[0,0],[1,0],[2,0],[3,0]],
+    name: i => `pet_cat_${i}`, dir: OUT_ANIMALS, from: SRC_ANIMALS },
+  { src: 'SnowFox.png',   cell: 16, cells: [[0,0],[1,0],[2,0],[3,0]],
+    name: i => `pet_dog_${i}`, dir: OUT_ANIMALS, from: SRC_ANIMALS },
+];
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
+  fs.mkdirSync(OUT_ANIMALS, { recursive: true });
   const jobs = [];
-  for (const c of CUTS) {
-    const p = path.join(SRC, c.src);
+  for (const c of [...CUTS, ...ANIMAL_CUTS]) {
+    const p = path.join(c.from || SRC, c.src);
     if (!fs.existsSync(p)) { console.error('원본이 없습니다:', c.src); process.exit(1); }
     const uri = 'data:image/png;base64,' + fs.readFileSync(p).toString('base64');
     c.cells.forEach((cell, i) => {
@@ -93,6 +106,7 @@ const CUTS = [
         col: cell[0], row: cell[1],
         crop: c.crop || null,
         stack: c.stack || 0,        // 이 높이가 될 때까지 세로로 쌓는다
+        dir: c.dir || OUT,
         file: c.name(i) + '.png',
       });
     });
@@ -122,16 +136,17 @@ const CUTS = [
         x.drawImage(img, j.col * j.cw + ox, j.row * j.ch + oy, w, part,
                     0, y, w, part);
       }
-      res.push({ file: j.file, uri: c.toDataURL('image/png') });
+      res.push({ file: j.file, dir: j.dir, uri: c.toDataURL('image/png') });
     }
     return res;
   }, jobs);
   await b.close();
 
   for (const o of out) {
-    fs.writeFileSync(path.join(OUT, o.file),
+    fs.writeFileSync(path.join(o.dir, o.file),
       Buffer.from(o.uri.split(',')[1], 'base64'));
   }
-  console.log(`assets/tileset-sewers/frames/ — ${out.length}장`);
-  console.log(out.map(o => o.file).join(', '));
+  const n = d => out.filter(o => o.dir === d).length;
+  console.log(`assets/tileset-sewers/frames/ — ${n(OUT)}장`);
+  console.log(`assets/animals/frames/ — ${n(OUT_ANIMALS)}장`);
 })();

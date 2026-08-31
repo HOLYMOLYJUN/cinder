@@ -28,6 +28,7 @@ const JS_FILES = [
   'js/levels.js',
   'js/items.js',
   'js/memories.js',
+  'js/pets.js',
   'js/bosses.js',
   'js/achievements.js',
   'js/render.js',
