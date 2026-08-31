@@ -120,11 +120,13 @@ Object.assign(MANIFEST, {
   'wallTop':  one('wall_top_mid'),
   'wallLeft': one('wall_left'),
   'wallRight':one('wall_right'),
-  /* 위로 오르는 돌계단은 어느 팩에도 없다 — 0x72 의 floor_stairs 는 어둠으로
-     내려가는 계단이고, 확장팩과 하수도 팩에 있는 것은 전부 사다리다.
-     탑을 「오르는」 게임이라 나가는 자리가 사다리면 어긋나 읽혀서,
-     갑옷·활과 같은 이유로 tools/make-icons.js 가 직접 그린다. */
-  'stairs':   one('icon_stairs_up'),
+  /* 다음 층으로 나가는 자리.
+
+     0x72 의 floor_stairs 는 어둠으로 내려가는 계단이고 floor_ladder 는
+     작은 나무 사다리라, 탑을 「오르는」 게임에서 둘 다 어긋나 읽혔다.
+     하수도 팩 바닥에 있는 것이 제일 위로 난 것처럼 보여서 그것을 쓴다 —
+     전 층에서 같은 그림이다(바이옴을 안 타는 공통 키). */
+  'stairs':   one('sewer_stairs'),
   'coin':     ['coin_anim_f0.png','coin_anim_f1.png','coin_anim_f2.png','coin_anim_f3.png'],
   'chest':    one('chest_full_open_anim_f0'),
   'door':     one('doors_leaf_closed'),

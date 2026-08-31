@@ -87,7 +87,7 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 |---|---|---|
 | `assets/tileset/frames/` | 캐릭터·바닥·벽·무기 | [0x72 Dungeon Tileset II v1.7](https://0x72.itch.io/dungeontileset-ii) · CC0 |
 | `assets/tileset-extended/frames/` | 횃불·불꽃·병·열쇠 | [nijikokun 확장팩 v1.1](https://nijikokun.itch.io/dungeontileset-ii-extended) · CC0 |
-| `assets/icons/` | 갑옷·로브·장화·목걸이·반지·재의 지팡이·재의 활·**오르는 계단** | `tools/make-icons.js` 로 우리가 그림 |
+| `assets/icons/` | 갑옷·로브·장화·목걸이·반지·재의 지팡이·재의 활 | `tools/make-icons.js` 로 우리가 그림 |
 | `assets/custom/frames/` | 용 | 우리가 따로 만든 것 |
 | `assets/tileset-sewers/` | 11층부터의 하수도 배경 | [0x72 Sewers v0.3](https://0x72.itch.io/16x16-dungeontileset-ii-sewers) · CC0 (**유료 $2**) |
 
@@ -120,11 +120,12 @@ node tools/pack-sprites.js     # → js/sprites.js (143KB, 337장)
 **용도 팩에 없다.** 0x72 팩에 용이 아예 없고 도마뱀 계열은 사람 모양이라 쓸 수 없어서
 따로 만들었다 (`assets/custom/`, 대기 4장 + 이동 4장).
 
-**위로 오르는 계단도 없다.** 0x72 의 `floor_stairs` 는 어둠으로 내려가는 계단이고,
-확장팩과 하수도 팩에 있는 것은 전부 사다리다. 탑을 **오르는** 게임에서 나가는 자리가
-사다리면 다른 데로 내려가는 것처럼 읽혀서, 갑옷과 같은 이유로 직접 그렸다.
-멀어질수록 좁아지게 그려야 위로 물러나는 것으로 읽힌다 — 같은 폭으로 층층이 그리면
-위에서 내려다본 사다리와 구별되지 않는다. 색은 하수도 팩 사다리에서 뽑은 쇠 세 가지다.
+**다음 층으로 나가는 자리는 하수도 팩에서 가져온다.** 0x72 의 `floor_stairs` 는
+어둠으로 **내려가는** 계단이고 `floor_ladder` 는 작은 나무 사다리라, 탑을 **오르는**
+게임에서 둘 다 어긋나 읽혔다. 하수도 팩 바닥에 있는 것이 제일 위로 난 것처럼 보인다.
+
+**바이옴을 타지 않는다** — 돌 층에서도 같은 그림을 쓴다. 나가는 자리는 열다섯 층 내내
+같아야 눈이 그것만 찾는다.
 
 쓰는 그림을 바꾸려면 `tools/pack-sprites.js` 의 `CHARACTERS` · `MANIFEST` 만 고치고 다시 구우면 된다.
 **`js/actors.js` 의 몬스터 `id` 는 그림과 이어지는 열쇠**이므로 바꾸지 말 것 (이름은 바꿔도 된다).

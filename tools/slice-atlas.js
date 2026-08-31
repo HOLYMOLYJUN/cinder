@@ -59,6 +59,11 @@ const CUTS = [
   { src: 'floor.png', cell: 16, cells: [[1,4]], name: () => 'sewer_grate' },   // 배수구
   { src: 'floor.png', cell: 16, cells: [[4,2]], name: () => 'sewer_hole' },    // 뚫린 구멍
 
+  /* 다음 층으로 나가는 자리. 이 팩에만 「위로 난 것」이 있다 —
+     0x72 의 floor_stairs 는 어둠으로 내려가는 계단이고, 나머지는 전부 사다리다.
+     하수도 층에만 쓰는 게 아니라 전 층에서 쓴다(pack-sprites 의 stairs). */
+  { src: 'floor.png', cell: 16, cells: [[2,4]], name: () => 'sewer_stairs' },
+
   /* ---- 벽에서 쏟아지는 물 ---- 세 장짜리 애니메이션.
      하수도라는 것을 한눈에 말해 주는 물건이라 제일 먼저 골랐다. */
   { src: 'items.png', cell: 16, cells: [[11,7],[12,7],[13,7]],
