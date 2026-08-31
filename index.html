@@ -172,6 +172,21 @@
     </div>
   </div>
 
+  <!-- ===== 되짚기 =====
+       등불지기가 무너진 뒤, 결말을 고르기 전에 흐른다. -->
+  <div id="story-screen" class="overlay hidden">
+    <div class="story-inner">
+      <canvas id="story-canvas" class="story-canvas"></canvas>
+      <div class="story-text">
+        <div class="story-title" id="story-title"></div>
+        <div class="story-lines" id="story-lines"></div>
+      </div>
+    </div>
+    <div class="credits-foot">
+      <span class="credits-hint">누르고 있으면 빨리 넘어갑니다</span>
+    </div>
+  </div>
+
   <!-- ===== 크레딧 =====
        결말을 본 뒤에 흐른다. 흐르는 동안 아무 키나 누르면 끝으로 건너뛴다. -->
   <div id="credits-screen" class="overlay hidden">
@@ -324,6 +339,7 @@
 <script src="js/items.js"></script>
 <script src="js/memories.js"></script>
 <script src="js/pets.js"></script>
+<script src="js/story.js"></script>
 <script src="js/bosses.js"></script>
 <script src="js/achievements.js"></script>
 <script src="js/render.js"></script>

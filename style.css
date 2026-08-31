@@ -627,6 +627,44 @@ canvas#view {
 .camp-inner .ending-title { margin-bottom: 14px; }
 .camp-inner .ending-body { margin-bottom: 22px; }
 
+/* ---------- 되짚기 ----------
+   삽화가 아니라 표식이다. 불 하나, 계단 하나, 이름 한 줄.
+   그림이 위, 글이 아래 — 무성영화의 자막과 같은 자리다. */
+#story-screen {
+  background: radial-gradient(ellipse at 50% 42%, #0e0a07 0%, #050403 72%);
+  z-index: 68;
+  display: flex; flex-direction: column;
+}
+.story-inner {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 26px; padding: 24px; width: 100%;
+}
+.story-canvas {
+  width: min(420px, 78vw);
+  height: min(300px, 40vh);
+  display: block;
+}
+.story-text { width: min(560px, 88vw); text-align: center; }
+.story-title {
+  font-family: "Gowun Batang", serif;
+  font-size: 13px; letter-spacing: .28em; color: var(--ember);
+  margin-bottom: 18px; opacity: .85;
+}
+.story-lines {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(15px, 3.6vw, 18px); line-height: 2.15; color: var(--ink);
+  min-height: 7.4em;                 /* 줄이 늘어도 그림이 흔들리지 않게 */
+}
+/* 아직 안 찍힌 글자. 자리는 지키고 보이지만 않는다 —
+   빼 버리면 줄 길이가 바뀌면서 글이 좌우로 떨린다. */
+.story-lines .ghost { visibility: hidden; }
+
+@media (max-height: 700px) {
+  .story-canvas { height: 30vh; }
+  .story-lines { line-height: 1.95; }
+}
+
 /* ---------- 크레딧 ----------
    결말 뒤에 흐른다.
 

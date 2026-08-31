@@ -42,6 +42,7 @@ const state = {
   ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
   campSpot: null,         // 지금 고르고 있는 모닥불 자리
   pet: null,              // 따라오는 것 — 5층 문지기를 넘으면 붙는다 (js/pets.js)
+  regen: 0,               // 스스로 아무는 사람이 지금까지 걸은 걸음 (리자드)
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -86,6 +87,7 @@ function startRun() {
   state.ashHp = 0;
   state.campSpot = null;
   state.pet = null;       // 판을 넘어 남지 않는다 — 이번 판의 동행이다
+  state.regen = 0;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -770,6 +772,41 @@ function resolveGear(take) {
   UI.updateHud(state);
 }
 
+/* 스스로 아무는 사람 (리자드).
+
+   걸음을 세는 것이지 턴을 세는 것이 아니다 — 라고 하기엔 이 게임에서 한 턴이
+   곧 한 걸음이라 같은 말이다. 다만 제자리에서 기다리는 것(Space)도 걸음으로 친다.
+   기다려서 회복하는 것이 이 사람의 정당한 수단이기 때문이다.
+
+   가득 찼으면 세지 않는다. 안 그러면 성한 몸으로 걸어다니는 동안 눈금이 차서,
+   정작 다친 뒤에 첫 회복이 언제 올지 예측할 수 없게 된다. */
+function regenStep() {
+  const r = currentHero().regen;
+  const p = state.player;
+  if (!r || !p || !p.alive) return;
+  if (p.hp >= p.maxHp) { state.regen = 0; return; }
+
+  /* 보이는 것이 하나라도 있으면 아물지 않는다.
+     싸우는 내내 차오르면 최대 체력이 몇이든 상관없어져서 (실제로 그릇을 깎아 봤더니
+     클리어율이 오히려 올랐다) 조절할 수 있는 손잡이가 사라진다.
+     화면에 보이는 것으로 규칙이 정해지므로 사람이 눈으로 예측할 수 있다. */
+  if (r.calmOnly && state.monsters.some(m =>
+        m.alive && isVisible(state.visible, state.map, m.x, m.y))) {
+    state.regen = 0;
+    return;
+  }
+
+  state.regen = (state.regen || 0) + 1;
+  if (state.regen < r.every) return;
+  state.regen = 0;
+
+  const heal = Math.min(r.amount, p.maxHp - p.hp);
+  if (heal <= 0) return;
+  p.hp += heal;
+  Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
+  UI.updateHud(state);
+}
+
 /* =========================================================
    모닥불 — 같은 불을 무엇에 쓸 것인가
 
@@ -921,6 +958,7 @@ function spendPlayerTurn() {
   state.awaitingInput = false;
   state.turns++;
   PET.step();             // 곁에 있는 것이 한 칸 따라온다
+  regenStep();            // 스스로 아무는 사람은 걷는 동안 낫는다
   // 던진 손이 돌아온다 — 원거리는 연사가 아니라 리듬이다
   if (state.rangedCd > 0) state.rangedCd--;
   if (state.chill > 0) state.chill--;
@@ -1044,7 +1082,9 @@ function kill(entity) {
     unlockAch(entity.defId);
     if (entity.bossDef.final) {
       state.running = false;
-      setTimeout(() => UI.showEnding(), 1200);
+      /* 되짚기가 먼저다. 무엇을 했는지 알고 나서 골라야
+         「불을 붙인다 / 붙이지 않는다」가 동전 던지기가 아니게 된다. */
+      setTimeout(() => Story.show(() => UI.showEnding()), 1200);
       return;
     }
     // 계단이 열린다 — 보스가 서 있던 자리에
@@ -1376,9 +1416,11 @@ function chooseEnding(which) {
      순서를 이렇게 잡은 이유가 있다. 결과표는 숫자(도달 층·걸음 수)라서
      그걸 먼저 보면 방금 고른 결말이 성적표가 되어 버린다.
      이름이 먼저 지나가고 그다음에 숫자가 오면, 끝난 것은 판이 아니라 이야기가 된다. */
-  // 이야기를 끝낸 판이라 다시 오르는 문이 아니라 첫 화면으로 나가는 문을 낸다
+  /* 고른 뒤에 그 결말의 마지막 장면 하나가 더 흐르고, 그다음이 크레딧이다.
+     이야기를 끝낸 판이라 결과표는 다시 오르는 문이 아니라 첫 화면으로 나가는 문을 낸다. */
   const toCredits = (title, body) =>
-    UI.showCredits(() => UI.showResult(title, body, rows, { toLobby: true }));
+    Story.show(() => UI.showCredits(
+      () => UI.showResult(title, body, rows, { toLobby: true })), which);
 
   if (which === 'light') {
     Render.lightDawn();
@@ -1502,6 +1544,9 @@ function onKeyDown(e) {
     return;
   }
 
+  // 되짚기가 흐르는 동안에는 누르고 있으면 빨라지기만 한다 (크레딧과 같은 조작)
+  if (Story.open()) { Story.setFast(true); e.preventDefault(); return; }
+
   /* 크레딧이 열려 있으면 다른 것은 아무것도 안 받는다.
      누르고 있는 동안 빨리 감기고, 다 흐른 뒤에 누르면 닫힌다.
      건너뛰지 않는 이유 — 이름은 지나가라고 적은 것이라 지나가긴 해야 한다. */
@@ -1586,7 +1631,8 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
-  // 손을 떼면 크레딧이 다시 제 속도로 흐른다
+  // 손을 떼면 다시 제 속도로 흐른다
+  if (Story.open()) { Story.setFast(false); return; }
   if (UI.creditsOpen()) { UI.creditsFast(false); return; }
 
   // Z 를 방향키 없이 눌렀다 뗐으면 그것만으로 던진다.
@@ -1783,6 +1829,14 @@ window.addEventListener('DOMContentLoaded', () => {
      한 번 더 눌러야 닫힌다 — 건너뛰자마자 닫히면 마지막 줄을 못 읽는다. */
   document.getElementById('btn-credits').addEventListener('click', () => UI.showCredits());
   document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
+  // 되짚기도 손가락으로 같게
+  const story = document.getElementById('story-screen');
+  story.addEventListener('pointerdown', () => Story.setFast(true));
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    story.addEventListener(ev, () => Story.setFast(false));
+  }
+  window.addEventListener('resize', () => Story.resize());
+
   // 손가락으로도 같게 — 누르고 있는 동안 빨라진다
   const credits = document.getElementById('credits-screen');
   credits.addEventListener('pointerdown', e => {

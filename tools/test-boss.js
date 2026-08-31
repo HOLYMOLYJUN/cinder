@@ -209,6 +209,10 @@ async function gotoFloor(page, n) {
   await gotoFloor(page, 15);
   await page.evaluate(() => { state.boss.hp = 0; kill(state.boss); });
   await page.waitForTimeout(1600);
+  // 결말을 고르기 전에 되짚기가 흐른다 — 그 순서는 test-story 가 본다.
+  // 여기서는 그것을 끝까지 넘기고 결말 화면만 확인한다.
+  await page.evaluate(() => { if (Story.open()) Story.finish(); });
+  await page.waitForTimeout(300);
   await page.screenshot({ path: SHOT + '/15-ending.png' });
   check(await page.isVisible('#ending-screen'), '결말 선택 화면이 뜸');
 
@@ -219,6 +223,8 @@ async function gotoFloor(page, n) {
   // 결과표는 바로 덮이지 않는다 — 선택창만 걷고 옥상을 1.9초 보여준 뒤,
   // 그다음 크레딧이 흐르고, 그것이 끝나야 숫자가 온다 (test-credits 가 그 순서를 본다)
   await page.waitForTimeout(2400);
+  await page.evaluate(() => { if (Story.open()) Story.finish(); });
+  await page.waitForTimeout(300);
   await page.evaluate(() => { UI.endCredits(); UI.hideCredits(); });
   await page.waitForTimeout(400);
   const after = await page.evaluate(() => ({
@@ -235,8 +241,11 @@ async function gotoFloor(page, n) {
   await gotoFloor(page, 15);
   await page.evaluate(() => { state.boss.hp = 0; kill(state.boss); });
   await page.waitForTimeout(1500);
+  await page.evaluate(() => { if (Story.open()) Story.finish(); });
+  await page.waitForTimeout(300);
   await page.click('[data-ending="light"]');
   await page.waitForTimeout(300);
+  await page.evaluate(() => { if (Story.open()) Story.finish(); });
   await page.evaluate(() => { UI.endCredits(); UI.hideCredits(); });
   const both = await page.evaluate(() => (loadData().endings || []));
   check(both.length === 2, '두 결말 모두 기록됨: ' + both.join(', '));

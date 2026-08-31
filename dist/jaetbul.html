@@ -633,6 +633,44 @@ canvas#view {
 .camp-inner .ending-title { margin-bottom: 14px; }
 .camp-inner .ending-body { margin-bottom: 22px; }
 
+/* ---------- 되짚기 ----------
+   삽화가 아니라 표식이다. 불 하나, 계단 하나, 이름 한 줄.
+   그림이 위, 글이 아래 — 무성영화의 자막과 같은 자리다. */
+#story-screen {
+  background: radial-gradient(ellipse at 50% 42%, #0e0a07 0%, #050403 72%);
+  z-index: 68;
+  display: flex; flex-direction: column;
+}
+.story-inner {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 26px; padding: 24px; width: 100%;
+}
+.story-canvas {
+  width: min(420px, 78vw);
+  height: min(300px, 40vh);
+  display: block;
+}
+.story-text { width: min(560px, 88vw); text-align: center; }
+.story-title {
+  font-family: "Gowun Batang", serif;
+  font-size: 13px; letter-spacing: .28em; color: var(--ember);
+  margin-bottom: 18px; opacity: .85;
+}
+.story-lines {
+  font-family: "Gowun Batang", serif;
+  font-size: clamp(15px, 3.6vw, 18px); line-height: 2.15; color: var(--ink);
+  min-height: 7.4em;                 /* 줄이 늘어도 그림이 흔들리지 않게 */
+}
+/* 아직 안 찍힌 글자. 자리는 지키고 보이지만 않는다 —
+   빼 버리면 줄 길이가 바뀌면서 글이 좌우로 떨린다. */
+.story-lines .ghost { visibility: hidden; }
+
+@media (max-height: 700px) {
+  .story-canvas { height: 30vh; }
+  .story-lines { line-height: 1.95; }
+}
+
 /* ---------- 크레딧 ----------
    결말 뒤에 흐른다.
 
@@ -1234,6 +1272,21 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
       <div id="result-line" class="result-line"></div>
       <dl id="result-stats" class="result-stats"></dl>
       <button id="btn-retry" class="btn-main">다시 오른다</button>
+    </div>
+  </div>
+
+  <!-- ===== 되짚기 =====
+       등불지기가 무너진 뒤, 결말을 고르기 전에 흐른다. -->
+  <div id="story-screen" class="overlay hidden">
+    <div class="story-inner">
+      <canvas id="story-canvas" class="story-canvas"></canvas>
+      <div class="story-text">
+        <div class="story-title" id="story-title"></div>
+        <div class="story-lines" id="story-lines"></div>
+      </div>
+    </div>
+    <div class="credits-foot">
+      <span class="credits-hint">누르고 있으면 빨리 넘어갑니다</span>
     </div>
   </div>
 
@@ -2651,10 +2704,36 @@ const HEROES = [
   {
     id: 'lizard', name: '리자드', sprite: 'lizard_m',
     line: '비늘이 재를 견딘다.',
-    note: '단단하고 느리다. 맞아가며 밀고 올라간다.',
+    note: '아무것도 안 보일 때 걸으면 스스로 아문다. 단단하고 느리다.',
+    /* 다섯 걸음마다 2씩 아문다.
+
+       "단단하고 느리다"만으로는 고를 이유가 안 됐다 — 방어가 높은 것은 숫자로만
+       느껴지고, 화면에서는 아무 일도 안 일어난다. 회복은 다르다. 물러서서
+       걷는 동안 체력이 차오르는 게 눈에 보이므로, 이 사람만 「도망쳤다가 다시
+       붙는 싸움」을 하게 된다. 같은 던전이 다른 리듬으로 읽힌다. */
+    /* 다섯 걸음마다 2씩, 다만 **아무것도 보이지 않을 때만.**
+
+       처음에는 조건 없이 아물게 했다. 클리어율이 54%에서 82%로 뛰었다 —
+       다섯 중 가장 어려운 사람이 가장 쉬운 사람이 됐다.
+       그래서 최대 체력을 52에서 40으로 깎아 봤는데 **84%로 오히려 올랐다.**
+       싸우는 내내 차오르면 그릇이 몇이든 상관이 없기 때문이다.
+       **깎아야 할 것은 그릇이 아니라 아무는 조건이었다.**
+
+       이제 보이는 것이 하나라도 있으면 아물지 않는다. 물러서서 숨을 돌리는
+       동안에만 낫는다 — 물약을 아끼는 대신 싸움 도중에는 남들과 같다.
+       화면에 보이는 것으로 규칙이 정해지므로 사람이 눈으로 예측할 수 있다. */
+    regen: { every: 5, amount: 2, calmOnly: true },
+    /* 값은 공격력으로 치른다.
+
+       그릇(최대 체력)으로는 못 치른다 — 아무는 사람에게 그릇을 깎으면
+       차오르는 속도가 같으므로 아무 일도 안 일어난다(실제로 84% 로 올랐다).
+       치를 수 있는 곳은 **회복이 못 메우는 자리**뿐이고, 그건 공격력이다.
+
+       보스 앞에서는 보스가 늘 보이므로 아예 아물지 않는다. 그래서 이 사람의
+       진짜 시험은 언제나 보스전이고, 거기서 얼마나 빨리 깎느냐가 판을 가른다. */
     likes: ['blade'],
-    base: { atk: 6, sp: 0, def: 4, md: 1, spd: 8, maxHp: 52 },
-    grow: { pow: 0.55, maxHp: 5.8, def: 0.62, md: 0.12 },
+    base: { atk: 5, sp: 0, def: 3, md: 1, spd: 8, maxHp: 48 },
+    grow: { pow: 0.40, maxHp: 5.0, def: 0.42, md: 0.12 },
   },
   {
     id: 'dwarf', name: '드워프', sprite: 'dwarf_f',
@@ -3236,6 +3315,354 @@ const PET = {
       s.x = nx; s.y = ny;
       if (mx) s.face = mx > 0 ? 1 : -1;
       return;
+    }
+  },
+};
+
+
+/* ===== js/story.js ===== */
+/* =========================================================
+   story.js — 되짚기
+
+   등불지기가 무너진 뒤, 결말을 고르기 전에 흐른다.
+
+   왜 고르기 전인가.
+     지금까지는 아무것도 모르는 채로 「불을 붙인다 / 붙이지 않는다」를 골랐다.
+     그러면 그건 선택이 아니라 동전 던지기다.
+     자기가 무슨 짓을 했는지 알고 나서 고르면 같은 두 단추가 다른 무게를 갖는다.
+
+   왜 기억을 다 못 찾아도 전부 보여주는가.
+     처음에는 못 찾은 장면을 긁힌 글자로 가리려 했다. 그런데 기억 아홉 개를
+     다 모으는 데 열 판이 넘게 걸린다 — 대부분은 이야기를 끝까지 못 보고 그만둔다.
+     **감추는 것이 아까워서 만든 이야기를 아무도 못 보게 되면 그건 장치가 아니라 손해다.**
+     그래서 전부 보여준다. 기억은 계속 스탯으로 값을 하고, 이야기는 이야기대로 준다.
+
+   그림은 팩에서 가져오지 않는다. 사각형과 선으로만 그린다 —
+     이 게임의 그림체가 원래 그렇고, 무엇보다 여기서 필요한 것은 삽화가 아니라
+     "무슨 일이 있었는지"를 가리키는 표식이다. 불 하나, 계단 하나, 이름 한 줄.
+   ========================================================= */
+
+const STORY = [
+  {
+    key: 'climb',
+    title: '오르던 발',
+    lines: ['매일 이 계단을 올랐다.',
+            '오르러 온 것이 아니라, 일하러 왔다.'],
+    draw: 'stairs',
+  },
+  {
+    key: 'roster',
+    title: '명부',
+    lines: ['당신이 하던 일은 이름을 적는 것이었다.',
+            '적으면 그 사람이 올라갔다.',
+            '아무도 내려오지 않았다.'],
+    draw: 'roster',
+  },
+  {
+    key: 'first',
+    title: '첫 번째 이름',
+    lines: ['처음 적어 올린 이름이 있다.',
+            '어렸다.',
+            '이름을 부르니 대답했다.'],
+    draw: 'small',
+  },
+  {
+    key: 'fire',
+    title: '불을 만지던 손',
+    lines: ['불은 사람을 태워야 탄다.',
+            '당신은 그것을 알고 있었고,',
+            '알고도 계속 적었다.'],
+    draw: 'flame',
+  },
+  {
+    key: 'throw',
+    title: '던지던 손',
+    lines: ['어느 날 붓을 던졌다.',
+            '그리고 다시 주웠다.'],
+    draw: 'throw',
+  },
+  {
+    key: 'night',
+    title: '돌아선 밤',
+    lines: ['열두 번째 층에서 돌아섰다.',
+            '그날은 적지 않았다.'],
+    draw: 'turn',
+  },
+  {
+    key: 'douse',
+    title: '끄던 손',
+    lines: ['대신 불을 껐다.',
+            '탑이 어두워졌다.',
+            '그날부터 아무도 올라가지 않았다.'],
+    draw: 'douse',
+  },
+  {
+    key: 'warmth',
+    title: '남겨진 온기',
+    lines: ['그런데 아래에 불이 하나 남아 있었다.',
+            '누군가 당신을 위해 피워둔 것이었다.',
+            '누구였는지는 끝내 떠오르지 않는다.'],
+    draw: 'ember',
+  },
+  {
+    key: 'face',
+    title: '당신의 얼굴',
+    lines: ['당신은 기억을 두고 내려갔다.',
+            '두고 간 자리가 지금 여기다.'],
+    draw: 'twins',
+  },
+];
+
+/* 고르고 난 뒤에 한 장면씩 더. 둘 다 명부로 끝난다 —
+   태울 것을 정하는 일이 이 이야기의 한가운데였으므로. */
+const STORY_END = {
+  light: {
+    title: '불을 붙였다',
+    lines: ['불이 살아난다.',
+            '아래에서 문이 열리는 소리가 난다.',
+            '누군가 들어온다. 손에 불씨 하나, 기억은 없이.'],
+    draw: 'door',
+  },
+  leave: {
+    title: '붙이지 않았다',
+    lines: ['어둠은 그대로다.',
+            '당신은 명부를 편다.',
+            '아무 이름도 적지 않는다.'],
+    draw: 'blank',
+  },
+};
+
+const Story = {
+  cv: null, ctx: null,
+  scenes: [], at: 0, t: 0, typed: 0, fast: false, raf: 0, done: null,
+
+  LINE_MS: 46,          // 한 글자
+  HOLD: 1.6,            // 다 찍히고 머무는 시간(초)
+  FADE: 0.5,
+
+  /* scenes 를 다 흘리고 onDone 을 부른다.
+     ending 을 주면 그 결말의 마지막 장면 하나만 흐른다. */
+  show(onDone, ending) {
+    const screen = document.getElementById('story-screen');
+    if (!screen) { if (onDone) onDone(); return; }
+
+    this.scenes = ending ? [STORY_END[ending]].filter(Boolean) : STORY.slice();
+    if (!this.scenes.length) { if (onDone) onDone(); return; }
+
+    this.done = onDone || null;
+    this.at = 0; this.t = 0; this.typed = 0; this.fast = false;
+
+    screen.classList.remove('hidden');
+    this.cv = document.getElementById('story-canvas');
+    this.ctx = this.cv.getContext('2d');
+    this.resize();
+    document.getElementById('story-title').textContent = '';
+    document.getElementById('story-lines').innerHTML = '';
+
+    cancelAnimationFrame(this.raf);
+    let last = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000) * (this.fast ? 4 : 1);
+      last = now;
+      this.step(dt);
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  },
+
+  open() {
+    const s = document.getElementById('story-screen');
+    return s && !s.classList.contains('hidden');
+  },
+
+  // 크레딧과 같은 조작 — 누르고 있으면 빨라진다. 건너뛰지는 않는다.
+  setFast(on) { if (this.open()) this.fast = !!on; },
+
+  resize() {
+    if (!this.cv) return;
+    const r = this.cv.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.cv.width = Math.max(1, Math.round(r.width * dpr));
+    this.cv.height = Math.max(1, Math.round(r.height * dpr));
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  },
+
+  step(dt) {
+    const sc = this.scenes[this.at];
+    if (!sc) return;
+    this.t += dt;
+
+    // 글자가 하나씩 찍힌다 — 층 진입 연출과 같은 말투
+    const total = sc.lines.join('').length;
+    const want = Math.floor((this.t * 1000) / this.LINE_MS);
+    if (want !== this.typed) {
+      this.typed = Math.min(total, want);
+      this.paintText(sc);
+    }
+
+    this.paintArt(sc, this.t);
+
+    // 다 찍히고 잠깐 머물렀으면 다음 장면
+    const typedAll = this.typed >= total;
+    const doneAt = (total * this.LINE_MS) / 1000 + this.HOLD;
+    if (typedAll && this.t >= doneAt) this.next();
+  },
+
+  next() {
+    this.at++;
+    this.t = 0; this.typed = 0;
+    if (this.at >= this.scenes.length) { this.finish(); return; }
+    document.getElementById('story-title').textContent = '';
+    document.getElementById('story-lines').innerHTML = '';
+  },
+
+  finish() {
+    cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    this.fast = false;
+    document.getElementById('story-screen').classList.add('hidden');
+    const d = this.done;
+    this.done = null;
+    if (d) d();
+  },
+
+  paintText(sc) {
+    document.getElementById('story-title').textContent = sc.title;
+    const box = document.getElementById('story-lines');
+    let left = this.typed;
+    box.innerHTML = sc.lines.map(l => {
+      const take = Math.max(0, Math.min(l.length, left));
+      left -= l.length;
+      // 아직 안 찍힌 자리는 투명하게 남겨 둔다 — 줄이 밀려 올라가지 않게
+      return `<div>${l.slice(0, take)}<span class="ghost">${l.slice(take)}</span></div>`;
+    }).join('');
+  },
+
+  /* ---------- 그림 ----------
+     전부 사각형과 선. 불빛 하나를 기준으로 어둠 속에서 형태만 드러낸다. */
+  paintArt(sc, t) {
+    const c = this.ctx;
+    if (!c) return;
+    const W = this.cv.clientWidth, H = this.cv.clientHeight;
+    c.clearRect(0, 0, W, H);
+    const cx = W / 2, cy = H / 2;
+    const U = Math.max(6, Math.min(W, H) / 22);      // 한 칸
+    const ember = '#E9954A', ink = '#D8CDBB', dim = 'rgba(216,205,187,.28)';
+
+    const glow = (x, y, r, a) => {
+      const g = c.createRadialGradient(x, y, 1, x, y, r);
+      g.addColorStop(0, `rgba(233,149,74,${a})`);
+      g.addColorStop(1, 'rgba(233,149,74,0)');
+      c.fillStyle = g;
+      c.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    const person = (x, y, col, s = 1) => {
+      c.fillStyle = col;
+      c.fillRect(x - U * 0.30 * s, y - U * 1.5 * s, U * 0.6 * s, U * 0.62 * s);  // 머리
+      c.fillRect(x - U * 0.42 * s, y - U * 0.86 * s, U * 0.84 * s, U * 0.9 * s); // 몸
+    };
+    const flame = (x, y, size, a) => {
+      glow(x, y, size * 3.2, 0.32 * a);
+      c.globalAlpha = a;
+      c.fillStyle = ember;
+      c.fillRect(x - size * 0.5, y - size, size, size * 1.4);
+      c.fillStyle = '#FACB3E';
+      c.fillRect(x - size * 0.22, y - size * 0.75, size * 0.44, size * 0.8);
+      c.globalAlpha = 1;
+    };
+
+    switch (sc.draw) {
+      case 'stairs': {                       // 위로 이어지는 계단
+        c.fillStyle = dim;
+        for (let i = 0; i < 7; i++) {
+          const w = U * 5, x = cx - w / 2 + i * U * 0.1;
+          c.fillRect(x, cy + U * 3 - i * U * 0.9, w, U * 0.5);
+        }
+        person(cx, cy + U * 3.2, ink, 1);
+        break;
+      }
+      case 'roster': {                       // 한 줄씩 채워지는 명부
+        const w = U * 7, h = U * 8;
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.strokeRect(cx - w / 2, cy - h / 2, w, h);
+        const rows = Math.min(9, Math.floor(t * 2.6));
+        c.fillStyle = ink;
+        for (let i = 0; i < rows; i++)
+          c.fillRect(cx - w / 2 + U * 0.7, cy - h / 2 + U * 0.9 + i * U * 0.78,
+                     w - U * 1.4, U * 0.16);
+        break;
+      }
+      case 'small': {                        // 높은 어둠 아래 아주 작은 하나
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.strokeRect(cx - U * 3, cy - U * 5, U * 6, U * 10);
+        person(cx, cy + U * 4, ink, 0.62);
+        glow(cx, cy + U * 3.4, U * 2.4, 0.16);
+        break;
+      }
+      case 'flame':                          // 크게 타는 불
+        flame(cx, cy + U * 1.6, U * 1.9 + Math.sin(t * 6) * U * 0.14, 1);
+        break;
+      case 'throw': {                        // 던졌다가 다시 주운 것
+        const p = (Math.sin(t * 1.5) + 1) / 2;
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.beginPath();
+        for (let i = 0; i <= 24; i++) {
+          const q = i / 24, x = cx - U * 3 + q * U * 6, y = cy + U * 2 - Math.sin(q * Math.PI) * U * 3;
+          i ? c.lineTo(x, y) : c.moveTo(x, y);
+        }
+        c.stroke();
+        const q = p, x = cx - U * 3 + q * U * 6, y = cy + U * 2 - Math.sin(q * Math.PI) * U * 3;
+        c.fillStyle = ink;
+        c.fillRect(x - U * 0.16, y - U * 0.16, U * 0.32, U * 0.32);
+        break;
+      }
+      case 'turn': {                         // 계단을 등지고 선 사람
+        c.fillStyle = dim;
+        for (let i = 0; i < 6; i++)
+          c.fillRect(cx + U * 0.6, cy + U * 2.4 - i * U * 0.9, U * 4, U * 0.5);
+        person(cx - U * 2.2, cy + U * 2.6, ink, 1);
+        break;
+      }
+      case 'douse': {                        // 꺼져 가는 불
+        const a = Math.max(0, 1 - t / 2.6);
+        flame(cx, cy + U * 1.6, U * 1.8 * a + 0.001, a);
+        if (a < 0.35) {
+          c.fillStyle = 'rgba(120,110,100,.5)';
+          c.fillRect(cx - U * 1.2, cy + U * 1.5, U * 2.4, U * 0.2);
+        }
+        break;
+      }
+      case 'ember': {                        // 아래에 남겨진 작은 불
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(cx - U * 5, cy - U * 2); c.lineTo(cx + U * 5, cy - U * 2); c.stroke();
+        flame(cx, cy + U * 3, U * 0.8 + Math.sin(t * 5) * U * 0.08, 1);
+        break;
+      }
+      case 'twins': {                        // 마주 선 같은 둘
+        person(cx - U * 2.4, cy + U * 1.6, ink, 1);
+        person(cx + U * 2.4, cy + U * 1.6, 'rgba(233,149,74,.75)', 1);
+        glow(cx + U * 2.4, cy + U * 0.6, U * 2.6, 0.2);
+        break;
+      }
+      case 'door': {                         // 아래에서 열리는 문
+        const w = U * 3.4, h = U * 6;
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.strokeRect(cx - w / 2, cy - h / 2 + U, w, h);
+        const open = Math.min(1, t / 2);
+        c.fillStyle = ember;
+        c.globalAlpha = 0.5 * open;
+        c.fillRect(cx - w / 2 + 2, cy - h / 2 + U + 2, w * open, h - 4);
+        c.globalAlpha = 1;
+        glow(cx, cy + U, U * 4 * open, 0.24 * open);
+        person(cx, cy + U * 3.6, ink, 0.8);
+        break;
+      }
+      case 'blank': {                        // 아무것도 적지 않은 명부
+        const w = U * 7, h = U * 8;
+        c.strokeStyle = dim; c.lineWidth = 2;
+        c.strokeRect(cx - w / 2, cy - h / 2, w, h);
+        break;
+      }
     }
   },
 };
@@ -5898,6 +6325,7 @@ function packRun() {
       ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       // 곁에 있는 것. 스탯과 불씨 반경이 여기 달려 있어서 빠뜨리면 조용히 약해진다
       pet: state.pet ? { id: state.pet.id, x: state.pet.x, y: state.pet.y } : null,
+      regen: state.regen || 0,   // 걸음 눈금. 없으면 이어할 때마다 처음부터 센다
       campUses: state.campUses, revived: state.revived,
       hurt: state.hurtThisFloor, gotMemory: state.gotMemoryThisRun,
       seen: [...state.seenMonsters],
@@ -5983,6 +6411,7 @@ function loadRun(d, opts) {
   state.level = d.level || 1; state.xp = d.xp || 0;
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
   state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
+  state.regen = d.regen || 0;
   // 배경은 층에서 정해지므로 따로 저장하지 않는다. 다만 다시 세워 주지 않으면
   // 이어하기나 관전으로 11층에 들어갔을 때 1층 돌벽으로 그려진다.
   Render.setBiome(d.depth);
@@ -6343,6 +6772,7 @@ const state = {
   ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
   campSpot: null,         // 지금 고르고 있는 모닥불 자리
   pet: null,              // 따라오는 것 — 5층 문지기를 넘으면 붙는다 (js/pets.js)
+  regen: 0,               // 스스로 아무는 사람이 지금까지 걸은 걸음 (리자드)
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
 
@@ -6387,6 +6817,7 @@ function startRun() {
   state.ashHp = 0;
   state.campSpot = null;
   state.pet = null;       // 판을 넘어 남지 않는다 — 이번 판의 동행이다
+  state.regen = 0;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -7071,6 +7502,41 @@ function resolveGear(take) {
   UI.updateHud(state);
 }
 
+/* 스스로 아무는 사람 (리자드).
+
+   걸음을 세는 것이지 턴을 세는 것이 아니다 — 라고 하기엔 이 게임에서 한 턴이
+   곧 한 걸음이라 같은 말이다. 다만 제자리에서 기다리는 것(Space)도 걸음으로 친다.
+   기다려서 회복하는 것이 이 사람의 정당한 수단이기 때문이다.
+
+   가득 찼으면 세지 않는다. 안 그러면 성한 몸으로 걸어다니는 동안 눈금이 차서,
+   정작 다친 뒤에 첫 회복이 언제 올지 예측할 수 없게 된다. */
+function regenStep() {
+  const r = currentHero().regen;
+  const p = state.player;
+  if (!r || !p || !p.alive) return;
+  if (p.hp >= p.maxHp) { state.regen = 0; return; }
+
+  /* 보이는 것이 하나라도 있으면 아물지 않는다.
+     싸우는 내내 차오르면 최대 체력이 몇이든 상관없어져서 (실제로 그릇을 깎아 봤더니
+     클리어율이 오히려 올랐다) 조절할 수 있는 손잡이가 사라진다.
+     화면에 보이는 것으로 규칙이 정해지므로 사람이 눈으로 예측할 수 있다. */
+  if (r.calmOnly && state.monsters.some(m =>
+        m.alive && isVisible(state.visible, state.map, m.x, m.y))) {
+    state.regen = 0;
+    return;
+  }
+
+  state.regen = (state.regen || 0) + 1;
+  if (state.regen < r.every) return;
+  state.regen = 0;
+
+  const heal = Math.min(r.amount, p.maxHp - p.hp);
+  if (heal <= 0) return;
+  p.hp += heal;
+  Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
+  UI.updateHud(state);
+}
+
 /* =========================================================
    모닥불 — 같은 불을 무엇에 쓸 것인가
 
@@ -7222,6 +7688,7 @@ function spendPlayerTurn() {
   state.awaitingInput = false;
   state.turns++;
   PET.step();             // 곁에 있는 것이 한 칸 따라온다
+  regenStep();            // 스스로 아무는 사람은 걷는 동안 낫는다
   // 던진 손이 돌아온다 — 원거리는 연사가 아니라 리듬이다
   if (state.rangedCd > 0) state.rangedCd--;
   if (state.chill > 0) state.chill--;
@@ -7345,7 +7812,9 @@ function kill(entity) {
     unlockAch(entity.defId);
     if (entity.bossDef.final) {
       state.running = false;
-      setTimeout(() => UI.showEnding(), 1200);
+      /* 되짚기가 먼저다. 무엇을 했는지 알고 나서 골라야
+         「불을 붙인다 / 붙이지 않는다」가 동전 던지기가 아니게 된다. */
+      setTimeout(() => Story.show(() => UI.showEnding()), 1200);
       return;
     }
     // 계단이 열린다 — 보스가 서 있던 자리에
@@ -7677,9 +8146,11 @@ function chooseEnding(which) {
      순서를 이렇게 잡은 이유가 있다. 결과표는 숫자(도달 층·걸음 수)라서
      그걸 먼저 보면 방금 고른 결말이 성적표가 되어 버린다.
      이름이 먼저 지나가고 그다음에 숫자가 오면, 끝난 것은 판이 아니라 이야기가 된다. */
-  // 이야기를 끝낸 판이라 다시 오르는 문이 아니라 첫 화면으로 나가는 문을 낸다
+  /* 고른 뒤에 그 결말의 마지막 장면 하나가 더 흐르고, 그다음이 크레딧이다.
+     이야기를 끝낸 판이라 결과표는 다시 오르는 문이 아니라 첫 화면으로 나가는 문을 낸다. */
   const toCredits = (title, body) =>
-    UI.showCredits(() => UI.showResult(title, body, rows, { toLobby: true }));
+    Story.show(() => UI.showCredits(
+      () => UI.showResult(title, body, rows, { toLobby: true })), which);
 
   if (which === 'light') {
     Render.lightDawn();
@@ -7803,6 +8274,9 @@ function onKeyDown(e) {
     return;
   }
 
+  // 되짚기가 흐르는 동안에는 누르고 있으면 빨라지기만 한다 (크레딧과 같은 조작)
+  if (Story.open()) { Story.setFast(true); e.preventDefault(); return; }
+
   /* 크레딧이 열려 있으면 다른 것은 아무것도 안 받는다.
      누르고 있는 동안 빨리 감기고, 다 흐른 뒤에 누르면 닫힌다.
      건너뛰지 않는 이유 — 이름은 지나가라고 적은 것이라 지나가긴 해야 한다. */
@@ -7887,7 +8361,8 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
-  // 손을 떼면 크레딧이 다시 제 속도로 흐른다
+  // 손을 떼면 다시 제 속도로 흐른다
+  if (Story.open()) { Story.setFast(false); return; }
   if (UI.creditsOpen()) { UI.creditsFast(false); return; }
 
   // Z 를 방향키 없이 눌렀다 뗐으면 그것만으로 던진다.
@@ -8084,6 +8559,14 @@ window.addEventListener('DOMContentLoaded', () => {
      한 번 더 눌러야 닫힌다 — 건너뛰자마자 닫히면 마지막 줄을 못 읽는다. */
   document.getElementById('btn-credits').addEventListener('click', () => UI.showCredits());
   document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
+  // 되짚기도 손가락으로 같게
+  const story = document.getElementById('story-screen');
+  story.addEventListener('pointerdown', () => Story.setFast(true));
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    story.addEventListener(ev, () => Story.setFast(false));
+  }
+  window.addEventListener('resize', () => Story.resize());
+
   // 손가락으로도 같게 — 누르고 있는 동안 빨라진다
   const credits = document.getElementById('credits-screen');
   credits.addEventListener('pointerdown', e => {

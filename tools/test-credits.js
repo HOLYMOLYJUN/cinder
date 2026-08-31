@@ -82,9 +82,14 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     UI.closeIntro();
     state.boss.hp = 0; kill(state.boss);
     await new Promise(r => setTimeout(r, 1400));
+    // 결말 앞에 되짚기가 흐른다 (순서는 test-story 가 본다) — 여기서는 넘긴다
+    if (Story.open()) Story.finish();
+    await new Promise(r => setTimeout(r, 200));
     const endingUp = UI.endingOpen();
     chooseEnding('leave');
     await new Promise(r => setTimeout(r, 2400));
+    if (Story.open()) Story.finish();      // 고른 뒤의 마지막 장면도
+    await new Promise(r => setTimeout(r, 200));
     return {
       endingUp,
       credits: UI.creditsOpen(),
