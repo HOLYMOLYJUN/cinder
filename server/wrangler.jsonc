@@ -27,6 +27,6 @@
     // 여기 없는 곳에서 온 연결은 403 으로 끊는다.
     // localhost 와 127.0.0.1 은 언제나 허용되므로 개발 중에는 비워도 된다.
     //   예: "https://cinder.vercel.app,https://cinder-git-main-you.vercel.app"
-    "ALLOWED_ORIGINS": ""
+    "ALLOWED_ORIGINS": "https://cinder-blush.vercel.app"
   }
 }

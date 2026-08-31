@@ -43,7 +43,7 @@ const CFG = {
      HOST: 'https://cinder-party.<계정>.workers.dev'                     */
 
 const NET = {
-  HOST:  '',                 // 배포 전에는 비워 둔다
+  HOST:  'https://cinder-party.vlck1111.workers.dev',
   PARTY: 'cinder-room',      // wrangler.jsonc 의 바인딩 이름을 kebab-case 로
   PROTO: 1,                  // 프로토콜 판 번호 — 서버와 같아야 한다
 

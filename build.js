@@ -55,8 +55,18 @@ const body = bodyMatch[1]
   .replace(/<script\s+src=["'][^"']+["']><\/script>\s*/gi, '')
   .trim();
 
+/* 아티팩트에서는 확성기를 꺼서 굽는다.
+   아티팩트는 HTML 한 장이라 바깥으로 연결을 못 연다. HOST 가 박힌 채로 구우면
+   붙지도 못하는 버튼이 보이고 "다시 붙는 중"만 끝없이 돈다.
+   없는 기능은 없어 보이는 게 맞다 — chat.js 가 HOST 가 비면 통째로 숨긴다.
+   소스(js/config.js)는 건드리지 않는다. 여기서 굽는 동안만 비운다. */
 const js = JS_FILES
-  .map(f => `/* ===== ${f} ===== */\n` + read(f))
+  .map(f => {
+    let src = read(f);
+    // 끝의 쉼표까지 봐야 한다 — 위 주석에 있는 예시 문장이 먼저 걸린다
+    if (f === 'js/config.js') src = src.replace(/(HOST:\s*)'[^']*'(\s*,)/, "$1''$2");
+    return `/* ===== ${f} ===== */\n` + src;
+  })
   .join('\n\n');
 
 // 인라인 스크립트 안에 </script> 문자열이 있으면 태그가 조기 종료된다

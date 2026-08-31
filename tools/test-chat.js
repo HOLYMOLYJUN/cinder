@@ -28,17 +28,20 @@ const check = (name, cond, extra) => {
   (cond ? ok : bad).push(name + (extra ? ' — ' + extra : ''));
 };
 
-/* 저장소의 config.js 는 HOST 가 비어 있다(그게 기본값이다).
-   파일을 고치지 않고, 내려가는 길에만 주소를 끼워 넣는다. */
-async function withParty(page) {
+/* config.js 의 NET.HOST 를 내려가는 길에만 갈아 끼운다. 파일은 건드리지 않는다.
+   실제 배포 주소가 박혀 있어도 검사는 로컬 워커를 보게 하고,
+   빈 문자열을 넣으면 "서버 주소가 없을 때"를 그대로 재현할 수 있다.
+   끝의 쉼표까지 보는 이유는 위 주석에 있는 예시 문장이 먼저 걸리기 때문이다. */
+async function withHost(page, host) {
   await page.route('**/js/config.js', async route => {
     const res = await route.fetch();
-    const body = (await res.text()).replace(/HOST:\s*''/, "HOST: '" + PARTY + "'");
+    const body = (await res.text())
+      .replace(/(HOST:\s*)'[^']*'(\s*,)/, "$1'" + host + "'$2");
     await route.fulfill({ response: res, body });
   });
 }
 
-async function newTab(browser, patched) {
+async function newTab(browser, host) {
   const page = await browser.newPage();
 
   /* 자바스크립트가 터진 것은 무조건 실패다. */
@@ -56,7 +59,7 @@ async function newTab(browser, patched) {
     if (r.status() >= 400 && ours(r.url())) bad.push('자원 ' + r.status() + ': ' + r.url());
   });
 
-  if (patched) await withParty(page);
+  await withHost(page, host);
   await page.goto(GAME);
   await page.waitForTimeout(700);
   return page;
@@ -74,7 +77,7 @@ const joined = page => page.waitForFunction(
       : {});
 
   /* ---------- 1. 서버 주소가 없으면 없는 기능이어야 한다 ---------- */
-  const plain = await newTab(browser, false);
+  const plain = await newTab(browser, '');          // 서버 주소가 없는 판
   check('HOST 가 비면 확성기 탭이 안 보인다', await plain.isHidden('#chat-tab'));
   check('HOST 가 비어도 게임은 시작된다', await plain.isVisible('#btn-start'));
   await plain.keyboard.press('KeyC');
@@ -83,7 +86,7 @@ const joined = page => page.waitForFunction(
   await plain.close();
 
   /* ---------- 2. 주소가 있으면 켜진다 ---------- */
-  const a = await newTab(browser, true);
+  const a = await newTab(browser, PARTY);
   check('확성기 탭이 보인다', await a.isVisible('#chat-tab'));
 
   await a.keyboard.press('KeyC');
@@ -98,7 +101,7 @@ const joined = page => page.waitForFunction(
                  .catch(() => check('A: 방에 붙었다', false, '연결 실패'));
 
   /* ---------- 3. 둘이 주고받는다 ---------- */
-  const b = await newTab(browser, true);
+  const b = await newTab(browser, PARTY);
   await b.keyboard.press('KeyC');
   await b.fill('#chat-name', '친구');
   await b.fill('#chat-room', room);
