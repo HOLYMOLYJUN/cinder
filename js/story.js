@@ -19,103 +19,171 @@
      "무슨 일이 있었는지"를 가리키는 표식이다. 불 하나, 계단 하나, 이름 한 줄.
    ========================================================= */
 
+/* 한 장면이 여러 쪽으로 넘어간다.
+
+   pages 의 한 덩어리가 한 번에 뜨는 글이다. 다 찍히고 잠깐 머물렀다가
+   다음 덩어리로 갈린다. 그림은 장면이 끝날 때까지 그대로 있고,
+   쪽이 넘어간 만큼(prog)에 맞춰 천천히 변한다 — 불이 사그라들거나
+   이름이 채워지는 것이 글과 같이 간다.
+
+   한 화면에 다 쏟지 않는 이유는 분량이 아니라 호흡이다. 「당신은 잠시 붓을
+   멈췄다」와 「하지만 해야 할 일이었다」 사이의 침묵이 이 이야기의 값이라,
+   그 사이를 화면이 비워 줘야 한다. */
 const STORY = [
   {
     key: 'climb',
     title: '오르던 발',
-    lines: ['매일 이 계단을 올랐다.',
-            '오르러 온 것이 아니라, 일하러 왔다.'],
     draw: 'stairs',
+    pages: [
+      ['매일 이 계단을 올랐다.',
+       '그곳에서 일을 했다.'],
+    ],
   },
   {
     key: 'roster',
     title: '명부',
-    lines: ['당신이 하던 일은 이름을 적는 것이었다.',
-            '적으면 그 사람이 올라갔다.',
-            '아무도 내려오지 않았다.'],
     draw: 'roster',
+    pages: [
+      ['당신이 하던 일은 이름을 적는 것이었다.'],
+      ['이름을 적고,', '그 사람을 불렀다.'],
+      ['그러면 그 사람은 계단을 올라갔다.'],
+      ['한 번 올라간 사람은', '다시는 내려오지 않았다.'],
+    ],
   },
   {
     key: 'first',
     title: '첫 번째 이름',
-    lines: ['처음 적어 올린 이름이 있다.',
-            '어렸다.',
-            '이름을 부르니 대답했다.'],
     draw: 'small',
+    pages: [
+      ['처음 적은 이름은', '어린아이였다.'],
+      ['이름을 부르자', '아이가 대답했다.'],
+      ['당신은 잠시 붓을 멈췄다.'],
+      ['하지만 해야 할 일이었다.'],
+      ['당신은 다시 이름을 적었고,', '아이는 계단을 올라갔다.'],
+      ['그 뒤로도', '수많은 이름을 적었다.'],
+    ],
   },
   {
     key: 'fire',
     title: '불을 만지던 손',
-    lines: ['불은 사람을 태워야 탄다.',
-            '당신은 그것을 알고 있었고,',
-            '알고도 계속 적었다.'],
     draw: 'flame',
+    pages: [
+      ['사람이 올라갈 때마다', '탑의 불이 하나씩 켜졌다.'],
+      ['처음에는 그게 무엇인지 몰랐다.'],
+      ['나중에는 알게 됐다.'],
+      ['그 불은', '사람이 올라가야만 타올랐다.'],
+      ['당신은 그 사실을 알고도', '계속 이름을 적었다.'],
+    ],
   },
   {
     key: 'throw',
     title: '던지던 손',
-    lines: ['어느 날 붓을 던졌다.',
-            '그리고 다시 주웠다.'],
     draw: 'throw',
+    pages: [
+      ['어느 날,', '또 하나의 이름이 들어왔다.'],
+      ['당신은 붓을 들었다가', '한참을 그대로 있었다.'],
+      ['그리고 붓을 던졌다.'],
+      ['그날은 이름을 적지 않았다.'],
+      ['하지만 다음 날이 되자', '당신은 다시 붓을 주웠다.'],
+      ['그리고 아무 일도 없었던 것처럼', '다시 이름을 적었다.'],
+    ],
   },
   {
     key: 'night',
     title: '돌아선 밤',
-    lines: ['열두 번째 층에서 돌아섰다.',
-            '그날은 적지 않았다.'],
     draw: 'turn',
+    pages: [
+      ['열두 번째 층에서', '당신은 또 하나의 이름을 받았다.'],
+      ['이번에는 붓을 들지 않았다.'],
+      ['오랫동안 그 자리에 서 있었다.'],
+      ['그리고 아래를 바라봤다.'],
+      ['지금까지 자신이 올려보낸 사람들이',
+       '얼마나 많았는지 그제야 알 것 같았다.'],
+      ['그날, 당신은 돌아섰다.'],
+      ['그리고 처음으로', '계단을 내려가기 시작했다.'],
+    ],
   },
   {
     key: 'douse',
     title: '끄던 손',
-    lines: ['대신 불을 껐다.',
-            '탑이 어두워졌다.',
-            '그날부터 아무도 올라가지 않았다.'],
     draw: 'douse',
+    pages: [
+      ['당신은 탑에 남아 있던 불을', '하나씩 껐다.'],
+      ['불이 꺼질 때마다', '탑은 조금씩 어두워졌다.'],
+      ['마지막 불을 끄고 나자', '더 이상 아무도 올라오지 않았다.'],
+      ['당신은 명부를 덮었다.'],
+      ['그리고 탑을 떠났다.'],
+    ],
   },
   {
     key: 'warmth',
     title: '남겨진 온기',
-    lines: ['그런데 아래에 불이 하나 남아 있었다.',
-            '누군가 당신을 위해 피워둔 것이었다.',
-            '누구였는지는 끝내 떠오르지 않는다.'],
     draw: 'ember',
+    pages: [
+      ['그런데 탑 아래에', '작은 불 하나가 남아 있었다.'],
+      ['누군가 당신을 위해', '피워둔 불이었다.'],
+      ['당신은 그 불을 바라봤다.'],
+      ['누가 남긴 것인지', '떠올리려고 했지만 기억나지 않았다.'],
+      ['분명 알고 있었던 사람 같았다.'],
+      ['하지만 끝내', '그 얼굴은 떠오르지 않았다.'],
+    ],
   },
   {
     key: 'face',
     title: '당신의 얼굴',
-    lines: ['당신은 기억을 두고 내려갔다.',
-            '두고 간 자리가 지금 여기다.'],
     draw: 'twins',
+    pages: [
+      ['당신은 기억을 두고 내려왔다.'],
+      ['이름을 적었던 일도,',
+       '사람들을 올려보냈던 일도,',
+       '마지막으로 불을 껐던 일도.'],
+      ['모두 잊었다.'],
+      ['남은 것은', '탑 아래에서 발견한 작은 불씨 하나뿐이었다.'],
+      ['당신은 다시 명부를 펼쳤다.'],
+      ['그리고 한참 동안', '빈 장부를 바라봤다.'],
+    ],
   },
 ];
 
 /* 고르고 난 뒤에 한 장면씩 더. 둘 다 명부로 끝난다 —
-   태울 것을 정하는 일이 이 이야기의 한가운데였으므로. */
+   태울 것을 정하는 일이 이 이야기의 한가운데였으므로.
+
+   불을 붙이는 쪽의 마지막 세 줄은 타이틀 화면의 문장 그대로다
+   (「불이 꺼진 탑 아래에서 깨어났다. 기억은 없고, 손에 불씨 하나」).
+   순환이 이어졌다는 것을 설명하지 않고 같은 말로 보여준다. */
 const STORY_END = {
   light: {
     title: '불을 붙였다',
-    lines: ['불이 살아난다.',
-            '아래에서 문이 열리는 소리가 난다.',
-            '누군가 들어온다. 손에 불씨 하나, 기억은 없이.'],
     draw: 'door',
+    pages: [
+      ['당신은 불씨에 불을 붙였다.'],
+      ['꺼져 있던 탑의 불이', '하나씩 다시 살아났다.'],
+      ['그리고 아래에서', '문이 열리는 소리가 들렸다.'],
+      ['누군가 들어온다.'],
+      ['손에는 불씨 하나.'],
+      ['기억은 없다.'],
+    ],
   },
   leave: {
     title: '붙이지 않았다',
-    lines: ['어둠은 그대로다.',
-            '당신은 명부를 편다.',
-            '아무 이름도 적지 않는다.'],
     draw: 'blank',
+    pages: [
+      ['당신은 불씨를 그대로 둔다.'],
+      ['탑은 다시 어두워진다.'],
+      ['당신은 명부를 펼친다.'],
+      ['그리고 이번에는', '아무 이름도 적지 않는다.'],
+    ],
   },
 };
 
 const Story = {
   cv: null, ctx: null,
-  scenes: [], at: 0, t: 0, typed: 0, fast: false, raf: 0, done: null,
+  scenes: [], at: 0, page: 0, t: 0, sceneT: 0, typed: 0,
+  fast: false, raf: 0, done: null,
 
   LINE_MS: 46,          // 한 글자
-  HOLD: 1.6,            // 다 찍히고 머무는 시간(초)
-  FADE: 0.5,
+  HOLD: 1.5,            // 다 찍히고 머무는 시간(초)
+  BEAT: 0.35,           // 쪽이 갈릴 때의 빈 사이 — 여기가 침묵이다
 
   /* scenes 를 다 흘리고 onDone 을 부른다.
      ending 을 주면 그 결말의 마지막 장면 하나만 흐른다. */
@@ -127,7 +195,8 @@ const Story = {
     if (!this.scenes.length) { if (onDone) onDone(); return; }
 
     this.done = onDone || null;
-    this.at = 0; this.t = 0; this.typed = 0; this.fast = false;
+    this.at = 0; this.page = 0; this.t = 0; this.sceneT = 0;
+    this.typed = 0; this.fast = false;
 
     screen.classList.remove('hidden');
     this.cv = document.getElementById('story-canvas');
@@ -168,26 +237,41 @@ const Story = {
     const sc = this.scenes[this.at];
     if (!sc) return;
     this.t += dt;
+    this.sceneT += dt;
+
+    const lines = sc.pages[this.page] || [];
 
     // 글자가 하나씩 찍힌다 — 층 진입 연출과 같은 말투
-    const total = sc.lines.join('').length;
-    const want = Math.floor((this.t * 1000) / this.LINE_MS);
-    if (want !== this.typed) {
-      this.typed = Math.min(total, want);
-      this.paintText(sc);
+    const total = lines.join('').length;
+    const want = Math.floor(((this.t - this.BEAT) * 1000) / this.LINE_MS);
+    const now = Math.max(0, Math.min(total, want));
+    if (now !== this.typed) {
+      this.typed = now;
+      this.paintText(sc, lines);
     }
 
-    this.paintArt(sc, this.t);
+    /* 그림은 장면이 끝날 때까지 이어지고, 쪽이 넘어간 만큼에 맞춰 변한다.
+       불이 사그라들거나 이름이 채워지는 것이 글과 같이 가야 한다. */
+    const prog = sc.pages.length > 1 ? this.page / (sc.pages.length - 1) : 1;
+    this.paintArt(sc, this.sceneT, prog);
 
-    // 다 찍히고 잠깐 머물렀으면 다음 장면
-    const typedAll = this.typed >= total;
-    const doneAt = (total * this.LINE_MS) / 1000 + this.HOLD;
-    if (typedAll && this.t >= doneAt) this.next();
+    // 다 찍히고 잠깐 머물렀으면 다음 쪽
+    const doneAt = this.BEAT + (total * this.LINE_MS) / 1000 + this.HOLD;
+    if (this.typed >= total && this.t >= doneAt) this.next();
   },
 
   next() {
-    this.at++;
+    const sc = this.scenes[this.at];
     this.t = 0; this.typed = 0;
+
+    // 같은 장면 안에 남은 쪽이 있으면 글만 갈린다 (그림은 그대로)
+    if (sc && this.page + 1 < sc.pages.length) {
+      this.page++;
+      document.getElementById('story-lines').innerHTML = '';
+      return;
+    }
+
+    this.at++; this.page = 0; this.sceneT = 0;
     if (this.at >= this.scenes.length) { this.finish(); return; }
     document.getElementById('story-title').textContent = '';
     document.getElementById('story-lines').innerHTML = '';
@@ -203,11 +287,11 @@ const Story = {
     if (d) d();
   },
 
-  paintText(sc) {
+  paintText(sc, lines) {
     document.getElementById('story-title').textContent = sc.title;
     const box = document.getElementById('story-lines');
     let left = this.typed;
-    box.innerHTML = sc.lines.map(l => {
+    box.innerHTML = lines.map(l => {
       const take = Math.max(0, Math.min(l.length, left));
       left -= l.length;
       // 아직 안 찍힌 자리는 투명하게 남겨 둔다 — 줄이 밀려 올라가지 않게
@@ -216,130 +300,198 @@ const Story = {
   },
 
   /* ---------- 그림 ----------
-     전부 사각형과 선. 불빛 하나를 기준으로 어둠 속에서 형태만 드러낸다. */
-  paintArt(sc, t) {
-    const c = this.ctx;
-    if (!c) return;
-    const W = this.cv.clientWidth, H = this.cv.clientHeight;
-    c.clearRect(0, 0, W, H);
-    const cx = W / 2, cy = H / 2;
-    const U = Math.max(6, Math.min(W, H) / 22);      // 한 칸
-    const ember = '#E9954A', ink = '#D8CDBB', dim = 'rgba(216,205,187,.28)';
 
-    const glow = (x, y, r, a) => {
-      const g = c.createRadialGradient(x, y, 1, x, y, r);
-      g.addColorStop(0, `rgba(233,149,74,${a})`);
-      g.addColorStop(1, 'rgba(233,149,74,0)');
-      c.fillStyle = g;
-      c.fillRect(x - r, y - r, r * 2, r * 2);
-    };
-    const person = (x, y, col, s = 1) => {
-      c.fillStyle = col;
-      c.fillRect(x - U * 0.30 * s, y - U * 1.5 * s, U * 0.6 * s, U * 0.62 * s);  // 머리
-      c.fillRect(x - U * 0.42 * s, y - U * 0.86 * s, U * 0.84 * s, U * 0.9 * s); // 몸
-    };
-    const flame = (x, y, size, a) => {
-      glow(x, y, size * 3.2, 0.32 * a);
-      c.globalAlpha = a;
-      c.fillStyle = ember;
-      c.fillRect(x - size * 0.5, y - size, size, size * 1.4);
-      c.fillStyle = '#FACB3E';
-      c.fillRect(x - size * 0.22, y - size * 0.75, size * 0.44, size * 0.8);
-      c.globalAlpha = 1;
-    };
+     처음에는 사각형과 선으로 그렸는데, 옆에 진짜 도트가 없으니 표식이 아니라
+     그냥 못 그린 그림으로 보였다. **팩의 그림으로 장면을 짓는다.**
+     계단·횃불·모닥불·문·사람은 이미 구워져 있고, 그것들을 한 칸 격자에 올려
+     작은 방을 하나 세우면 그게 곧 이 게임의 한 장면이 된다.
 
-    switch (sc.draw) {
-      case 'stairs': {                       // 위로 이어지는 계단
-        c.fillStyle = dim;
-        for (let i = 0; i < 7; i++) {
-          const w = U * 5, x = cx - w / 2 + i * U * 0.1;
-          c.fillRect(x, cy + U * 3 - i * U * 0.9, w, U * 0.5);
-        }
-        person(cx, cy + U * 3.2, ink, 1);
-        break;
+     새로 그리는 것은 벽에 긁힌 자국뿐이다. 그건 원래 긁어 놓은 것이라
+     선으로 그리는 게 맞다 — 4층의 「벽에 이름들이 긁혀 있습니다」가 그것이다. */
+
+  im(key, frame) {
+    const s = Render.img && Render.img[key];
+    if (!s || !s.f.length) return null;
+    const im = s.f[(frame || 0) % s.f.length];
+    return (im && im.complete && im.naturalWidth) ? im : null;
+  },
+
+  // 바닥에 발을 붙여 놓는다 (게임 화면과 같은 규칙)
+  put(c, key, x, footY, T, frame, alpha, tint) {
+    const im = this.im(key, frame);
+    if (!im) return;
+    const k = T / 16;
+    const w = im.width * k, h = im.height * k;
+    const src = tint ? Render.tinted(im, tint[0], tint[1]) : im;
+    c.save();
+    c.globalAlpha = alpha === undefined ? 1 : alpha;
+    if (tint === 'flip') { c.translate(x + w / 2, footY - h); c.scale(-1, 1); c.drawImage(im, 0, 0, w, h); }
+    else c.drawImage(src, x - w / 2, footY - h, w, h);
+    c.restore();
+  },
+
+  glow(c, x, y, r, a) {
+    const g = c.createRadialGradient(x, y, 1, x, y, r);
+    g.addColorStop(0, `rgba(255,175,85,${a})`);
+    g.addColorStop(1, 'rgba(255,140,60,0)');
+    c.fillStyle = g;
+    c.fillRect(x - r, y - r, r * 2, r * 2);
+  },
+
+  /* 작은 방 하나. 뒤에 벽 한 줄, 그 아래로 바닥.
+     실제 층을 그리는 규칙(벽 몸통 + 위 마감)을 그대로 쓴다. */
+  stage(c, W, H, T, sewer) {
+    const cols = Math.ceil(W / T) + 2;
+    const floorTop = Math.round(H * 0.42);
+    const key = k => (sewer && Render.img['sewer.' + k]) ? 'sewer.' + k : k;
+    for (let i = -1; i < cols; i++) {
+      const x = i * T - T / 2;
+      // 뒷벽 두 줄
+      for (let r = 1; r <= 2; r++) {
+        const im = this.im(key('wallFace'));
+        if (im) c.drawImage(im, x, floorTop - T * r, T, T);
       }
-      case 'roster': {                       // 한 줄씩 채워지는 명부
-        const w = U * 7, h = U * 8;
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.strokeRect(cx - w / 2, cy - h / 2, w, h);
-        const rows = Math.min(9, Math.floor(t * 2.6));
-        c.fillStyle = ink;
-        for (let i = 0; i < rows; i++)
-          c.fillRect(cx - w / 2 + U * 0.7, cy - h / 2 + U * 0.9 + i * U * 0.78,
-                     w - U * 1.4, U * 0.16);
-        break;
-      }
-      case 'small': {                        // 높은 어둠 아래 아주 작은 하나
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.strokeRect(cx - U * 3, cy - U * 5, U * 6, U * 10);
-        person(cx, cy + U * 4, ink, 0.62);
-        glow(cx, cy + U * 3.4, U * 2.4, 0.16);
-        break;
-      }
-      case 'flame':                          // 크게 타는 불
-        flame(cx, cy + U * 1.6, U * 1.9 + Math.sin(t * 6) * U * 0.14, 1);
-        break;
-      case 'throw': {                        // 던졌다가 다시 주운 것
-        const p = (Math.sin(t * 1.5) + 1) / 2;
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.beginPath();
-        for (let i = 0; i <= 24; i++) {
-          const q = i / 24, x = cx - U * 3 + q * U * 6, y = cy + U * 2 - Math.sin(q * Math.PI) * U * 3;
-          i ? c.lineTo(x, y) : c.moveTo(x, y);
-        }
-        c.stroke();
-        const q = p, x = cx - U * 3 + q * U * 6, y = cy + U * 2 - Math.sin(q * Math.PI) * U * 3;
-        c.fillStyle = ink;
-        c.fillRect(x - U * 0.16, y - U * 0.16, U * 0.32, U * 0.32);
-        break;
-      }
-      case 'turn': {                         // 계단을 등지고 선 사람
-        c.fillStyle = dim;
-        for (let i = 0; i < 6; i++)
-          c.fillRect(cx + U * 0.6, cy + U * 2.4 - i * U * 0.9, U * 4, U * 0.5);
-        person(cx - U * 2.2, cy + U * 2.6, ink, 1);
-        break;
-      }
-      case 'douse': {                        // 꺼져 가는 불
-        const a = Math.max(0, 1 - t / 2.6);
-        flame(cx, cy + U * 1.6, U * 1.8 * a + 0.001, a);
-        if (a < 0.35) {
-          c.fillStyle = 'rgba(120,110,100,.5)';
-          c.fillRect(cx - U * 1.2, cy + U * 1.5, U * 2.4, U * 0.2);
-        }
-        break;
-      }
-      case 'ember': {                        // 아래에 남겨진 작은 불
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.beginPath(); c.moveTo(cx - U * 5, cy - U * 2); c.lineTo(cx + U * 5, cy - U * 2); c.stroke();
-        flame(cx, cy + U * 3, U * 0.8 + Math.sin(t * 5) * U * 0.08, 1);
-        break;
-      }
-      case 'twins': {                        // 마주 선 같은 둘
-        person(cx - U * 2.4, cy + U * 1.6, ink, 1);
-        person(cx + U * 2.4, cy + U * 1.6, 'rgba(233,149,74,.75)', 1);
-        glow(cx + U * 2.4, cy + U * 0.6, U * 2.6, 0.2);
-        break;
-      }
-      case 'door': {                         // 아래에서 열리는 문
-        const w = U * 3.4, h = U * 6;
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.strokeRect(cx - w / 2, cy - h / 2 + U, w, h);
-        const open = Math.min(1, t / 2);
-        c.fillStyle = ember;
-        c.globalAlpha = 0.5 * open;
-        c.fillRect(cx - w / 2 + 2, cy - h / 2 + U + 2, w * open, h - 4);
-        c.globalAlpha = 1;
-        glow(cx, cy + U, U * 4 * open, 0.24 * open);
-        person(cx, cy + U * 3.6, ink, 0.8);
-        break;
-      }
-      case 'blank': {                        // 아무것도 적지 않은 명부
-        const w = U * 7, h = U * 8;
-        c.strokeStyle = dim; c.lineWidth = 2;
-        c.strokeRect(cx - w / 2, cy - h / 2, w, h);
-        break;
+      const top = this.im(key('wallTop'));
+      if (top) c.drawImage(top, x, floorTop - T * 2, T, T);
+      // 바닥
+      for (let r = 0; r < Math.ceil((H - floorTop) / T) + 1; r++) {
+        const f = this.im(key('floor'), (i * 3 + r * 5) % 8);
+        if (f) c.drawImage(f, x, floorTop + T * r, T, T);
       }
     }
+    return floorTop;
+  },
+
+  // 벽에 긁힌 이름들. n 개까지 보인다. skip 자리는 비워 둔다 (적지 않은 날).
+  scratches(c, W, floorTop, T, n, skip) {
+    c.save();
+    c.strokeStyle = 'rgba(226,214,196,.55)';
+    c.lineWidth = Math.max(1, T / 18);
+    const cols = 6, rows = 4;
+    const x0 = W / 2 - (cols * T * 0.42) / 2 * 1.0;
+    for (let i = 0; i < Math.min(n, cols * rows); i++) {
+      if (skip !== undefined && i === skip) continue;
+      const cxi = i % cols, cyi = (i / cols) | 0;
+      const x = W / 2 + (cxi - cols / 2 + 0.5) * T * 0.72;
+      const y = floorTop - T * 1.85 + cyi * T * 0.42;
+      c.beginPath();
+      c.moveTo(x - T * 0.22, y);
+      c.lineTo(x + T * 0.22, y - T * 0.05);
+      c.stroke();
+    }
+    c.restore();
+  },
+
+  paintArt(sc, t, prog) {
+    const P = prog === undefined ? 1 : prog;
+    const c = this.ctx;
+    if (!c || !Render.ready) return;
+    const W = this.cv.clientWidth, H = this.cv.clientHeight;
+    c.clearRect(0, 0, W, H);
+    c.imageSmoothingEnabled = false;
+
+    const T = Math.max(18, Math.round(W / 11));       // 한 칸
+    const cx = W / 2;
+    const hero = (typeof heroSprite === 'function') ? heroSprite() + '.idle' : 'player.idle';
+    const f4 = Math.floor(t * 6) % 4;                 // 사람 숨쉬는 프레임
+    const f8 = Math.floor(t * 9) % 8;                 // 불 프레임
+    const sewer = sc.draw === 'ember';                // 아래층은 하수도로 — 되찾은 자리
+
+    let floorTop = this.stage(c, W, H, T, false);
+    const feet = floorTop + T * 2.2;
+
+    switch (sc.draw) {
+      case 'stairs':                          // 위로 이어지는 계단 앞
+        this.put(c, 'stairs', cx, floorTop + T, T);
+        this.put(c, 'torchWall', cx - T * 3, floorTop - T * 0.2, T, f8, 0.95);
+        this.glow(c, cx - T * 3, floorTop - T * 0.9, T * 2.6, 0.22);
+        this.put(c, hero, cx, feet, T, f4);
+        break;
+
+      case 'roster':                          // 벽에 이름이 하나씩 늘어난다
+        this.scratches(c, W, floorTop, T, Math.round(P * 20) + 2);
+        this.put(c, 'torchWall', cx + T * 3.2, floorTop - T * 0.2, T, f8, 0.95);
+        this.glow(c, cx + T * 3.2, floorTop - T * 0.9, T * 2.8, 0.24);
+        this.put(c, hero, cx - T * 0.6, feet, T, f4);
+        break;
+
+      case 'small':                           // 어른 앞에 선 아주 작은 하나
+        this.put(c, 'stairs', cx + T * 2.4, floorTop + T, T);
+        this.put(c, hero, cx - T * 1.4, feet, T, f4);
+        this.put(c, hero, cx + T * 1.1, feet, T * 0.62, f4, 0.92);
+        this.glow(c, cx + T * 1.1, feet - T * 0.6, T * 1.8, 0.12);
+        break;
+
+      case 'flame':                           // 크게 타오르는 불
+        this.put(c, 'camp', cx, floorTop + T * 1.3, T, Math.floor(t * 6) % 3);
+        this.put(c, 'campFlame', cx, floorTop + T * 1.1, T * 1.9, f8);
+        this.glow(c, cx, floorTop + T * 0.4, T * 4.2, 0.3);
+        this.put(c, hero, cx - T * 2.6, feet, T, f4);
+        break;
+
+      case 'throw':                           // 한 자리를 비워 둔 벽
+        // 쪽이 넘어가면서 한 칸이 비었다가 다시 채워진다
+        this.scratches(c, W, floorTop, T, 14, P > 0.3 && P < 0.85 ? 9 : undefined);
+        this.put(c, 'torchWall', cx + T * 3.2, floorTop - T * 0.2, T, f8, 0.7);
+        this.glow(c, cx + T * 3.2, floorTop - T * 0.9, T * 2.4, 0.16);
+        this.put(c, hero, cx - T * 0.6, feet, T, f4);
+        break;
+
+      case 'turn':                            // 계단을 등지고 선 사람
+        this.put(c, 'stairs', cx + T * 2.6, floorTop + T, T, 0, 0.6);
+        this.put(c, hero, cx - T * 0.8, feet, T, f4, 1, 'flip');
+        this.glow(c, cx - T * 0.8, feet - T, T * 2.2, 0.10);
+        break;
+
+      case 'douse': {                         // 하나씩 꺼져 가는 횃불
+        const a = Math.max(0.03, 1 - P);
+        for (let i = -1; i <= 1; i++) {
+          const on = (i + 1) / 2 < a + 0.34;
+          const x = cx + i * T * 3;
+          this.put(c, 'torchWall', x, floorTop - T * 0.2, T, f8 + i * 3, on ? 0.95 : 0.14);
+          if (on) this.glow(c, x, floorTop - T * 0.9, T * 2.6, 0.2 * a);
+        }
+        this.put(c, hero, cx, feet, T, f4, 0.4 + a * 0.6);
+        break;
+      }
+
+      case 'ember':                           // 아래에 남겨진 작은 불
+        floorTop = this.stage(c, W, H, T, true);
+        this.put(c, 'camp', cx, floorTop + T * 1.6, T * 0.8, Math.floor(t * 6) % 3);
+        this.put(c, 'campFlame', cx, floorTop + T * 1.45, T * 1.0, f8);
+        this.glow(c, cx, floorTop + T * 0.9, T * 2.6, 0.26);
+        this.put(c, hero, cx - T * 2.2, floorTop + T * 2.4, T, f4);
+        break;
+
+      case 'twins':                           // 마주 선 같은 둘
+        this.put(c, hero, cx - T * 1.7, feet, T, f4, 1, 'flip');
+        this.put(c, hero, cx + T * 1.7, feet, T, f4, 1, [COLORS.ember, 0.55]);
+        this.glow(c, cx + T * 1.7, feet - T, T * 2.8, 0.24);
+        break;
+
+      case 'door':                            // 다시 살아나는 불, 그리고 열리는 문
+        this.put(c, 'camp', cx, floorTop + T * 1.3, T, Math.floor(t * 6) % 3);
+        this.put(c, 'campFlame', cx, floorTop + T * 1.1, T * (0.5 + P * 1.6), f8);
+        this.glow(c, cx, floorTop + T * 0.4, T * (1.5 + P * 3), 0.16 + P * 0.24);
+        this.put(c, 'door', cx - T * 3.4, floorTop + T * 0.02, T);
+        this.glow(c, cx - T * 3.4, floorTop - T * 0.5, T * 2.4 * P, 0.3 * P);
+        if (P > 0.55) this.put(c, hero, cx - T * 3.4, feet, T * 0.9, f4, (P - 0.55) / 0.45);
+        break;
+
+      case 'blank':                           // 아무것도 적지 않은 벽
+        this.scratches(c, W, floorTop, T, 20);
+        this.put(c, 'camp', cx + T * 3, floorTop + T * 1.3, T, 0, 0.5);
+        this.put(c, hero, cx - T * 0.6, feet, T, f4, 0.9);
+        break;
+    }
+
+    /* 가장자리를 어둡게 — 이 게임은 불씨 반경 밖이 늘 어둡다.
+       장면도 같은 규칙을 따라야 같은 세계로 보인다. */
+    const vg = c.createRadialGradient(cx, H * 0.52, Math.min(W, H) * 0.22,
+                                      cx, H * 0.52, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(6,5,4,0)');
+    vg.addColorStop(1, 'rgba(6,5,4,.95)');
+    c.fillStyle = vg;
+    c.fillRect(0, 0, W, H);
   },
 };

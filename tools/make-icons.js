@@ -52,6 +52,9 @@ const PAL = {
   X: '#72D6CE', x: '#417089',
   // 밝은 천
   W: '#FDF7ED',
+  /* 하수도 팩의 쇠 — 그 팩 사다리에서 그대로 뽑은 세 가지다.
+     계단을 이 색으로 맞춰야 11층부터의 배경과 같은 금속으로 읽힌다. */
+  M: '#BAC6BE', m: '#7C847E', n: '#000000',
 };
 
 /* ---------- 실루엣 ----------
@@ -217,6 +220,37 @@ const BOW_ASH = [                       // 재의 활 — 팩의 활(14x26)과 �
   '..............',
 ];
 
+/* 위로 오르는 돌계단.
+
+   어느 팩에도 없다. 0x72 의 floor_stairs 는 어둠으로 내려가는 계단이고,
+   확장팩과 하수도 팩에 있는 것은 전부 사다리다. 그런데 이 게임은 탑을
+   「오르는」 것이라, 위로 난 계단이 아니면 매 층 나가는 자리가 어긋나 읽힌다.
+
+   멀어질수록 좁아지게 그려 위로 물러나는 것으로 읽히게 했다 —
+   같은 폭으로 층층이 그리면 위에서 내려다본 사다리와 구별되지 않는다.
+   맨 위 어둠이 「다음 층」이다.
+
+   색은 하수도 팩 사다리에서 뽑은 쇠 세 가지(M·m·n)다. 재 계열 갈색으로
+   칠했더니 바닥에 묻혀서, 밟고 올라서는 자리라는 게 안 읽혔다. */
+const STAIRS_UP = [
+  '................',
+  '....nnnnnnnn....',
+  '....nnnnnnnn....',
+  '...nnnnnnnnnn...',
+  '...nMMMMMMMMn...',
+  '...nmmmmmmmmn...',
+  '..nnnnnnnnnnnn..',
+  '..nMMMMMMMMMMn..',
+  '..nmmmmmmmmmmn..',
+  '.nnnnnnnnnnnnnn.',
+  '.nMMMMMMMMMMMMn.',
+  '.nmmmmmmmmmmmmn.',
+  'nnnnnnnnnnnnnnnn',
+  'nMMMMMMMMMMMMMMn',
+  'nmmmmmmmmmmmmmmn',
+  'nnnnnnnnnnnnnnnn',
+];
+
 /* ---------- 아이콘 목록 ----------
    X = 주 색, H = 밝은 색, s = 그늘 색. 나머지 글자는 PAL 그대로 쓴다. */
 
@@ -245,6 +279,7 @@ const ICONS = {
 
   icon_staff_ash: [STAFF_ASH, { X: 'C', H: 'b' }],   // E/F 는 그대로 불씨 색
   icon_bow_ash:   [BOW_ASH, {}],                     // 색을 직접 적었으므로 바꿔 낄 것이 없다
+  icon_stairs_up: [STAIRS_UP, {}],
 };
 
 /* ---------- PNG 쓰기 ----------

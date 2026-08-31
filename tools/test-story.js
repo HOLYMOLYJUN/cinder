@@ -25,7 +25,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     keys: STORY.map(s => s.key),
     memKeys: MEMORIES.map(m => m.id),
     allHaveArt: STORY.every(s => !!s.draw),
-    allHaveLines: STORY.every(s => s.lines && s.lines.length),
+    allHaveLines: STORY.every(s => s.pages && s.pages.length &&
+                                   s.pages.every(pg => pg.length)),
+    pages: STORY.reduce((n, s) => n + s.pages.length, 0),
+    endsHavePages: Object.values(STORY_END).every(s => s.pages && s.pages.length),
     ends: Object.keys(STORY_END),
   }));
   check(shape.n === 9, `장면 아홉 개 (${shape.n})`);
@@ -34,7 +37,8 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(shape.memKeys.every(k => shape.keys.includes(k)),
         '기억 아홉 개가 하나도 빠짐없이 장면을 갖는다');
   check(shape.allHaveArt && shape.allHaveLines, '전부 그림과 글을 갖고 있다');
-  check(shape.ends.includes('light') && shape.ends.includes('leave'),
+  check(shape.pages > 30, `쪽으로 나뉘어 넘어간다 (${shape.pages}쪽)`);
+  check(shape.ends.includes('light') && shape.ends.includes('leave') && shape.endsHavePages,
         '결말마다 마지막 장면이 하나씩');
 
   console.log('\n[ 기억이 없어도 전부 보인다 ]');
@@ -78,7 +82,9 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
 
   console.log('\n[ 다 흐르면 결말을 고른다 ]');
   const after = await p.evaluate(async () => {
+    const last = Story.scenes[Story.scenes.length - 1];
     Story.at = Story.scenes.length - 1;
+    Story.page = last.pages.length - 1;
     Story.t = 99; Story.typed = 999;
     await new Promise(r => setTimeout(r, 400));
     return { story: Story.open(), ending: UI.endingOpen() };
