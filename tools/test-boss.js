@@ -54,6 +54,39 @@ async function gotoFloor(page, n) {
     }
   }
 
+  /* ---------- 1b. 한 걸음이면 피할 수 있는가 ----------
+
+     이 저장소의 명제는 "예고된 칸을 벗어나면 맞지 않는다"인데, 벗어날 수 있어야
+     명제가 성립한다. 이 게임은 대각선으로 걷지 못하므로 넓이를 한 칸만 잘못 잡아도
+     (예: 사람을 중심으로 한 3x3) 어느 쪽으로 가도 표시된 칸 안에 남는다 —
+     실제로 「이름을 가진 것」의 저주가 그랬다.
+
+     그래서 눈으로 보지 않고 여기서 센다. 표시된 칸마다, 거기 서 있던 사람이
+     네 방향 중 하나로 한 걸음 갔을 때 빠져나갈 길이 있는지를 전부 따진다. */
+  console.log('\n[ 한 걸음이면 피할 수 있는가 ]');
+  const escape = await page.evaluate(() => {
+    const out = [];
+    for (const [key, S] of Object.entries(BOSS_SKILL)) {
+      const boss = { x: 20, y: 12, name: '시험' };
+      // 사람이 보스 곁에 선 경우와 떨어져 선 경우를 모두 본다
+      for (const [dx, dy] of [[1, 0], [0, 1], [3, 0], [2, 2]]) {
+        const p = { x: boss.x + dx, y: boss.y + dy };
+        const tiles = S.tiles(boss, p);
+        const marked = new Set(tiles.map(([x, y]) => x + ',' + y));
+        if (!marked.has(p.x + ',' + p.y)) continue;   // 애초에 안 맞는 자리
+        // 대각선은 못 간다 — 네 방향뿐이다
+        const ways = [[1,0],[-1,0],[0,1],[0,-1]]
+          .filter(([mx, my]) => !marked.has((p.x + mx) + ',' + (p.y + my)));
+        out.push({ skill: key, from: `${dx},${dy}`, tiles: tiles.length, ways: ways.length });
+      }
+    }
+    return out;
+  });
+  for (const r of escape) {
+    check(r.ways > 0,
+      `${r.skill} — 보스에서 (${r.from}) 자리, 표시 ${r.tiles}칸 중 빠져나갈 길 ${r.ways}개`);
+  }
+
   /* ---------- 2. 예고를 보고 물러서면 피해진다 (문지기 · 근접 강타) ---------- */
   console.log('\n[ 문지기 — 주변 강타 ]');
   await gotoFloor(page, 5);
