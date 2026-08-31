@@ -133,6 +133,11 @@ export class CinderRoom extends Server {
    WebSocket 은 CORS 프리플라이트를 타지 않는다. 브라우저가 막아 주지 않으므로
    여기서 직접 보지 않으면 아무 사이트나 이 방에 붙을 수 있다.
    ALLOWED_ORIGINS 는 wrangler.jsonc 의 vars 에서 쉼표로 준다. */
+function allowList(env) {
+  return String(env.ALLOWED_ORIGINS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+}
+
 function originAllowed(request, env) {
   const origin = request.headers.get('Origin');
   if (!origin) return false;                       // 브라우저가 아닌 것
@@ -143,21 +148,34 @@ function originAllowed(request, env) {
   // 로컬 개발은 언제나 연다 (wrangler dev / 로컬 정적 서버)
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
 
-  const list = String(env.ALLOWED_ORIGINS || '')
-    .split(',').map(s => s.trim()).filter(Boolean);
-  return list.indexOf(origin) !== -1;
+  return allowList(env).indexOf(origin) !== -1;
 }
 
 export default {
   async fetch(request, env) {
-    if (new URL(request.url).pathname === '/health') {
-      return new Response('ok');
+    const path = new URL(request.url).pathname;
+
+    if (path === '/health') return new Response('ok');
+
+    /* 지금 무엇을 허용하고 있는지 눈으로 보려고 둔 창구.
+       비밀이 아니다 — 허용목록은 어차피 브라우저가 시험해 볼 수 있는 값이고,
+       403 이 뜰 때 "내 Origin 이 뭐고 서버는 뭘 기다리나"를 한 번에 봐야
+       고칠 수 있다. 여기서 막히면 대개 주소 한 글자 차이다. */
+    if (path === '/origin') {
+      return Response.json({
+        yours: request.headers.get('Origin'),
+        allowed: allowList(env),
+        verdict: originAllowed(request, env) ? 'allowed' : 'blocked',
+      }, { headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
     const routed = await routePartykitRequest(request, env, {
       onBeforeConnect(req) {
         if (!originAllowed(req, env)) {
-          return new Response('forbidden origin', { status: 403 });
+          const got = req.headers.get('Origin');
+          // wrangler tail 로 실시간으로 보인다
+          console.warn('거절한 Origin:', got, '| 허용목록:', allowList(env));
+          return new Response('forbidden origin: ' + got, { status: 403 });
         }
       },
     });

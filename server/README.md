@@ -51,6 +51,28 @@ WebSocket 은 CORS 프리플라이트를 타지 않는다. **브라우저가 막
 `localhost` 와 `127.0.0.1` 은 언제나 허용되므로 개발 중에는 비워 둬도 된다.
 버셀은 미리보기 배포마다 주소가 달라지므로, 그쪽에서도 쓰려면 그 주소도 넣어야 한다.
 
+## 403 이 뜰 때
+
+WebSocket 이 `403` 으로 끊기면 Origin 검사에 걸린 것이다. 서버에게 직접 물어보면 된다:
+
+```
+https://cinder-party.<계정>.workers.dev/origin
+```
+
+브라우저로 열면 서버가 **무엇을 받았고 무엇을 기다리는지** 그대로 돌려준다:
+
+```json
+{ "yours": "https://...vercel.app", "allowed": ["https://..."], "verdict": "blocked" }
+```
+
+`yours` 가 `allowed` 에 없으면 `wrangler.jsonc` 를 고치고 **다시 배포**해야 한다 —
+`vars` 는 배포할 때 워커에 박히는 값이라, 파일만 고치고 배포를 안 하면 아무것도 안 바뀐다.
+`npx wrangler tail` 로 실시간 로그를 보면 거절된 Origin 이 그대로 찍힌다.
+
+흔한 원인 두 가지 —
+**스킴이 다르다**(버셀은 http 를 https 로 넘기므로 브라우저가 보내는 것은 언제나 https),
+**배포별 고유 주소로 들어갔다**(`cinder-abc123-...vercel.app` 은 브랜치 별칭과 다른 주소다).
+
 ## 로컬에서 돌리기
 
 로그인 없이 된다. Durable Objects 도 그대로 흉내 낸다.
