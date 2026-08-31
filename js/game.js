@@ -1347,17 +1347,25 @@ function chooseEnding(which) {
   /* 고른 다음 결과표로 바로 덮으면, 방금 고른 것이 무엇을 바꿨는지 못 본다.
      선택창만 걷고 옥상을 잠시 그대로 둔다 — 불을 붙였으면 난간 너머로 새벽이 번지고,
      붙이지 않았으면 아무 일도 일어나지 않는다. 그 "아무 일도"가 이쪽 결말의 내용이다. */
+  /* 결과표를 띄우기 전에 크레딧이 흐른다.
+
+     순서를 이렇게 잡은 이유가 있다. 결과표는 숫자(도달 층·걸음 수)라서
+     그걸 먼저 보면 방금 고른 결말이 성적표가 되어 버린다.
+     이름이 먼저 지나가고 그다음에 숫자가 오면, 끝난 것은 판이 아니라 이야기가 된다. */
+  const toCredits = (title, body) =>
+    UI.showCredits(() => UI.showResult(title, body, rows));
+
   if (which === 'light') {
     Render.lightDawn();
-    setTimeout(() => UI.showResult('불이 다시 켜졌다',
+    setTimeout(() => toCredits('불이 다시 켜졌다',
       '당신은 남은 것을 전부 태웠습니다.\n' +
       '세상이 밝아집니다.\n\n' +
-      '그리고 탑은 다시, 다음 공물을 기다립니다.', rows), 3400);
+      '그리고 탑은 다시, 다음 공물을 기다립니다.'), 3400);
   } else {
-    setTimeout(() => UI.showResult('불을 든 채로',
+    setTimeout(() => toCredits('불을 든 채로',
       '당신은 불씨를 손에 쥔 채 내려갑니다.\n' +
       '어둠은 그대로입니다.\n\n' +
-      '그러나 더는 아무도 태워지지 않습니다.', rows), 1900);
+      '그러나 더는 아무도 태워지지 않습니다.'), 1900);
   }
 
   const save = persist({
@@ -1465,6 +1473,15 @@ function onKeyDown(e) {
     const btn = document.getElementById('btn-mute');
     if (btn) btn.textContent = m ? '소리 끔' : '소리 켬';
     UI.log(m ? '소리를 껐습니다.' : '소리를 켰습니다.', 'sys');
+    e.preventDefault();
+    return;
+  }
+
+  /* 크레딧이 열려 있으면 다른 것은 아무것도 안 받는다.
+     한 번 누르면 끝으로 건너뛰고, 그다음 누르면 닫힌다. */
+  if (UI.creditsOpen()) {
+    if (UI.creditsRolling()) UI.endCredits();
+    else UI.hideCredits();
     e.preventDefault();
     return;
   }
@@ -1725,6 +1742,15 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   document.querySelectorAll('[data-ending]').forEach(b =>
     b.addEventListener('click', () => chooseEnding(b.dataset.ending)));
+
+  /* 크레딧. 흐르는 동안 아무 데나 누르면 끝으로 건너뛰고,
+     한 번 더 눌러야 닫힌다 — 건너뛰자마자 닫히면 마지막 줄을 못 읽는다. */
+  document.getElementById('btn-credits').addEventListener('click', () => UI.showCredits());
+  document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
+  document.getElementById('credits-screen').addEventListener('click', e => {
+    if (e.target.closest('#credits-close')) return;
+    if (UI.creditsRolling()) UI.endCredits();
+  });
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);

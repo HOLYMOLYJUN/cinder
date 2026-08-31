@@ -34,6 +34,7 @@
       <div class="title-links">
         <button class="btn-ghost" data-help="keys">조작법</button>
         <button class="btn-ghost" id="btn-codex">도감</button>
+        <button class="btn-ghost" id="btn-credits">만든 사람</button>
         <button class="btn-ghost" id="btn-mute">소리 켬</button>
       </div>
     </div>
@@ -168,6 +169,18 @@
       <div id="result-line" class="result-line"></div>
       <dl id="result-stats" class="result-stats"></dl>
       <button id="btn-retry" class="btn-main">다시 오른다</button>
+    </div>
+  </div>
+
+  <!-- ===== 크레딧 =====
+       결말을 본 뒤에 흐른다. 흐르는 동안 아무 키나 누르면 끝으로 건너뛴다. -->
+  <div id="credits-screen" class="overlay hidden">
+    <div class="credits-view">
+      <div class="credits-roll" id="credits-roll"></div>
+    </div>
+    <div class="credits-foot">
+      <button id="credits-close" class="btn-ghost hidden">돌아간다</button>
+      <span class="credits-hint" id="credits-hint">아무 키나 누르면 건너뜁니다</span>
     </div>
   </div>
 

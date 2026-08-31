@@ -999,8 +999,12 @@ const Render = {
     /* 손 — 몸 앞쪽 허리께.
        젖혀 든 칼은 조금 더 내려 잡는다. 위로 뻗는 자세라 같은 높이로 잡으면
        날 끝이 머리 위로 올라가 버린다. */
-    const hx = px + TS / 2 + face * TS * (upright ? 0.14 : 0.04);
-    const hy = feetY - artH * (upright ? 0.44 : 0.22);
+    /* 세워 드는 것(지팡이·활)은 원본이 좌우로 뒤집혀 있다 — 그대로 얹으면
+       손잡이가 바깥을 향한다. 그리고 그림 자리를 한 톨씩 옮겨 몸에 붙였다.
+       숫자는 원본 픽셀 기준이라 타일 크기가 바뀌어도 같은 자리에 온다. */
+    const u = TS / 16;
+    const hx = px + TS / 2 + face * (TS * (upright ? 0.14 : 0.04) - (upright ? u * 7 : 0));
+    const hy = feetY - artH * (upright ? 0.44 : 0.22) + (upright ? u * 3 : 0);
 
     /* 0 이 위, π 가 아래다. 음수는 뒤로 젖히는 쪽.
 
@@ -1016,7 +1020,7 @@ const Render = {
 
     ctx.save();
     ctx.translate(hx, hy);
-    ctx.scale(face, 1);          // 몸과 같은 쪽을 본다
+    ctx.scale(upright ? -face : face, 1);   // 몸과 같은 쪽을 본다 (세운 것은 뒤집어서)
     ctx.rotate(angle);
     ctx.drawImage(im, -w / 2, -h + 2 * k, w, h);   // 그립이 회전축에 오게
     ctx.restore();

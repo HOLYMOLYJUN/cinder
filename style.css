@@ -627,6 +627,76 @@ canvas#view {
 .camp-inner .ending-title { margin-bottom: 14px; }
 .camp-inner .ending-body { margin-bottom: 22px; }
 
+/* ---------- 크레딧 ----------
+   결말 뒤에 흐른다.
+
+   뒤를 비치게 해 봤더니 타이틀 화면의 글자와 크레딧이 겹쳐 둘 다 안 읽혔다.
+   여기서는 이름 말고 읽을 것이 없어야 한다 — 완전히 덮되, 가운데만
+   아주 옅게 밝혀 불빛 앞에서 흐르는 것처럼 둔다. */
+#credits-screen {
+  background: radial-gradient(ellipse at 50% 45%, #0d0a08 0%, #060504 70%);
+  z-index: 70;
+  display: flex; flex-direction: column;
+}
+.credits-view {
+  flex: 1; width: 100%; overflow: hidden; position: relative;
+  /* 위아래 끝에서 글자가 스며들 듯 사라진다 */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+          mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+}
+.credits-roll {
+  position: absolute; left: 0; right: 0; top: 100%;
+  text-align: center; padding: 0 24px;
+}
+@keyframes credit-roll { to { transform: translateY(calc(var(--roll) * -1)); } }
+
+.cr-big {
+  font-family: "Cinzel", "Gowun Batang", serif;
+  font-size: clamp(30px, 8vw, 44px); font-weight: 600;
+  color: var(--ember); letter-spacing: .16em;
+  text-shadow: 0 0 50px rgba(233,149,74,.45);
+}
+.cr-sub {
+  font-family: "Gowun Batang", serif;
+  font-size: 15px; color: var(--muted); letter-spacing: .5em;
+  margin-top: 6px;
+}
+.cr-head {
+  font-family: "Cinzel", serif; font-size: 12px; letter-spacing: .3em;
+  color: var(--ember); text-transform: uppercase; margin-bottom: 14px;
+}
+/* 직함과 이름을 위아래로 둔다. 좌우로 놓으면 좁은 화면에서 줄이 접혀
+   같은 이름이 열 번 나온다는 농담이 안 읽힌다. */
+.cr-row { margin-bottom: 20px; }
+.cr-row b {
+  display: block; font-family: "IBM Plex Mono", monospace;
+  font-size: 11px; font-weight: 400; letter-spacing: .22em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 4px;
+}
+.cr-row span {
+  font-family: "Gowun Batang", serif; font-size: 17px; color: var(--ink);
+}
+.cr-line {
+  font-size: 12.5px; line-height: 1.9; color: var(--ink-soft);
+}
+.cr-note {
+  font-family: "Gowun Batang", serif;
+  font-size: 14px; line-height: 2; color: var(--muted); font-style: italic;
+}
+
+.credits-foot {
+  flex: none; padding: 14px 0 26px; text-align: center; min-height: 58px;
+}
+.credits-hint {
+  font-size: 11px; color: var(--muted); opacity: .55; letter-spacing: .06em;
+}
+
+/* 손이 닿는 화면에서는 글자가 더 빨리 지나가도 읽히도록 조금 키운다 */
+@media (max-width: 760px) {
+  .cr-row span { font-size: 16px; }
+  .cr-line { font-size: 12px; }
+}
+
 /* ---------- 결과 ---------- */
 
 /* 같은 이유로 결과 화면도 조금 비친다 — 불을 붙였다면 뒤에서 새벽이 온다 */

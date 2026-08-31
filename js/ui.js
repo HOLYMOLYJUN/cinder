@@ -157,6 +157,112 @@ const UI = {
     if (o && !o.disabled && this._campPick) this._campPick(o.id);
   },
 
+  /* ---------- 크레딧 ----------
+
+     혼자 만든 것이라 모든 자리에 같은 이름이 들어간다. 그게 농담이면서 사실이라,
+     굳이 줄이지 않고 그대로 늘어놓는다 — 줄이면 농담이 아니라 그냥 짧은 목록이 된다.
+
+     흐르는 시간은 글 길이로 정한다. 화면 높이가 기기마다 다른데 초를 박아 두면
+     좁은 화면에서는 끝나기 전에 멈추고 넓은 화면에서는 한참 빈 채로 흐른다. */
+  CREDITS: [
+    { big: 'Cinder' },
+    { sub: '잿불' },
+    { gap: 1 },
+
+    { role: 'Game Design',        who: 'Lee Sangjun' },
+    { role: 'Programming',        who: 'Lee Sangjun' },
+    { role: 'Level Design',       who: 'Lee Sangjun' },
+    { role: 'Combat Balancing',   who: 'Lee Sangjun' },
+    { role: 'Writing',            who: 'Lee Sangjun' },
+    { role: 'Sound Design',       who: 'Lee Sangjun' },
+    { role: 'UI / UX',            who: 'Lee Sangjun' },
+    { role: 'Quality Assurance',  who: 'Lee Sangjun' },
+    { role: 'Producer',           who: 'Lee Sangjun' },
+    { role: 'Special Thanks',     who: 'Lee Sangjun' },
+    { gap: 1 },
+    { note: 'A game by one person, who kept giving himself notes.' },
+    { gap: 2 },
+
+    { head: 'Art' },
+    { line: '0x72 — Dungeon Tileset II (CC0)' },
+    { line: 'nijikokun — Extended pack (CC0)' },
+    { line: '0x72 — Sewers (CC0)' },
+    { line: 'Armour, trinkets and the dragon drawn for this game' },
+    { gap: 2 },
+
+    { head: 'Sound' },
+    { line: 'Synthesised at runtime with Web Audio.' },
+    { line: 'No audio files were used.' },
+    { gap: 2 },
+
+    { head: 'Built with' },
+    { line: 'Plain HTML, CSS and JavaScript. No framework.' },
+    { line: 'One file, if you want it that way.' },
+    { gap: 3 },
+
+    { note: 'Thank you for climbing.' },
+    { gap: 1 },
+  ],
+
+  showCredits(onDone) {
+    const box = document.getElementById('credits-roll');
+    box.innerHTML = this.CREDITS.map(r => {
+      if (r.gap)  return `<div class="cr-gap" style="height:${r.gap * 40}px"></div>`;
+      if (r.big)  return `<div class="cr-big">${r.big}</div>`;
+      if (r.sub)  return `<div class="cr-sub">${r.sub}</div>`;
+      if (r.head) return `<div class="cr-head">${r.head}</div>`;
+      if (r.note) return `<div class="cr-note">${r.note}</div>`;
+      if (r.line) return `<div class="cr-line">${r.line}</div>`;
+      return `<div class="cr-row"><b>${r.role}</b><span>${r.who}</span></div>`;
+    }).join('');
+
+    const screen = document.getElementById('credits-screen');
+    const close = document.getElementById('credits-close');
+    const hint = document.getElementById('credits-hint');
+    screen.classList.remove('hidden');
+    close.classList.add('hidden');
+    hint.classList.remove('hidden');
+    this._creditsDone = onDone || null;
+
+    // 글이 길수록 오래 흐른다 — 초를 박으면 화면 크기에 따라 어긋난다
+    const view = screen.querySelector('.credits-view').clientHeight;
+    const dist = box.scrollHeight + view;
+    const secs = clamp(dist / 46, 14, 60);
+    box.style.setProperty('--roll', dist + 'px');
+    box.style.animation = 'none';
+    void box.offsetHeight;                       // 다시 틀려면 한 번 끊어야 한다
+    box.style.animation = `credit-roll ${secs}s linear forwards`;
+
+    clearTimeout(this._creditsTimer);
+    this._creditsTimer = setTimeout(() => this.endCredits(), secs * 1000);
+  },
+
+  // 끝까지 흘렀거나 건너뛰었을 때 — 글을 멈추고 돌아갈 길을 연다
+  endCredits() {
+    clearTimeout(this._creditsTimer);
+    const box = document.getElementById('credits-roll');
+    box.style.animation = 'none';
+    box.style.transform = 'translateY(0)';
+    document.getElementById('credits-close').classList.remove('hidden');
+    document.getElementById('credits-hint').classList.add('hidden');
+  },
+
+  hideCredits() {
+    clearTimeout(this._creditsTimer);
+    document.getElementById('credits-screen').classList.add('hidden');
+    const done = this._creditsDone;
+    this._creditsDone = null;
+    if (done) done();
+  },
+
+  creditsOpen() {
+    return !document.getElementById('credits-screen').classList.contains('hidden');
+  },
+  creditsRolling() {
+    return this.creditsOpen() &&
+           document.getElementById('credits-close').classList.contains('hidden');
+  },
+
   /* ---------- 결말 ---------- */
   showEnding() { document.getElementById('ending-screen').classList.remove('hidden'); },
   hideEnding() { document.getElementById('ending-screen').classList.add('hidden'); },

@@ -183,8 +183,11 @@ async function gotoFloor(page, n) {
   check(picks.length === 2, '선택지 두 개: ' + picks.join(' / '));
 
   await page.click('[data-ending="leave"]');
-  // 결과표는 바로 덮이지 않는다 — 선택창만 걷고 옥상을 1.9초 보여준 뒤에 뜬다
+  // 결과표는 바로 덮이지 않는다 — 선택창만 걷고 옥상을 1.9초 보여준 뒤,
+  // 그다음 크레딧이 흐르고, 그것이 끝나야 숫자가 온다 (test-credits 가 그 순서를 본다)
   await page.waitForTimeout(2400);
+  await page.evaluate(() => { UI.endCredits(); UI.hideCredits(); });
+  await page.waitForTimeout(400);
   const after = await page.evaluate(() => ({
     resultVisible: !document.getElementById('result-screen').classList.contains('hidden'),
     title: document.getElementById('result-title').textContent,
@@ -201,6 +204,7 @@ async function gotoFloor(page, n) {
   await page.waitForTimeout(1500);
   await page.click('[data-ending="light"]');
   await page.waitForTimeout(300);
+  await page.evaluate(() => { UI.endCredits(); UI.hideCredits(); });
   const both = await page.evaluate(() => (loadData().endings || []));
   check(both.length === 2, '두 결말 모두 기록됨: ' + both.join(', '));
 
