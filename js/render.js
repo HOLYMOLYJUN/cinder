@@ -43,6 +43,35 @@ const Render = {
     if (pending === 0) this.ready = true;
   },
 
+  /* 그림 칸 안에서 사람이 실제로 차지하기 시작하는 줄.
+     팩의 16x28 칸은 위쪽 여백이 캐릭터마다 다르다 — 기사는 투구 깃털까지 올라가고
+     엘프는 한참 아래에서 시작한다. 이걸 모르고 타일 기준으로 손 높이를 잡으면
+     기사한테 맞춘 자리가 엘프에게는 얼굴이 된다.
+     프레임 하나만 한 번 재서 기억한다 (걷는 동안 한두 픽셀 차이는 눈에 안 띈다). */
+  artTop(key) {
+    if (!this.artTops) this.artTops = {};
+    if (key in this.artTops) return this.artTops[key];
+    const s = this.img[key];
+    const im = s && s.f[0];
+    if (!im || !im.complete || !im.naturalWidth) return null;   // 아직 못 잰다 — 다음 프레임에 다시
+    if (!this.scanCv) this.scanCv = document.createElement('canvas');
+    const cv = this.scanCv;
+    cv.width = im.width; cv.height = im.height;
+    const c = cv.getContext('2d', { willReadFrequently: true });
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(im, 0, 0);
+    let top = 0;
+    try {
+      const d = c.getImageData(0, 0, cv.width, cv.height).data;
+      scan:
+      for (let y = 0; y < cv.height; y++)
+        for (let x = 0; x < cv.width; x++)
+          if (d[(y * cv.width + x) * 4 + 3] > 8) { top = y; break scan; }
+    } catch (e) { top = 0; }     // 못 읽으면 칸 전체를 몸으로 친다
+    this.artTops[key] = top;
+    return top;
+  },
+
   // 피격 번쩍임과 최종 보스의 불빛에 쓴다.
   // 원본을 오프스크린에 그린 뒤 source-atop 으로 색을 덮는다.
   tinted(im, color, alpha) {
@@ -497,7 +526,7 @@ const Render = {
 
       // 주운 무기는 손에 들려 보인다 — 장비창을 열지 않아도 지금 뭘 들었는지 읽히게
       if (e.kind === 'player' && e.gear && e.gear.weapon) {
-        this.heldWeapon(ctx, e, px, py);
+        this.heldWeapon(ctx, e, px, py, key + '.idle');
       }
 
       // 열쇠를 들고 있으면 알려준다 — 이걸 안 보이게 하면 층 전체를 뒤져야 한다
@@ -820,29 +849,55 @@ const Render = {
   /* 손에 든 무기.
      비교창 아이콘(gear.<이름>)을 그대로 쓴다 — 무기 그림은 날이 위, 그립이 아래라
      그립을 회전축에 놓고 진행 방향으로 기울이면 든 것처럼 보인다.
-     px·py 는 bump·피격 흔들림·부유까지 반영된 값이라 몸을 그대로 따라간다. */
-  heldWeapon(ctx, e, px, py) {
-    const s = this.img['gear.' + e.gear.weapon.name];
+     px·py 는 bump·피격 흔들림·부유까지 반영된 값이라 몸을 그대로 따라간다.
+
+     두 가지를 몸 기준으로 잡아야 한다. 타일 기준으로 잡으면 반드시 어긋난다 —
+     사람 그림이 16x28 이라 타일(28px) 위로 한참 솟아 있기 때문이다.
+
+     1) 길이. 원본은 사람만큼 길다(지팡이 30px, 대검 29px, 사람 28px).
+        원본 배율로 얹으면 손이 아니라 머리 위로 솟는다. 종류가 뭐든
+        한 칸 길이로 맞춰 사람 키의 절반쯤으로 만든다 — 그래야 "들고 있는 것"이 된다.
+     2) 손 높이. 사람은 화면에서 py-19 ~ py+30 을 차지하므로(TS 28 기준)
+        허리는 타일의 2/3 지점이 아니라 절반 언저리다. */
+  heldWeapon(ctx, e, px, py, charKey) {
+    const g = e.gear.weapon;
+    const s = this.img['gear.' + g.name];
     if (!s) return;
     const im = s.f[0];
     if (!im || !im.complete || !im.naturalWidth) return;
 
     const TS = CFG.TILE;
-    // 지팡이류는 원본이 몸의 두 배 가까이 길다. 몸보다 길면 든 게 아니라 떠 있는 것처럼
-    // 보이므로, 몸 높이 조금 넘는 선에서 잘라 맞춘다.
-    const k = (TS / 16) * Math.min(1, (TS * 1.2) / (im.height * (TS / 16)));
-    const w = im.width * k, h = im.height * k;
     const face = e.face || 1;
 
-    // 손 위치 — 몸 앞쪽, 허리께
-    const hx = px + TS / 2 + face * TS * 0.28;
-    const hy = py + TS * 0.66;
+    /* 몸이 화면에서 어디부터 어디까지인가. 타일이 아니라 이걸 기준으로 잡는다. */
+    const charH = (this.img[charKey] ? this.img[charKey].h : 28) * (TS / 16);
+    const top = this.artTop(charKey);
+    if (top === null) return;                       // 아직 못 쟀으면 이번 프레임은 건너뛴다
+    const feetY = py + TS + 2;                      // sprite() 가 놓는 자리와 같아야 한다
+    const bodyTop = feetY - charH + top * (TS / 16);
+    const artH = Math.max(8, feetY - bodyTop);
 
-    // 평소엔 살짝 기울여 들고, 공격(bump) 중에는 휘둘렀다 돌아온다
-    let angle = 0.55;
+    /* 세워 드는 것과 내려 드는 것.
+       판정과 같은 규칙을 쓴다 — 주문이 공격보다 높으면 지팡이다.
+       지팡이와 활은 세워 들어야 그것으로 보이고, 칼·도끼는 내려 들어야 한다.
+       특히 대검처럼 긴 것을 세우면 사람 머리 위로 솟아 무기가 아니라 장식이 된다. */
+    const upright = !!g.bow || ((g.mod.sp || 0) > (g.mod.atk || 0));
+
+    // 길이도 사람에 맞춘다. 원본 배율로 얹으면 작은 사람이 자기 키만 한 것을 든다.
+    const len = clamp(artH * (upright ? 0.80 : 0.62), TS * 0.42, TS * 0.95);
+    const k = len / im.height;
+    const w = im.width * k, h = len;
+
+    // 손 — 몸 앞쪽 허리께
+    const hx = px + TS / 2 + face * TS * 0.14;
+    const hy = feetY - artH * 0.44;
+
+    /* 0 이 위, π 가 아래다. 공격 중에는 내려 든 것은 올려 베고,
+       세워 든 것은 앞으로 내지른다 — 둘 다 앞을 향해 한 번 크게 움직인다. */
+    let angle = upright ? 0.12 : 2.45;
     if (e.bump) {
-      const p = e.bump.t / CFG.BUMP_ANIM;
-      angle = 0.55 + Math.sin(p * Math.PI) * 1.15;
+      const p = Math.sin((e.bump.t / CFG.BUMP_ANIM) * Math.PI);
+      angle += upright ? p * 0.9 : -p * 1.35;
     }
 
     ctx.save();
