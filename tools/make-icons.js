@@ -235,6 +235,9 @@ const ICONS = {
 
   icon_amulet:         [AMULET, { X: 'y', H: 'Y', s: 'a' }],
   icon_amulet_crystal: [AMULET, { X: 'X', H: 'W', s: 'x' }],
+  // 초반에 놓이는 「고대의」 둘. 재 계열이라 그을린 회색에 불씨 색을 얹는다.
+  icon_amulet_ash:     [AMULET, { X: 'A', H: 'E', s: 'c' }],
+  icon_armor_ash:      [CUIRASS, { X: 'A', H: 'C', s: 'c' }],
 
   // 밝은 면이 넓어졌으므로 하이라이트에 흰색을 쓰면 붉은색과 줄무늬로 읽힌다. 주황으로 한 칸만 올린다.
   icon_ring_red:   [RING, { X: 'R', H: 'E', s: 'r' }],

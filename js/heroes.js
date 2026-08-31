@@ -22,6 +22,8 @@ const HEROES = [
     /* melee: 원거리 자체가 없다. 활도 지팡이 던지기도 아니고 Z 가 통째로 없다 —
        대신 기본기와 성장이 한 급 위다. 「던지던 손」은 기사에겐 완력으로 붙는다. */
     melee: true,
+    // 상자에서 더 자주 나올 무기 갈래 (items.js 의 weaponKind 와 같은 이름)
+    likes: ['blade'],
     base: { atk: 8, sp: 0, def: 3, md: 1, spd: 10, maxHp: 50 },
     grow: { pow: 0.70, maxHp: 4.8, def: 0.40, md: 0.30 },
   },
@@ -31,6 +33,7 @@ const HEROES = [
     note: '활을 들고 시작한다. 빠르지만 얇다.',
     // 활은 엘프의 정체성이라 처음부터 쥐여 준다. 고르는 순간 다른 게임이 되도록.
     startWeapon: '사냥 활',
+    likes: ['bow'],
     base: { atk: 5, sp: 0, def: 1, md: 1, spd: 13, maxHp: 30 },
     grow: { pow: 0.54, maxHp: 2.4, def: 0.20, md: 0.20, spd: 0.14 },
   },
@@ -38,6 +41,7 @@ const HEROES = [
     id: 'wizard', name: '마법사', sprite: 'wizzard_m',
     line: '불을 다루던 손이 아직 뜨겁다.',
     note: '처음부터 마법으로 싸운다. 다섯 중 가장 순하다 — 처음 오른다면 이쪽.',
+    likes: ['staff'],
     base: { atk: 3, sp: 8, def: 0, md: 4, spd: 10, maxHp: 30 },
     grow: { pow: 0.56, maxHp: 2.6, def: 0.12, md: 0.38 },
   },
@@ -45,6 +49,7 @@ const HEROES = [
     id: 'lizard', name: '리자드', sprite: 'lizard_m',
     line: '비늘이 재를 견딘다.',
     note: '단단하고 느리다. 맞아가며 밀고 올라간다.',
+    likes: ['blade'],
     base: { atk: 6, sp: 0, def: 4, md: 1, spd: 8, maxHp: 52 },
     grow: { pow: 0.55, maxHp: 5.8, def: 0.62, md: 0.12 },
   },
@@ -52,6 +57,7 @@ const HEROES = [
     id: 'dwarf', name: '드워프', sprite: 'dwarf_f',
     line: '깊은 곳이라면 익숙하다.',
     note: '묵직하게 때린다. 대신 굼뜨다.',
+    likes: ['blade'],
     base: { atk: 8, sp: 0, def: 2, md: 0, spd: 8, maxHp: 46 },
     grow: { pow: 0.88, maxHp: 5.2, def: 0.45, md: 0.20 },
   },

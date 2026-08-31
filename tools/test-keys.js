@@ -54,16 +54,16 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(after2.hp < before2.hp, `Z + 방향도 던짐 (${before2.hp} → ${after2.hp})`);
   check(after2.x === before2.x, 'Z + 방향으로 움직이지는 않음');
 
-  // 겨눌 것이 없으면 턴을 안 쓴다
+  // 겨눌 것이 없어도 바라보는 쪽으로 날아간다 — 턴은 쓴다
   const none = await page.evaluate(() => {
     state.monsters.length = 0; refreshFov();
-    const t = state.turns;
-    return { t };
+    state.rangedCd = 0; state.player.face = 1;
+    return { t: state.turns };
   });
   await page.keyboard.press('KeyZ');
   await page.waitForTimeout(250);
   const after3 = await page.evaluate(() => state.turns);
-  check(after3 === none.t, '겨눌 것이 없으면 턴을 쓰지 않음');
+  check(after3 === none.t + 1, `겨눌 것이 없어도 쏘고 턴을 씀 (${none.t} → ${after3})`);
 
   // X + 방향은 여전히 "공격 안 하고 이동"
   const px = await page.evaluate(() => {

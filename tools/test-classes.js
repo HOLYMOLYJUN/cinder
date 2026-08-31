@@ -103,6 +103,51 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(el.bowDrops > 0, `엘프에게는 활이 드랍됨 (300회 중 ${el.bowDrops})`);
   check(el.aimHidden === false, '모바일 원거리 버튼 보임');
 
+  console.log('\n[ 직업에 맞는 무기가 더 자주 나온다 ]');
+  const drop = await p.evaluate(() => {
+    const out = {};
+    for (const h of HEROES) {
+      chooseHero(h.id);
+      const c = { blade: 0, staff: 0, bow: 0 };
+      for (let i = 0; i < 3000; i++) {
+        const g = rollGear(10, 0);
+        const k = g && weaponKind(g);
+        if (k) c[k]++;
+      }
+      const n = c.blade + c.staff + c.bow;
+      out[h.id] = { pct: { blade: c.blade / n, staff: c.staff / n, bow: c.bow / n },
+                    likes: h.likes, raw: c };
+    }
+    return out;
+  });
+  for (const [id, d] of Object.entries(drop)) {
+    const want = d.likes[0];
+    const rest = ['blade', 'staff', 'bow'].filter(k => k !== want);
+    const line = `${id}: 날붙이 ${(d.pct.blade*100).toFixed(0)}% · 지팡이 ${(d.pct.staff*100).toFixed(0)}% · 활 ${(d.pct.bow*100).toFixed(0)}%`;
+    check(rest.every(k => d.pct[want] > d.pct[k]), `${want} 을(를) 가장 자주 만난다 — ${line}`);
+    check(d.pct[want] > 0.6, `맞는 무기가 무기 드랍의 절반을 넘는다 (${(d.pct[want]*100).toFixed(0)}%)`);
+  }
+  // 잠그지는 않는다 — 노선을 갈아타는 판이 사라지면 안 된다
+  check(drop.knight.raw.staff > 0, `기사도 지팡이를 만나기는 한다 (3000회 중 ${drop.knight.raw.staff})`);
+  check(drop.wizard.raw.blade > 0, `마법사도 날붙이를 만나기는 한다 (3000회 중 ${drop.wizard.raw.blade})`);
+  check(drop.knight.raw.bow === 0 && drop.wizard.raw.bow === 0, '활은 여전히 엘프에게만 나온다');
+
+  console.log('\n[ 사거리 — 내가 먼저 쏠 자리가 있는가 ]');
+  const rng = await p.evaluate(() => {
+    chooseHero('lizard'); startRun(); UI.closeIntro();
+    state.memories = new Set(['throw']);
+    state.player.gear.weapon = null; recalcStats(state.player);
+    const plain = rangedRange();
+    state.player.gear.weapon = makeGear(GEAR.find(g => g.name === '사냥 활'));
+    const bow = rangedRange();
+    return { plain, bow, mon: CFG.MONSTER_RANGE };
+  });
+  check(rng.plain > rng.mon,
+        `사람이 원거리 몬스터보다 멀리 쏜다 (${rng.plain} vs ${rng.mon})`);
+  check(rng.plain - rng.mon >= 2,
+        `먼저 쏘고 물러설 자리가 두 칸 넘게 남는다 (${rng.plain - rng.mon}칸)`);
+  check(rng.bow > rng.plain, `활은 한 칸 더 간다 (${rng.plain} → ${rng.bow})`);
+
   console.log('\n[ 마법사 — 기존 기억 경로 유지 ]');
   const wz = await p.evaluate(() => {
     chooseHero('wizard');

@@ -879,6 +879,14 @@ const Render = {
         한 칸 길이로 맞춰 사람 키의 절반쯤으로 만든다 — 그래야 "들고 있는 것"이 된다.
      2) 손 높이. 사람은 화면에서 py-19 ~ py+30 을 차지하므로(TS 28 기준)
         허리는 타일의 2/3 지점이 아니라 절반 언저리다. */
+  /* 세워 드는 것인가, 젖혀 드는 것인가.
+     판정과 같은 규칙을 쓴다 — 주문이 공격보다 높으면 지팡이다(items.js 의 weaponKind).
+     지팡이와 활은 세워 들어야 그것으로 보이고 몸 옆에 서므로 앞에 그린다.
+     칼·도끼는 날을 뒤로 젖혀 들고 몸 뒤에 그린다. */
+  heldUpright(g) {
+    return !!g.bow || ((g.mod.sp || 0) > (g.mod.atk || 0));
+  },
+
   heldWeapon(ctx, e, px, py, charKey) {
     const g = e.gear.weapon;
     const s = this.img['gear.' + g.name];
@@ -897,27 +905,29 @@ const Render = {
     const bodyTop = feetY - charH + top * (TS / 16);
     const artH = Math.max(8, feetY - bodyTop);
 
-    /* 세워 드는 것과 내려 드는 것.
-       판정과 같은 규칙을 쓴다 — 주문이 공격보다 높으면 지팡이다.
-       지팡이와 활은 세워 들어야 그것으로 보이고, 칼·도끼는 내려 들어야 한다.
-       특히 대검처럼 긴 것을 세우면 사람 머리 위로 솟아 무기가 아니라 장식이 된다. */
-    const upright = !!g.bow || ((g.mod.sp || 0) > (g.mod.atk || 0));
+    const upright = this.heldUpright(g);
 
     // 길이도 사람에 맞춘다. 원본 배율로 얹으면 작은 사람이 자기 키만 한 것을 든다.
     const len = clamp(artH * (upright ? 0.80 : 0.62), TS * 0.42, TS * 0.95);
     const k = len / im.height;
     const w = im.width * k, h = len;
 
-    // 손 — 몸 앞쪽 허리께
-    const hx = px + TS / 2 + face * TS * 0.14;
-    const hy = feetY - artH * 0.44;
+    /* 손 — 몸 앞쪽 허리께.
+       젖혀 든 칼은 조금 더 내려 잡는다. 위로 뻗는 자세라 같은 높이로 잡으면
+       날 끝이 머리 위로 올라가 버린다. */
+    const hx = px + TS / 2 + face * TS * (upright ? 0.14 : 0.04);
+    const hy = feetY - artH * (upright ? 0.44 : 0.22);
 
-    /* 0 이 위, π 가 아래다. 공격 중에는 내려 든 것은 올려 베고,
-       세워 든 것은 앞으로 내지른다 — 둘 다 앞을 향해 한 번 크게 움직인다. */
-    let angle = upright ? 0.12 : 2.45;
+    /* 0 이 위, π 가 아래다. 음수는 뒤로 젖히는 쪽.
+
+       칼은 날 끝을 뒤 위로 젖혀 든다 — 앞으로 내밀면 찌르는 자세로 굳어서
+       가만히 서 있을 때도 계속 찌르고 있는 것처럼 보인다.
+       젖혀 두면 그게 "들고 있는 자세"가 되고, 벨 때 앞으로 나가는 거리도 길어진다.
+       지팡이와 활은 세워 든 채로 앞으로 조금 내민다. */
+    let angle = upright ? 0.12 : -0.70;
     if (e.bump) {
       const p = Math.sin((e.bump.t / CFG.BUMP_ANIM) * Math.PI);
-      angle += upright ? p * 0.9 : -p * 1.35;
+      angle += upright ? p * 0.9 : p * 1.75;   // 젖혔다가 앞으로 베어 내린다
     }
 
     ctx.save();

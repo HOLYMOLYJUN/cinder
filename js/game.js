@@ -549,14 +549,17 @@ function rangedReady() {
   return canRanged() && !(state.rangedCd > 0);
 }
 
+/* 사람의 사거리. 원거리 몬스터(CFG.MONSTER_RANGE)보다 길어야
+   "먼저 쏘고 물러선다"가 성립한다 — 자세한 이유는 config.js 의 사거리 절에.
+   활은 한 칸 더 간다. */
+function rangedRange() {
+  const w = state.player.gear.weapon;
+  return CFG.RANGED_RANGE + ((w && w.bow) ? CFG.BOW_BONUS : 0);
+}
+
 function rangedTarget(dir) {
   const p = state.player;
-  const w = p.gear.weapon;
-  /* 활만 한 칸 멀리 간다 — 가장 멀리 보는 것이 엘프의 정체성이다.
-     불덩이도 7이었지만 6으로 줄였다. 위력을 30% 깎아도(두 번 쟀다) 클리어율이
-     안 움직이는 게임이라, 원거리의 값은 피해량이 아니라 "닿기 전에 정리하는 것"이고
-     그 값을 정하는 건 사거리와 리듬뿐이다. */
-  const range = (w && w.bow) ? 7 : 6;
+  const range = rangedRange();
   const d = dir ? DIRS[dir] : null;
 
   let best = null, bestScore = Infinity;
@@ -605,18 +608,38 @@ function rangedAttack(dir) {
   }
 
   let target = rangedTarget(dir);
+
+  /* 겨눌 것이 없어도 그냥 날려 보낸다.
+     예전에는 아무 일도 없이 돌아섰는데, 그러면 "안 보이는 쪽에 대고 쏜다"는
+     선택지가 통째로 없어진다. 어둠 속이나 모퉁이 너머에 선 것이 맞을 수도 있어야
+     불씨를 줄여 놓고 싸우는 판에서 원거리가 제 노릇을 한다. */
+  let blindEnd = null;
   if (!target) {
-    // 헛되이 턴을 쓰게 하지 않는다. 겨눌 것이 없으면 아무 일도 일어나지 않는다.
-    UI.log('겨눌 것이 보이지 않습니다.', 'sys');
-    Sound.play('miss');
-    return false;
+    const d = DIRS[dir] || DIRS[p.face < 0 ? 'left' : 'right'];
+    const range = rangedRange();
+    for (let i = 1; i <= range; i++) {
+      const x = p.x + d.dx * i, y = p.y + d.dy * i;
+      if (blocksSight(state.map, x, y)) break;      // 벽에 박힌다
+      blindEnd = { x, y };
+      const m = monsterAt(x, y);
+      // 보이지 않던 것이라도 길목에 서 있었으면 맞는다
+      if (m && m.alive) { target = m; break; }
+    }
+    /* 한 칸도 못 나가면 턴을 쓰지 않는다. 벽을 마주보고 누른 것은
+       선택이 아니라 잘못 누른 것이라, 여기에 한 턴을 물리면 벌이 된다. */
+    if (!blindEnd) {
+      UI.log('벽을 마주보고 있습니다.', 'sys');
+      return false;
+    }
   }
 
   // 가는 길에 다른 것이 서 있으면 그것이 맞는다 — 관통하지 않는다
-  for (const [lx, ly] of lineTiles(p.x, p.y, target.x, target.y)) {
-    if (lx === p.x && ly === p.y) continue;
-    const m = monsterAt(lx, ly);
-    if (m && m.alive) { target = m; break; }
+  if (target) {
+    for (const [lx, ly] of lineTiles(p.x, p.y, target.x, target.y)) {
+      if (lx === p.x && ly === p.y) continue;
+      const m = monsterAt(lx, ly);
+      if (m && m.alive) { target = m; break; }
+    }
   }
 
   /* 이번 턴에 하나 줄므로 2 는 "다음 턴만 막힌다", 3 은 "두 턴 막힌다".
@@ -625,15 +648,27 @@ function rangedAttack(dir) {
      더 조이는 것은 느낌만 해친다. */
   state.rangedCd = isMagicAttack(p) ? 3 : 2;
 
-  // 던지는 쪽을 바라보게 한다
-  if (target.x !== p.x) p.face = target.x > p.x ? 1 : -1;
-
   const fire = isMagicAttack(p);
   const bow = !fire && p.gear.weapon && p.gear.weapon.bow;
-  if (fire)     Render.addOrb(p.x, p.y, target.x, target.y);
-  else if (bow) Render.addArrow(p.x, p.y, target.x, target.y);
-  else          Render.addBeam(p.x, p.y, target.x, target.y, COLORS.ember);
+  const to = target || blindEnd;
+
+  // 던지는 쪽을 바라보게 한다
+  if (to.x !== p.x) p.face = to.x > p.x ? 1 : -1;
+
+  if (fire)     Render.addOrb(p.x, p.y, to.x, to.y);
+  else if (bow) Render.addArrow(p.x, p.y, to.x, to.y);
+  else          Render.addBeam(p.x, p.y, to.x, to.y, COLORS.ember);
   Sound.play(fire ? 'fireball' : 'throw');
+
+  /* 아무것도 없는 쪽으로 날아간 경우. 턴은 쓴다 —
+     날아간 것 자체가 일어난 일이고, 안 그러면 공짜로 어둠을 훑어볼 수 있다. */
+  if (!target) {
+    if (fire) { Render.addBlast(blindEnd.x, blindEnd.y); Sound.play('blast'); }
+    else Sound.play('miss');
+    UI.log('어둠 속으로 날아갔습니다. 아무것도 맞히지 못했습니다.', 'sys');
+    UI.updateHud(state);
+    return true;
+  }
 
   const { dmg } = rollDamage(p, target);
 
@@ -1134,7 +1169,7 @@ function monsterTurn(m) {
   if (m.ranged) {
     if (m.casting > 0) {
       m.casting = 0;
-      if (canSee && dist <= 6) {
+      if (canSee && dist <= CFG.MONSTER_RANGE) {
         const { dmg, magic } = rollDamage(m, p);
         p.hp -= dmg;
         p.flash = CFG.FLASH_TIME;
@@ -1152,7 +1187,7 @@ function monsterTurn(m) {
       }
       return;
     }
-    if (canSee && dist <= 6 && dist >= 2) {
+    if (canSee && dist <= CFG.MONSTER_RANGE && dist >= 2) {
       m.casting = 1;
       Sound.play('cast');
       UI.log(josa(m.name, '이', '가') + ' 주문을 준비합니다. 사거리를 벗어나면 빗나갑니다.', 'hit');

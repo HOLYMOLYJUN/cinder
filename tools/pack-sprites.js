@@ -173,6 +173,8 @@ const GEAR_ICONS = {
   '날랜 장화':   'icon_boots_swift',
   '수정 목걸이': 'icon_amulet_crystal',
   '등불지기의 반지': 'icon_ring_ember',
+  '재의 부적':   'icon_amulet_ash',
+  '재의 조끼':   'icon_armor_ash',
 };
 for (const [name, file] of Object.entries(GEAR_ICONS)) {
   MANIFEST['gear.' + name] = [file + '.png'];

@@ -63,28 +63,62 @@ const GEAR = [
   { slot:'trinket', name:'날랜 장화',  min:6,  rarity:'fine',    mod:{ spd:6 } },
   { slot:'trinket', name:'수정 목걸이',min:6,  rarity:'fine',    mod:{ md:5, sp:3 } },
   { slot:'trinket', name:'등불지기의 반지', min:10, rarity:'ancient', mod:{ maxHp:12, md:3, sp:3 } },
+
+  /* 기억을 굴릴 기회는 「고대의」를 밟는 순간에만 온다. 그런데 위 목록은
+     4층까지 후보가 하나도 없고 그마저 무기라, 초반에 죽는 판은 확률이 낮은 게 아니라
+     **굴릴 일 자체가 없었다.** 확률을 올려도 안 풀리는 종류의 병목이다.
+
+     그래서 앞쪽에 둘을 둔다. 세기로 앞서는 물건이면 초반 균형이 무너지므로,
+     같은 등급이되 값은 얌전하게 잡았다 — 이건 힘이 아니라 기회를 놓는 자리다. */
+  { slot:'trinket', name:'재의 부적',   min:2,  rarity:'ancient', mod:{ md:4, sp:2 } },
+  { slot:'armor',   name:'재의 조끼',   min:3,  rarity:'ancient', mod:{ def:3, spd:1 } },
 ];
 
 const STAT_LABEL = { atk:'공격', sp:'주문', def:'방어', md:'마방', spd:'속도', maxHp:'최대 체력' };
 const STAT_ORDER = ['atk', 'sp', 'def', 'md', 'spd', 'maxHp'];
+
+/* 무기가 어느 갈래인가.
+   전투 판정과 같은 규칙을 쓴다 — 주문이 공격보다 높으면 지팡이다.
+   그림을 드는 방식(Render.heldWeapon)도 이 규칙으로 세울 것과 내릴 것을 가르므로,
+   한 규칙이 판정·그림·드랍 셋을 함께 정한다. 갈라 두면 반드시 어긋난다. */
+function weaponKind(g) {
+  if (g.slot !== 'weapon') return null;
+  if (g.bow) return 'bow';
+  return ((g.mod.sp || 0) > (g.mod.atk || 0)) ? 'staff' : 'blade';
+}
 
 /* ---------- 생성 ---------- */
 
 // luck: 기억을 오래 못 얻었을수록 커진다. 고대의 등급이 더 자주 나와
 //       기억을 굴릴 기회 자체가 늘어난다.
 function rollGear(depth, luck) {
-  const hero = currentHero().id;
-  const pool = GEAR.filter(g => g.min <= depth && (!g.only || g.only === hero));
+  const hero = currentHero();
+  const pool = GEAR.filter(g => g.min <= depth && (!g.only || g.only === hero.id));
   if (!pool.length) return null;
 
   // 깊이 들어갈수록 좋은 것이 나오지만, 고대의는 항상 드물다.
   // 그리고 최근에 열린 장비일수록 자주 나온다 —
   // 반대로 짜면 10층에서도 낡은 단검이 계속 나와 층을 오르는 보람이 사라진다.
-  const base = { common: 6, fine: 3, ancient: 2 + clamp(luck || 0, 0, 5) * 2 };
+  /* 「고대의」의 기본 가중치가 2 였을 때, 기억을 몇 개 되찾아 luck 이 0 으로
+     돌아온 사람은 한 판에 고대의를 두어 번밖에 못 만났다. 굴릴 기회가 그만큼 없으니
+     "기억이 안 모인다"가 된다 — 확률이 아니라 기회 쪽 문제라 여기를 올린다. */
+  const base = { common: 6, fine: 3, ancient: 3 + clamp(luck || 0, 0, 5) * 2 };
   const weighted = [];
   for (const g of pool) {
     const age = depth - g.min;
-    const w = base[g.rarity] * clamp(6 - age, 1, 6);
+    let w = base[g.rarity] * clamp(6 - age, 1, 6);
+
+    /* 고른 사람에게 맞는 무기가 더 자주 나온다.
+       마법사가 열 층을 올라가도록 지팡이를 한 번도 못 만나면 고른 의미가 없고,
+       기사가 줍는 것마다 지팡이면 그건 무기가 아니라 방해물이다.
+
+       다만 기울이기만 하고 잠그지는 않는다. 이 게임에서 물리와 마법을 가르는
+       유일한 장치가 "무엇을 들었는가"라, 안 맞는 무기가 아예 안 나오면
+       노선을 갈아타는 판이 사라진다. 그 뜻밖의 한 자루가 판을 바꾸는 쪽이다.
+       그래서 최소 하나는 남긴다 — 드물어질 뿐 없어지지는 않는다. */
+    const kind = weaponKind(g);
+    if (kind) w = Math.max(1, Math.round(w * (hero.likes.includes(kind) ? 3 : 0.4)));
+
     for (let i = 0; i < w; i++) weighted.push(g);
   }
   return makeGear(choice(weighted));

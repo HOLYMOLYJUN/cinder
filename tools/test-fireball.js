@@ -139,22 +139,31 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     m.tiles[cy][cx + 2] = T.WALL;
     refreshFov();
     state.rangedCd = 0;
-    out.wallBlocked = rangedAttack(null) === false && behind.hp === behind.maxHp;
+    rangedAttack(null);                       // 날아가기는 하되 벽에 박힌다
+    out.wallBlocked = behind.hp === behind.maxHp;
     m.tiles[cy][cx + 2] = T.FLOOR;
 
-    // 5) 아무것도 없으면 턴을 쓰지 않는다
+    // 5) 겨눌 것이 없어도 그냥 날아간다 — 턴은 쓴다
     state.monsters.length = 0;
     refreshFov();
     state.rangedCd = 0;
-    out.noTargetNoTurn = rangedAttack(null) === false;
+    state.player.face = 1;
+    out.blindFires = rangedAttack(null) === true;
+
+    // 6) 다만 벽을 마주보고 있으면 한 칸도 못 나가므로 턴을 쓰지 않는다
+    state.rangedCd = 0;
+    m.tiles[cy][cx + 1] = T.WALL;
+    out.wallNoTurn = rangedAttack(null) === false;
+    m.tiles[cy][cx + 1] = T.FLOOR;
     return out;
   });
   check(aimTest.diagAfter < aimTest.diagBefore,
         `대각선에 있어도 맞는다 (${aimTest.diagBefore} → ${aimTest.diagAfter})`);
   check(aimTest.nearHit && !aimTest.farHit, '여럿이면 가까운 쪽을 겨눈다');
   check(aimTest.dirRespected, '방향키를 같이 누르면 그쪽 것을 겨눈다');
-  check(aimTest.wallBlocked, '벽 너머는 겨누지 못한다');
-  check(aimTest.noTargetNoTurn, '겨눌 것이 없으면 턴을 쓰지 않는다');
+  check(aimTest.wallBlocked, '벽 너머는 맞히지 못한다');
+  check(aimTest.blindFires, '겨눌 것이 없어도 일직선으로 날아간다 (턴을 쓴다)');
+  check(aimTest.wallNoTurn, '벽을 마주보고 있으면 턴을 쓰지 않는다');
 
   console.log('\n[ 모바일 조작 ]');
 
