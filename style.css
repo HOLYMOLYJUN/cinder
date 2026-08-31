@@ -405,6 +405,15 @@ canvas#view {
 .touch-acts button.on { color: #1A1209; background: var(--ember); border-color: #F4B978; }
 .touch-acts button.locked { opacity: .35; }
 
+/* 흔적 — 할 수 있는 순간에만 나타난다. 한 칸에 끼우면 홀로 남은 칸처럼 보여서
+   두 칸을 다 쓴다. 나타났다는 것 자체가 「지금 여기서 된다」는 신호다. */
+.touch-acts button[data-act="mark"] {
+  grid-column: 1 / -1;
+  padding: 8px 4px;
+  color: #E8D9B8;
+  border-color: #5A4A32; border-right-color: #100D0A; border-bottom-color: #100D0A;
+}
+
 /* 터치 조작 */
 .touch-pad {
   display: none;

@@ -39,9 +39,12 @@ async function open(browser, uid) {
   return page;
 }
 
-// 사람을 벽 아래 빈 칸에 세운다 — 그래야 벽에 긁을 수 있다
-const standByWall = (page) => page.evaluate(() => {
-  const m = state.map, cx = 20, cy = 12;
+/* 사람을 벽 아래 빈 칸에 세운다 — 그래야 벽에 긁을 수 있다.
+   자리를 옮길 수 있어야 한다: 같은 칸에 세우면 남이 이미 붙여 둔 쪽지가 있어서
+   「남기기」가 아니라 「끄덕」이 뜬다 (실제로 이 검사가 그렇게 한 번 틀렸다). */
+const standByWall = (page, at) => page.evaluate((at) => {
+  const m = state.map;
+  const cx = at ? at.x : 20, cy = at ? at.y : 12;
   for (let y = cy - 2; y <= cy + 2; y++)
     for (let x = cx - 3; x <= cx + 3; x++) m.tiles[y][x] = T.FLOOR;
   for (let x = cx - 3; x <= cx + 3; x++) m.tiles[cy - 3][x] = T.WALL;
@@ -51,7 +54,7 @@ const standByWall = (page) => page.evaluate(() => {
   m.props = [];
   refreshFov();
   return { x: state.player.x, y: state.player.y };
-});
+}, at);
 
 (async () => {
   const b = await chromium.launch();
@@ -143,6 +146,59 @@ const standByWall = (page) => page.evaluate(() => {
   check(grave && grave.after > grave.before,
         `밟으면 남은 것을 줍는다 (골드 ${grave && grave.before} → ${grave && grave.after})`);
   check(grave && grave.taken, '한 번 주우면 다시 안 준다');
+
+  /* 모바일에는 N 키가 없다. 버튼이 「할 수 있을 때만」 나타나야 하는데,
+     늘 보이면 자리를 먹고 안 보이면 기능이 통째로 없는 것이 된다. */
+  console.log('\n[ 손가락으로도 된다 ]');
+  const D = await open(b, 'markD');
+  await D.evaluate((f) => { enterFloor(f); UI.closeIntro(); }, floor);
+  await D.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+  await D.waitForTimeout(600);
+
+  const away = await D.evaluate(() => {
+    // 벽에서 떨어진 자리 — 할 일이 없으니 버튼도 없어야 한다
+    const m = state.map;
+    for (let y = 10; y <= 16; y++) for (let x = 16; x <= 24; x++) m.tiles[y][x] = T.FLOOR;
+    state.player.x = 20; state.player.y = 13; state.player.rx = 20; state.player.ry = 13;
+    state.monsters.length = 0; m.props = [];
+    refreshFov(); paintTouch();
+    return { hidden: document.getElementById('t-mark').hidden, act: noteAction() };
+  });
+  check(away.hidden && away.act === null, '할 일이 없으면 버튼이 없다');
+
+  await standByWall(D, { x: 20, y: 18 });     // A 가 붙여 둔 벽과 다른 벽으로
+  const near = await D.evaluate(() => {
+    paintTouch();
+    return { hidden: document.getElementById('t-mark').hidden,
+             label: document.getElementById('t-mark').textContent };
+  });
+  check(!near.hidden && near.label === '남기기', `벽 앞에 서면 나타난다 (${near.label})`);
+
+  // 벽으로 걸어 들어가면 귀띔한다 — 창은 뜨지 않아야 한다
+  const bump = await D.evaluate(() => {
+    const hints = () => [...document.querySelectorAll('#log div')]
+      .filter(d => /벽이 손에 닿습니다/.test(d.textContent)).length;
+    const p = state.player;              // standByWall 이 이미 벽 아래에 세워 두었다
+    playerAction('up', 'move');          // 벽으로 걸어 들어간다
+    const first = hints();
+    playerAction('up', 'move');          // 한 번 더 — 또 말하면 잔소리다
+    return { first, second: hints(), modal: UI.campOpen(),
+             wall: tileAt(state.map, p.x, p.y - 1) === T.WALL };
+  });
+  check(bump.wall && bump.first === 1, '벽으로 걸어 들어가면 남길 수 있다고 알려준다');
+  check(!bump.modal, '그렇다고 창이 뜨지는 않는다 — 길 찾다 부딪히는 일이 잦다');
+  check(bump.second === 1, `귀띔은 한 층에 한 번뿐 (${bump.second}번 적혔다)`);
+
+  const tapped = await D.evaluate(async () => {
+    document.querySelector('[data-act="mark"]').click();
+    const opened = UI.campOpen();
+    UI.campPickIndex(1); UI.campPickIndex(0);
+    await new Promise(r => setTimeout(r, 600));
+    return { opened, hidden: document.getElementById('t-mark').hidden,
+             mine: Marks.list.filter(m => m.mine).length };
+  });
+  check(tapped.opened && tapped.mine === 1, '버튼을 눌러 남긴다');
+  check(tapped.hidden, '남기고 나면 버튼이 스스로 물러난다');
 
   console.log('\n[ 서버가 없어도 판은 돈다 ]');
   const off = await chromium.launch();

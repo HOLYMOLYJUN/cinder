@@ -141,6 +141,7 @@ function enterFloor(depth) {
   state.floorTag = tag;
   Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
   Marks.enterFloor(depth);       // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다)
+  state.noteHinted = false;      // 벽에 부딪혔을 때의 귀띔은 층마다 한 번
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
@@ -390,7 +391,19 @@ function playerAction(dir, intent) {
     return;
   }
 
-  if (!isWalkable(state.map, tx, ty)) return;  // 벽 — 턴 낭비 없음
+  if (!isWalkable(state.map, tx, ty)) {        // 벽 — 턴 낭비 없음
+    /* 부딪힌 그 벽이 마침 긁을 수 있는 벽이면 알려준다.
+       위로 부딪혔다는 것은 곧 「벽 바로 아래에 서 있다」는 뜻이라 조건이 정확히 겹친다.
+       창을 띄우지는 않는다 — 길 찾다 벽에 부딪히는 일은 너무 잦아서,
+       그때마다 모달이 뜨면 남기는 재미가 아니라 치우는 일이 된다.
+       한 층에 한 번만 말한다. */
+    if (dir === 'up' && !state.noteHinted && noteAction() === 'write') {
+      state.noteHinted = true;
+      UI.log('벽이 손에 닿습니다. ' + (touchMode() ? '「남기기」' : 'N') +
+             ' — 다음 사람에게 한 마디 남길 수 있습니다.', 'sys');
+    }
+    return;
+  }
 
   p.x = tx; p.y = ty;
   Sound.play('step');
@@ -813,7 +826,29 @@ function readNoteHere() {
   m.read = true;
   UI.log('벽에 누군가 긁어 둔 말이 있습니다.', 'sys');
   UI.log('「' + Marks.text(m) + '」', 'hit');
-  if (!m.mine) UI.log('끄덕이려면 N' + (m.nods ? ' — ' + m.nods + '명이 이미 끄덕였습니다.' : ''), 'sys');
+  // 손가락에게 없는 키를 알려주면 안 된다. 있는 것의 이름을 부른다.
+  if (!m.mine) UI.log('끄덕이려면 ' + (touchMode() ? '「끄덕」' : 'N') +
+                      (m.nods ? ' — ' + m.nods + '명이 이미 끄덕였습니다.' : ''), 'sys');
+}
+
+/* 지금 조작부가 버튼인가 키보드인가. 안내 문구가 없는 키를 가리키지 않도록.
+   style.css 의 터치 조작이 열리는 조건과 같은 문장을 쓴다 — 둘이 갈라지면
+   버튼은 안 보이는데 「버튼을 누르세요」라고 적히게 된다. */
+function touchMode() {
+  try { return matchMedia('(hover: none) and (pointer: coarse)').matches; }
+  catch (e) { return false; }
+}
+
+/* 지금 이 자리에서 흔적으로 할 수 있는 일 — 없으면 null.
+   키보드는 N 을 눌러보면 알지만 손가락은 눌러볼 버튼이 없다.
+   그래서 「할 수 있는가」를 한 군데서 답하고, 모바일 버튼이 이걸 보고 나타난다. */
+function noteAction() {
+  if (!Marks.on() || !state.running || !state.player.alive) return null;
+  const p = state.player;
+  const m = Marks.noteNear(p.x, p.y);
+  if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
+  if (Marks.wroteThisFloor) return null;
+  return tileAt(state.map, p.x, p.y - 1) === T.WALL ? 'write' : null;
 }
 
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
@@ -828,6 +863,7 @@ function noteKey() {
     Marks.nod(m);
     Sound.play('good' in Sound ? 'good' : 'gearCommon');
     UI.log('끄덕였습니다. 쓴 사람이 다음에 올라올 때 알게 됩니다.', 'good');
+    paintTouch();                 // 턴을 쓰지 않으므로 버튼은 여기서 직접 거둔다
     return;
   }
   if (m && m.mine) { UI.log('당신이 남긴 말입니다.', 'sys'); return; }
@@ -870,6 +906,7 @@ function writeNote(a, b) {
                     a: a, b: b, by: Marks.who(), nods: 0, mine: true, read: true });
   Sound.play('key');
   UI.log('벽에 「' + noteText(a, b) + '」라고 긁어 두었습니다.', 'good');
+  paintTouch();
 }
 
 /* 하수도 층의 형광 이끼. 밟으면 1 깎인다.
@@ -1819,6 +1856,14 @@ function paintTouch() {
     aim.textContent = '원거리';
   }
   if (ember) ember.classList.toggle('locked', !MEM.has('douse'));
+
+  // 흔적 — 할 수 있는 순간에만 나타나고, 그때 할 일을 그대로 이름으로 단다
+  const mark = document.getElementById('t-mark');
+  if (mark) {
+    const act = noteAction();
+    mark.hidden = !act;
+    if (act) mark.textContent = act === 'nod' ? '끄덕' : '남기기';
+  }
 }
 
 function setupTouch() {
@@ -1841,6 +1886,7 @@ function setupTouch() {
       // 스스로 겨누게 된 뒤로는 방향을 물을 이유가 없다.
       case 'aim': playerAction(null, 'ranged'); break;
       case 'ember': toggleEmber(); break;
+      case 'mark': noteKey(); break;
       case 'codex': UI.showCodex('keys'); break;
     }
     paintTouch();
