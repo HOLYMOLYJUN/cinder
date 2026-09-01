@@ -1153,6 +1153,15 @@ npm run app:sync       # 위 + android/ 로 옮기기
 npm run app:open       # Android Studio 로 열기
 ```
 
+**저장소 경로에 한글이 있으면 안 된다.** 윈도우에서 안드로이드 Gradle 플러그인이
+경로의 비ASCII 문자를 보면 빌드를 아예 거부한다 (`Your project path contains
+non-ASCII characters`). `C:\Users\...\Desktop\개인\game\cinder` 같은 자리에 두면
+여기서 막힌다 — `C:\dev\cinder` 처럼 영문·숫자만 있는 자리로 옮겨야 한다.
+`gradle.properties` 에 `android.overridePathCheck=true` 를 넣어 끌 수도 있지만,
+구글이 「윈도우에서 실패할 가능성이 높다」고 붙여 둔 검사라 권하지 않는다.
+옮긴 뒤에도 이상하면 `android/.gradle` 과 `android/app/build` 를 지우고 다시 연다 —
+옛 경로가 캐시에 남는다.
+
 **`build` 라는 이름의 스크립트를 만들면 안 된다.** 버셀은 그 이름 하나만 보고
 「빌드하는 프로젝트」로 판단한 뒤, 끝나고 나서 `public/` 같은 출력 폴더를 찾다가
 없으면 배포를 통째로 실패시킨다. 이 저장소는 `index.html` 이 곧 사이트인 정적
