@@ -153,9 +153,7 @@ function enterFloor(depth) {
   });
   state.floorTag = tag;
   Render.setBiome(depth);        // 배경을 이 층 것으로 갈아 끼운다
-  // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다).
-  // state.map 은 아직 지난 층이라 이번 지도를 직접 넘긴다 — 길잡이가 이걸 보고 자리를 잡는다
-  Marks.enterFloor(depth, map);
+  Marks.enterFloor(depth);       // 남이 지나간 자리를 받아 온다 (없어도 그냥 돈다)
   state.noteHinted = false;      // 벽에 부딪혔을 때의 귀띔은 층마다 한 번
   state.noteReady = false;
   state.wallBump = null;
@@ -904,7 +902,6 @@ function noteAction() {
   if (!state.running || !state.player.alive) return null;
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
-  // 길잡이는 탑이 스스로 남긴 것이라 서버가 없어도 거기 있다. 끄덕임도 마찬가지다.
   if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
   if (!Marks.on() || Marks.wroteThisFloor) return null;
   return bumpedWall() ? 'write' : null;
@@ -913,10 +910,9 @@ function noteAction() {
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
    같은 키에 둘을 묶은 이유는 하나다: 벽 앞에 섰을 때 할 일이 그 둘뿐이다. */
 function noteKey() {
+  if (!Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
   const p = state.player;
   const m = Marks.noteNear(p.x, p.y);
-  // 남기는 것만 서버가 필요하다 — 읽고 끄덕이는 것은 길잡이만으로도 성립한다
-  if (!m && !Marks.on()) { UI.log('여기서는 벽에 남길 수 없습니다.', 'sys'); return; }
 
   if (m && !m.mine) {
     if (Marks.nodded.has(m.id)) { UI.log('이미 끄덕였습니다.', 'sys'); return; }

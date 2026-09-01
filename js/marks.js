@@ -90,9 +90,9 @@ const Marks = {
 
      날짜가 열쇠에 들어간다. 탑이 매일 새로 서므로 어제의 좌표는 오늘
      지형에서 아무 뜻도 없다 — 날짜를 안 섞으면 흔적이 벽 속에 박힌다.
-     대신 아침마다 층이 비므로, 길잡이는 서버가 아니라 이쪽에서 채운다. */
-  async enterFloor(depth, map) {
-    this.list = Guide.forFloor(depth, state.day, map);
+     그 대신 아침마다 층이 빈 채로 시작한다. 사람이 지나가야 채워진다. */
+  async enterFloor(depth) {
+    this.list = [];
     this.wroteThisFloor = false;
     if (!this.on()) return;
     try {
@@ -134,11 +134,9 @@ const Marks = {
   },
 
   async nod(m) {
-    if (!m || m.mine || this.nodded.has(m.id)) return false;
+    if (!this.on() || !m || m.mine || this.nodded.has(m.id)) return false;
     this.nodded.add(m.id);
     m.nods = (m.nods || 0) + 1;
-    // 길잡이는 탑이 남긴 말이라 서버에 셀 것이 없다. 끄덕임은 화면에서만 산다.
-    if (!this.on() || m.guide) return true;
     try {
       await fetch(this.url('/nod'), {
         method: 'POST',

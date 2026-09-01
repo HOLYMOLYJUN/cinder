@@ -150,7 +150,7 @@ const standByWall = (page, at) => page.evaluate((at) => {
   await B.waitForTimeout(600);
   await standByWall(B);
   const seen = await B.evaluate((s) => {
-    const m = Marks.list.find(v => v.kind === 'note' && !v.guide && v.x === s.x && v.y === s.y - 1);
+    const m = Marks.noteNear(s.x, s.y);
     return m ? { text: Marks.text(m), mine: m.mine, nods: m.nods } : null;
   }, spot);
   check(seen && /함정/.test(seen.text), `남이 남긴 말이 보인다 — 「${seen && seen.text}」`);
@@ -278,13 +278,9 @@ const standByWall = (page, at) => page.evaluate((at) => {
     enterFloor(4); UI.closeIntro();
     await new Promise(r => setTimeout(r, 500));
     playerAction('right', 'move');
-    return { running: state.running,
-             fromServer: Marks.list.filter(m => !m.guide).length,
-             guide: Marks.list.filter(m => m.guide).length };
+    return { running: state.running, marks: Marks.list.length };
   });
-  check(alone.running && alone.fromServer === 0, '흔적을 못 받아도 그대로 논다');
-  // 길잡이는 서버를 안 탄다. 서버가 죽어도 층이 텅 비지는 않는다
-  check(alone.guide > 0, `서버가 끊겨도 탑이 남긴 길잡이는 있다 (${alone.guide}장)`);
+  check(alone.running && alone.marks === 0, '흔적을 못 받아도 그대로 논다');
   check(errs.length === 0, '에러도 안 난다' + (errs.length ? ': ' + errs[0] : ''));
   await off.close();
 

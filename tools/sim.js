@@ -98,7 +98,7 @@ ctx.Render = {
 /* ---------- 게임 코드 ---------- */
 
 const FILES = ['js/config.js','js/util.js','js/sound.js','js/map.js','js/fov.js','js/actors.js',
-               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/guide.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
+               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
 for (const f of FILES) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
