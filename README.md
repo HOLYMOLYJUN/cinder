@@ -1383,6 +1383,7 @@ node tools/test-credits.js  # 크레딧 — 결말 다음에 흐르고, 빨리 �
 node tools/test-story.js    # 되짚기 — 결말보다 먼저 흐르는지, 기억 0개로도 다 보이는지,
                             #          그리고 리자드의 독
 node tools/test-potion.js   # 물약 — 회복량·소지 한도·주머니가 매대에 나오고 늘어나는지
+node tools/test-fit.js      # 작은 폰에서 고르는 창이 잘리지 않는지 — 나가는 줄이 특히
 node tools/test-reach.js    # 무기 갈래 — 검이 셋을 쓸고, 창이 두 칸을 찌르고,
                             #             도끼는 앞만, 단검은 독을 바르는지
 node tools/test-chat.js     # 확성기 — 탭 두 개로 주고받기, 링크 초대, 대화 지우기,
