@@ -249,6 +249,45 @@ const Chat = {
         }
       };
 
+      /* ---------- 진단 줄 ----------
+
+         주소에 ?kb=1 을 붙이면 값이 화면 위에 뜬다. 폰에서만 나는 문제를
+         세 번 연속 헛짚었기 때문에 넣는다 — 브라우저가 주는 숫자를 짐작으로
+         맞추는 것보다 한 번 보고 고치는 것이 빠르다.
+
+         평소에는 만들지도 않는다. 붙여 두면 언젠가 켜진 채로 나간다. */
+      if (/[?&]kb=1/.test(location.search)) {
+        const box = document.createElement('div');
+        box.style.cssText = 'position:fixed;left:0;top:0;z-index:9999;' +
+          'background:rgba(0,0,0,.82);color:#E9954A;font:11px/1.45 monospace;' +
+          'padding:6px 8px;white-space:pre;pointer-events:none';
+        document.body.appendChild(box);
+        const paint = () => {
+          const cs = getComputedStyle(root);
+          const R = id => {
+            const el = document.getElementById(id);
+            if (!el) return '-';
+            const q = el.getBoundingClientRect();
+            return Math.round(q.top) + '~' + Math.round(q.bottom);
+          };
+          box.textContent = [
+            'inner ' + window.innerHeight + '  vv ' + Math.round(vv.height) +
+            '  off ' + Math.round(vv.offsetTop) + '  scrollY ' + Math.round(window.scrollY),
+            '--kb ' + cs.getPropertyValue('--kb').trim() +
+            '  --vvh ' + cs.getPropertyValue('--vvh').trim() +
+            '  kb-up ' + root.classList.contains('kb-up'),
+            'app ' + R('app') + '  chat ' + R('chat'),
+            'view ' + R('view') + '  log ' + R('log') + '  touch ' + R('touch-row'),
+          ].join('\n');
+        };
+        vv.addEventListener('resize', paint);
+        vv.addEventListener('scroll', paint);
+        document.addEventListener('focusin', paint);
+        window.addEventListener('scroll', paint);
+        setInterval(paint, 250);
+        paint();
+      }
+
       vv.addEventListener('resize', sync);
       vv.addEventListener('scroll', sync);
       /* 손이 칸에 닿는 순간에도 본다. 키보드가 다 올라오기 전이라 아직 높이가
