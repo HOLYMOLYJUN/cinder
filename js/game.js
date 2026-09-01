@@ -1228,9 +1228,19 @@ function forgeMax() {
   return currentHero().forgeMax || FORGE_MAX_BASE;
 }
 
+/* 손볼수록 오르되, 두 배씩은 아니다.
+
+   처음에는 (기본 44 + 층×5) × 2^횟수 였다. 6층 무기가 74 → 148 → 296 —
+   몬스터가 한 마리에 2~12 골드를 주는 경제에서 두 번째부터는 사실상 못 산다.
+   물약(17~20)과 주머니(60)와도 경쟁해야 하는 돈이다. 첫 두드림이 「살까 말까」,
+   세 번째가 「모아서 갈까」 여야지, 첫 번째부터 「못 사는 것」이면 대장간은
+   지나가는 배경이 된다. 드워프는 다섯 번이 정체성인데 5회차가 천 골드를 넘었다.
+
+   지금: 6층 무기 46 → 74 → 118. 드워프의 4·5회차는 189 → 302 인데
+   할인(0.7)이 걸리면 132 → 211 — 후반에 모아서 닿는 값이다. */
 function forgePrice(kind, times) {
-  const base = { weapon: 44, armor: 38, trinket: 32 }[kind] || 38;
-  return Math.round((base + state.depth * 5) * Math.pow(2.0, times || 0));
+  const base = { weapon: 28, armor: 24, trinket: 20 }[kind] || 24;
+  return Math.round((base + state.depth * 3) * Math.pow(1.6, times || 0));
 }
 
 // 이 장비를 몇 번 손봤는가. 장비에 직접 붙여 두므로 이어하기에 그냥 실려 간다.
