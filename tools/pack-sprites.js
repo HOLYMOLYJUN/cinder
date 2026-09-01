@@ -152,6 +152,8 @@ Object.assign(MANIFEST, {
 
   /* 물약 — 큰 병이 작은 아이콘으로 줄여도 형태가 남는다 */
   'potion':     one('flask_big_red'),
+  // 물약 주머니 — 팩에 자루 그림이 없어 make-icons.js 가 같은 격자로 그린 것을 쓴다
+  'pouch':      one('icon_pouch'),
   'potionIcon': one('flask_big_red'),
 
   /* 화살 — 활이 쏘는 투사체. 그림은 위를 보고 있고, 그리는 쪽에서 돌린다 */

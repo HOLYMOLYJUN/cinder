@@ -115,6 +115,28 @@ const BOOTS = [                         // 장화 — 발목에 커프스, 바�
   '................',
 ];
 
+/* 물약 주머니 — 목을 끈으로 조인 가죽 자루.
+   자루만 그리면 16px 에서 감자로 읽힌다. 위쪽을 좁혀 목을 만들고 끈을 한 줄 둘러야
+   「무엇을 담는 것」이 된다. 아래를 넓히는 것은 담긴 무게를 보이게 하려는 것이다. */
+const POUCH = [
+  '................',
+  '......oooo......',
+  '.....oHXXso.....',
+  '.....oHXXso.....',
+  '....ooHXXsoo....',
+  '...oYYYYYYYYo...',   // 목을 조인 끈
+  '...oyyyyyyyyo...',
+  '..oHHXXXXXXsso..',
+  '.oHHXXXXXXXXsso.',
+  '.oHHXXXXXXXXsso.',
+  '.oHHXXXXXXXXsso.',
+  '.oHHXXXXXXXXsso.',
+  '..oHXXXXXXXXso..',
+  '..osssssssssso..',
+  '...oooooooooo...',
+  '................',
+];
+
 const AMULET = [                        // 목걸이 — 끈과 매달린 것
   '................',
   '...oo......oo...',
@@ -242,6 +264,9 @@ const ICONS = {
   // 밝은 면이 넓어졌으므로 하이라이트에 흰색을 쓰면 붉은색과 줄무늬로 읽힌다. 주황으로 한 칸만 올린다.
   icon_ring_red:   [RING, { X: 'R', H: 'E', s: 'r' }],
   icon_ring_ember: [RING, { X: 'E', H: 'F', s: 'e' }],
+
+  // 가죽 자루에 금빛 끈. 매대에서 물약(붉은 유리) 바로 아래 놓이므로 재질이 갈려야 한다.
+  icon_pouch: [POUCH, { X: 'L', H: 'l', s: 'k' }],
 
   icon_staff_ash: [STAFF_ASH, { X: 'C', H: 'b' }],   // E/F 는 그대로 불씨 색
   icon_bow_ash:   [BOW_ASH, {}],                     // 색을 직접 적었으므로 바꿔 낄 것이 없다

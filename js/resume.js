@@ -46,6 +46,7 @@ function packRun() {
       depth: state.depth, gold: state.gold, potions: state.potions,
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
+      pouches: state.pouches || 0,   // 산 주머니 — 물약 소지 한도가 여기서 나온다
       hasKey: state.hasKey, chill: state.chill, burn: state.burn,
       ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       // 곁에 있는 것. 스탯과 불씨 반경이 여기 달려 있어서 빠뜨리면 조용히 약해진다
@@ -139,6 +140,7 @@ function loadRun(d, opts) {
   state.kills = d.kills; state.turns = d.turns; state.ember = d.ember;
   // 레벨은 스탯을 다시 세우기 전에 넣어야 recalcStats 가 제대로 계산한다
   state.level = d.level || 1; state.xp = d.xp || 0;
+  state.pouches = d.pouches || 0;
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
   state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
   // 배경은 층에서 정해지므로 따로 저장하지 않는다. 다만 다시 세워 주지 않으면

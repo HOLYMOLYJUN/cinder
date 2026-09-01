@@ -20,6 +20,7 @@ const state = {
   fovRadius: CFG.FOV_RADIUS,
   gold: 0,
   potions: 1,
+  pouches: 0,              // 산 물약 주머니 수 — 소지 한도를 늘린다
   kills: 0,
   turns: 0,
   awaitingInput: false,
@@ -50,7 +51,25 @@ const state = {
   xp: 0,                  // 다음 레벨까지 모은 경험치
 };
 
-const POTION_MAX = 10;     // 물약 소지 한도
+/* 물약. 예전에는 한 병에 18을 채우고 열 병까지 들었다 — 합쳐서 180이라
+   웬만한 사람의 그릇 세 배였고, 그래서 「위험하다」가 「물약 마신다」로 끝났다.
+   회복량과 한도를 같이 줄인다. 둘 중 하나만 줄이면 나머지가 메운다. */
+const POTION_HEAL = 8;      // 한 병이 채우는 체력
+const POTION_MAX_BASE = 5;  // 맨몸으로 들 수 있는 병 수
+
+/* 주머니를 사면 더 들 수 있다. 한도를 그냥 낮춰만 두면 후반에 골드를 쓸 데가
+   장비뿐이라 상점이 「살 게 없는 층」이 되는데, 여기가 그 자리를 메운다 —
+   물약을 더 드는 것과 장비를 하나 더 두드리는 것이 경쟁하게 된다. */
+const POUCH_GAIN = 2;       // 주머니 하나에 늘어나는 병 수
+const POUCH_MAX  = 2;       // 주머니 상한 — 5 → 9 까지만
+
+function potionMax() {
+  return POTION_MAX_BASE + (state.pouches || 0) * POUCH_GAIN;
+}
+function pouchPrice() {
+  // 두 번째가 눈에 띄게 비싸야 「하나로 족한가」를 한 번 묻게 된다
+  return [60, 130][state.pouches || 0] || 999;
+}
 
 const held = new Set();     // 지금 눌려 있는 모디파이어 키
 const modUsed = new Set();  // 그 키가 방향과 함께 쓰였는가
@@ -75,6 +94,7 @@ function startRun() {
   state.depth = 1;
   state.gold = 0;
   state.potions = 2;
+  state.pouches = 0;
   state.kills = 0;
   state.turns = 0;
   state.pendingGear = null;
@@ -269,6 +289,11 @@ function enterFloor(depth) {
     state.shopStock = rollShopStock(depth + 2, state.player, 3);
     // 물약은 여러 개 사 갈 수 있어야 한다. 한 병만 파는 상인은 상인이 아니다.
     state.shopStock.push({ kind: 'potion', price: 14 + depth, stock: 8, sold: false });
+    /* 물약 주머니 — 소지 한도를 늘린다. 상한까지 샀으면 아예 안 내놓는다,
+       살 수 없는 줄이 매대에 남아 있으면 그건 물건이 아니라 잔소리다. */
+    if ((state.pouches || 0) < POUCH_MAX) {
+      state.shopStock.push({ kind: 'pouch', price: priceFor(pouchPrice()), stock: 1, sold: false });
+    }
   }
 
   state.map = map;
@@ -470,7 +495,7 @@ function onPlayerEnter(x, y) {
       UI.log('골드 ' + josa(it.amount, '을', '를') + ' 주웠습니다.', 'good');
       if (state.gold >= 200) unlockAch('rich');
     } else if (it.type === 'potion') {
-      if (state.potions >= POTION_MAX) {
+      if (state.potions >= potionMax()) {
         UI.log('물약을 더 들 수 없습니다. 그대로 두고 갑니다.', 'sys');
         continue;                       // 바닥에 남겨 둔다
       }
@@ -548,7 +573,7 @@ function drinkPotion() {
   if (p.hp >= p.maxHp) { UI.log('아직 다치지 않았습니다.', 'sys'); return; }
 
   state.potions--;
-  const heal = Math.min(18, p.maxHp - p.hp);
+  const heal = Math.min(POTION_HEAL, p.maxHp - p.hp);
   p.hp += heal;
   Sound.play('potion');
   Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
@@ -1148,8 +1173,10 @@ function rerollShop() {
   /* 물약 줄은 남긴다. 물약은 이 게임에서 유일하게 「언제나 사도 되는 것」이라
      그걸 굴려서 없애 버리면 다시 까는 것이 손해가 되는 판이 생긴다. */
   const potion = state.shopStock.find(e => e.kind === 'potion');
+  const pouch  = state.shopStock.find(e => e.kind === 'pouch' && !e.sold);
   state.shopStock = rollShopStock(state.depth + 2, state.player, 3);
   if (potion) state.shopStock.push(potion);
+  if (pouch) state.shopStock.push(pouch);
 
   Sound.play('buy');
   UI.log('상인이 자루를 뒤집어 새로 늘어놓습니다.', 'sys');
@@ -1298,10 +1325,11 @@ function forgeGear(slot) {
 function buyFromShop(i) {
   const entry = state.shopStock[i];
   if (!entry || entry.sold || state.gold < entry.price) return;
-  if (entry.kind === 'potion' && state.potions >= POTION_MAX) {
-    UI.log('물약은 ' + POTION_MAX + '개까지만 들 수 있습니다.', 'sys');
+  if (entry.kind === 'potion' && state.potions >= potionMax()) {
+    UI.log('물약은 ' + potionMax() + '개까지만 들 수 있습니다.', 'sys');
     return;
   }
+  if (entry.kind === 'pouch' && (state.pouches || 0) >= POUCH_MAX) return;
 
   state.gold -= entry.price;
   Sound.play('buy');
@@ -1316,6 +1344,9 @@ function buyFromShop(i) {
     state.potions++;
     UI.log(entry.sold ? '마지막 물약을 샀습니다.'
                       : '물약을 샀습니다. 상인에게 ' + entry.stock + '개 남았습니다.', 'good');
+  } else if (entry.kind === 'pouch') {
+    state.pouches = (state.pouches || 0) + 1;
+    UI.log('주머니를 샀습니다. 물약을 ' + potionMax() + '개까지 들 수 있습니다.', 'good');
   } else {
     const p = state.player;
     const into = equipSlotFor(entry.gear, p);

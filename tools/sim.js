@@ -111,7 +111,7 @@ for (const f of FILES) {
 const G = vm.runInContext(`({
   state, startRun, enterFloor, playerAction, drinkPotion, resolveGear, buyFromShop,
   monsterAt, isWalkable, blocksSight, DIRS, T, MONSTERS, GEAR, SLOTS, CFG,
-  MEMORIES, ACHIEVEMENTS, BOSSES, isMagicAttack, chebyshev, compareRows, POTION_MAX, tileAt, LV,
+  MEMORIES, ACHIEVEMENTS, BOSSES, isMagicAttack, chebyshev, compareRows, potionMax, tileAt, LV,
   rangedTarget, canRanged, rangedReady, chooseHero, HEROES, isPoisonProp,
 })`, ctx);
 
@@ -234,7 +234,7 @@ function botTurn() {
   // 이미 가득 찬 물약은 주우러 가지 않는다 (바닥에 남으므로 계속 왕복하게 된다)
   const items = m.items.filter(it => reach(it) && !here(it) &&
                                      !(it.type === 'gear' && declined.has(it.gear)) &&
-                                     !(it.type === 'potion' && s.potions >= G.POTION_MAX))
+                                     !(it.type === 'potion' && s.potions >= G.potionMax()))
     .map(it => ({ it, d: dist.get(it.y * m.w + it.x) }))
     .sort((a, b) => a.d - b.d);
   if (items.length && items[0].d <= 14) {

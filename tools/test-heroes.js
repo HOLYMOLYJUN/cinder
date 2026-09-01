@@ -51,9 +51,22 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   });
   check(keeper.key === 'hero.lizard', `최종 보스가 내 그림을 쓴다 (${keeper.boss} → ${keeper.key})`);
 
-  // 물약 한도
-  const cap = await p.evaluate(() => POTION_MAX);
-  check(cap === 10, `물약 한도 ${cap}개`);
+  /* 물약 한도 — 이제 고정값이 아니라 산 주머니만큼 늘어난다.
+     한도만 낮추고 늘릴 길을 안 두면 후반 상점에 살 게 장비뿐이라
+     안식처가 그냥 지나가는 층이 된다. */
+  const pot = await p.evaluate(() => {
+    state.pouches = 0;
+    const base = potionMax();
+    state.pouches = 1; const one = potionMax();
+    state.pouches = POUCH_MAX; const full = potionMax();
+    state.pouches = 0;
+    return { base, one, full, heal: POTION_HEAL, gain: POUCH_GAIN, max: POUCH_MAX };
+  });
+  check(pot.base === 5, `맨몸 물약 한도 ${pot.base}개`);
+  check(pot.heal === 8, `한 병이 채우는 체력 ${pot.heal}`);
+  check(pot.one === pot.base + pot.gain, `주머니 하나에 +${pot.gain} (${pot.base} → ${pot.one})`);
+  check(pot.full === pot.base + pot.gain * pot.max,
+        `주머니는 ${pot.max}개까지 — 끝까지 사도 ${pot.full}개 (예전 10개보다 적다)`);
 
   console.log('\n에러:', errs.length ? errs.join('\n') : '없음');
   if (errs.length) fails++;

@@ -473,8 +473,15 @@ const UI = {
         const ps = typeof SPRITES !== 'undefined' && SPRITES.potion;
         if (ps) icon = `<img class="shop-ico" src="${ps.f[0]}" alt="">`;
         name = '<span class="nm">물약</span>';
-        sub = '<span class="sub">체력 18 회복' +
+        // 회복량은 상수에서 읽는다 — 여기 숫자를 손으로 적어 두면 균형을 만질 때마다 어긋난다
+        sub = `<span class="sub">체력 ${POTION_HEAL} 회복` +
               (entry.sold ? '' : ` · 남은 ${entry.stock}개`) + '</span>';
+      } else if (entry.kind === 'pouch') {
+        const bs = typeof SPRITES !== 'undefined' && SPRITES.pouch;
+        if (bs) icon = `<img class="shop-ico" src="${bs.f[0]}" alt="">`;
+        name = '<span class="nm">물약 주머니</span>';
+        sub = `<span class="sub">들 수 있는 물약 +${POUCH_GAIN} ` +
+              `· 지금 ${potionMax()}개 → ${potionMax() + POUCH_GAIN}개</span>`;
       } else {
         const g = entry.gear;
         const ic = this.gearIcon(g);
