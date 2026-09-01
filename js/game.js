@@ -913,7 +913,7 @@ function openNoteCompose(wall) {
   UI.showCamp(
     NOTE_WORDS.map((w, i) => ({ id: String(i), name: w, desc: '' })),
     (id) => { Marks.pending.word = Number(id); openNoteForm(); },
-    '벽에 무엇을 긁어 두겠습니까.');
+    '벽에 무엇을 긁어 두겠습니까.', '벽에 남긴다');
 }
 
 function openNoteForm() {
@@ -921,7 +921,7 @@ function openNoteForm() {
   UI.showCamp(
     NOTE_FORMS.map((f, i) => ({ id: String(i), name: noteText(i, Marks.pending.word), desc: '' })),
     (id) => writeNote(Number(id), Marks.pending.word),
-    '「' + w + '」 — 어떻게 적겠습니까.');
+    '「' + w + '」 — 어떻게 적겠습니까.', '벽에 남긴다');
 }
 
 function writeNote(a, b) {

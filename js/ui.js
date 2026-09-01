@@ -132,15 +132,30 @@ const UI = {
   /* ---------- 모닥불 선택 ----------
      안식처가 회복소이기만 하면 밟는 것 말고 할 일이 없다.
      같은 자리에서 무엇을 얻을지 고르게 하면 판마다 다른 길이 난다. */
-  showCamp(options, onPick, say) {
+  showCamp(options, onPick, say, title) {
     const box = document.getElementById('camp-choices');
+    // 쪽지도 이 창을 빌려 쓴다. 제목까지 빌리면 벽에 긁는 창에 「모닥불」이라고 뜬다
+    document.getElementById('camp-title').textContent = title || '모닥불';
     document.getElementById('camp-say').textContent =
       say || '불이 아직 살아 있습니다. 무엇에 쓰겠습니까.';
     box.innerHTML = '';
+
+    /* 모닥불은 셋이라 큼직한 카드가 어울리지만, 쪽지 낱말은 열둘이다.
+       같은 틀로 그리면 화면 밖으로 넘쳐서 아래가 잘린다.
+       설명줄이 없는 짧은 것이 여럿이면 격자로 눕힌다 — 고르는 창이지
+       읽는 창이 아니므로 한눈에 다 보이는 편이 낫다. */
+    const compact = options.length > 4 && options.every(o => !o.desc);
+    // 낱말(「함정」)과 문장(「함정을 잊지 마라」)은 같은 폭을 쓸 수 없다.
+    // 좁은 화면에서 문장을 낱말 칸에 넣으면 뒤가 잘려서 무엇을 고르는지 모르게 된다.
+    const wide = compact && options.some(o => String(o.name).length > 6);
+    box.className = 'ending-choices' + (compact ? ' camp-grid' : '') + (wide ? ' wide' : '');
+
     options.forEach((o, i) => {
       const b = document.createElement('button');
       b.className = 'ending-pick' + (o.disabled ? ' locked' : '');
-      b.innerHTML = `<b>${o.name} <span class="k">${i + 1}</span></b><span>${o.desc}</span>`;
+      // 숫자키는 아홉까지다. 없는 키를 적어 두면 눌러 보고 안 되는 것보다 나쁘다
+      const key = i < 9 ? ` <span class="k">${i + 1}</span>` : '';
+      b.innerHTML = `<b>${o.name}${key}</b>` + (o.desc ? `<span>${o.desc}</span>` : '');
       if (o.disabled) b.disabled = true;
       else b.addEventListener('click', () => onPick(o.id));
       box.appendChild(b);
