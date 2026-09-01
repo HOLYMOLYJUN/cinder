@@ -53,9 +53,12 @@ captures/
 .idea/navEditor.xml
 
 # Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# 서명 키는 절대 저장소에 들어가면 안 된다. 공개 저장소에 한 번 올라가면
+# 히스토리에서 지우기도 번거롭고, 지웠어도 이미 새어 나간 것으로 봐야 한다.
+# (애초에 저장소 **바깥**에 두는 것이 맞다. 이건 실수로 안에 들어왔을 때의 그물이다)
+*.jks
+*.keystore
+keystore.properties
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

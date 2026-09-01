@@ -10,5 +10,10 @@ assets/icons/_*.png
 # 검사가 남기는 스크린샷
 tools/shots/
 
+# 서명 키 — 저장소 바깥에 두는 것이 맞지만, 실수로 들어왔을 때를 위한 그물
+*.jks
+*.keystore
+keystore.properties
+
 .DS_Store
 Thumbs.db
