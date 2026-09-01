@@ -6,7 +6,8 @@
     "build:app": "node build.js --app",
     "app:sync": "node build.js --app && cap sync android",
     "app:open": "cap open android",
-    "app:icons": "node tools/make-app-icon.js && capacitor-assets generate --android --assetPath assets/app"
+    "app:icons": "node tools/make-app-icon.js && capacitor-assets generate --android --assetPath assets/app",
+    "app:shots": "node tools/make-store-shots.js"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.1",
