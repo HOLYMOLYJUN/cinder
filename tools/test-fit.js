@@ -373,24 +373,28 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       };
       Chat.keyboard.bind();
 
-      const kbTop = 852 - 336;                 // 키보드 윗선
+      /* 판 아래끝은 **보이는 창의 아래끝**에 와야 한다.
+         iOS 가 창을 t 만큼 끌어내렸으면 보이는 창은 레이아웃의 t ~ t+h 자리다.
+         그래서 기대값도 t 만큼 내려간다 — 이걸 t 와 무관한 값으로 적으면
+         「끌어내린 것을 되밀었는가」를 재는 것이 아니라 안 되민 것을 재게 된다. */
       const shot = async (h, t) => {
         H = h; T = t;
         on.forEach(f => f());
         await new Promise(r => setTimeout(r, 80));
-        return Math.round(document.getElementById('chat').getBoundingClientRect().bottom);
+        return { got: Math.round(document.getElementById('chat').getBoundingClientRect().bottom),
+                 want: t + h };
       };
       return {
-        kbTop,
         plain: await shot(516, 0),             // 키보드만 올라옴
-        pushed: await shot(516, 316),          // iOS 가 화면을 밀어 올린 상태
+        pushed: await shot(516, 316),          // iOS 가 보이는 창을 끌어내린 상태
         down: await shot(852, 0),              // 내려감
       };
     });
-    check(r.plain === r.kbTop, `판이 키보드 위에 앉는다 (아래끝 ${r.plain} = ${r.kbTop})`);
-    check(r.pushed === r.kbTop,
-          `화면이 밀려 올라가도 같은 자리다 (아래끝 ${r.pushed} = ${r.kbTop})`);
-    check(r.down === 852, `내려가면 바닥으로 돌아온다 (${r.down})`);
+    check(r.plain.got === r.plain.want,
+          `판이 키보드 위에 앉는다 (아래끝 ${r.plain.got} = ${r.plain.want})`);
+    check(r.pushed.got === r.pushed.want,
+          `창을 끌어내려도 보이는 창 아래끝에 온다 (${r.pushed.got} = ${r.pushed.want})`);
+    check(r.down.got === r.down.want, `내려가면 바닥으로 돌아온다 (${r.down.got})`);
     await p.close();
   }
 

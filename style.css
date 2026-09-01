@@ -47,6 +47,22 @@ html, body {
    가운데로 다시 선다. (--vvh 는 js/chat.js 의 keyboard 가 재서 준다) */
 :root.kb-up #app { height: var(--vvh, 100dvh); }
 
+/* iOS 가 끌어내린 만큼 되민다.
+
+   html·body 가 overflow:hidden 이므로 문서는 스크롤되지 않는다. 그런데도
+   화면이 위로 올라가는 것은, iOS 가 문서가 아니라 **보이는 창 자체를
+   끌어내리기** 때문이다(visualViewport.offsetTop). 그래서 window.scrollY 는
+   언제나 0 이고 scrollTo 는 아무 일도 안 한다 — 여기를 헛짚어 세 번을 돌았다.
+
+   보이는 창이 레이아웃의 offsetTop 자리에 와 있으므로, 그만큼 아래로 옮겨
+   그리면 다시 눈앞에 온다. 확성기 판과 여는 단추는 #app 바깥이라 따로 적는다.
+   transform 은 다시 그리기만 하고 배치를 안 건드려서 번쩍이지 않는다. */
+:root.kb-up #app,
+:root.kb-up .chat,
+:root.kb-up .chat-tab {
+  transform: translateY(var(--vvtop, 0px));
+}
+
 .screen, .overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;

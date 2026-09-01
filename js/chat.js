@@ -145,11 +145,17 @@ const Chat = {
 
      그래서 키보드가 먹은 높이를 직접 잰다:
 
-       레이아웃 높이 − 보이는 높이 − 보이는 창이 밀린 만큼 = 키보드
+       레이아웃 높이 − 보이는 높이 = 키보드
 
      그 값을 --kb 로 내려 주면 CSS 가 판을 키보드 바로 위에 앉힌다.
      --vvh(보이는 창 높이)도 같이 준다 — 남은 높이를 알아야 판이 그 안에서
      줄어들 수 있고, 그래야 던전이 몇 줄이라도 남는다.
+
+     그런데 그것만으로는 모자랐다. html·body 가 overflow:hidden 이라
+     문서는 스크롤되지 않는데도 화면이 위로 올라갔다 —
+     **iOS 는 문서가 아니라 보이는 창 자체를 끌어내린다**(offsetTop).
+     그래서 window.scrollY 는 언제나 0 이고 scrollTo 는 부를 것이 없었다.
+     끌어내린 만큼 --vvtop 으로 되밀어 그린다.
 
      visualViewport 가 없는 브라우저(오래된 것)에서는 아무 일도 안 한다.
      그쪽은 예전과 똑같이 굴 뿐이라 나빠지지 않는다. */
@@ -207,7 +213,7 @@ const Chat = {
          그래서 셋 다 「달라졌을 때만」 쓴다. 픽셀 몇 개짜리 떨림은 무시한다 —
          키보드가 오르내리는 것은 수백 픽셀짜리 사건이라 이 문턱에 안 걸린다. */
       const JITTER = 8;
-      let lastKb = -1, lastVh = -1, lastUp = null;
+      let lastKb = -1, lastVh = -1, lastUp = null, lastTop = -1;
 
       const sync = () => {
         /* 키보드 높이 = 레이아웃 높이 − 보이는 높이.
@@ -231,6 +237,22 @@ const Chat = {
         if (Math.abs(vh - lastVh) > JITTER) {
           lastVh = vh;
           root.style.setProperty('--vvh', vh + 'px');
+        }
+
+        /* iOS 가 창을 끌어내린 만큼 되민다.
+
+           html·body 가 overflow:hidden 이라 **window.scrollY 는 언제나 0 이다.**
+           그런데 화면은 분명히 위로 올라간다 — iOS 가 문서를 스크롤하는 것이
+           아니라 **보이는 창 자체를 끌어내리기** 때문이고, 그 값이 offsetTop 이다.
+           그래서 scrollTo(0,0) 은 한 번도 들은 적이 없다. 부를 것이 없었다.
+
+           되미는 방법은 하나뿐이다. 보이는 창이 레이아웃의 offsetTop 자리에
+           와 있으므로, 화면에 보이게 하려면 그만큼 **아래로 옮겨** 그린다.
+           transform 은 다시 그리기만 하고 배치를 안 건드려서 번쩍이지 않는다. */
+        const top = Math.round(vv.offsetTop);
+        if (top !== lastTop) {
+          lastTop = top;
+          root.style.setProperty('--vvtop', top + 'px');
         }
 
         const up = gap > Chat.keyboard.UP_AT || Chat.keyboard.typing();
@@ -275,6 +297,7 @@ const Chat = {
             '  off ' + Math.round(vv.offsetTop) + '  scrollY ' + Math.round(window.scrollY),
             '--kb ' + cs.getPropertyValue('--kb').trim() +
             '  --vvh ' + cs.getPropertyValue('--vvh').trim() +
+            '  --vvtop ' + cs.getPropertyValue('--vvtop').trim() +
             '  kb-up ' + root.classList.contains('kb-up'),
             'app ' + R('app') + '  chat ' + R('chat'),
             'view ' + R('view') + '  log ' + R('log') + '  touch ' + R('touch-row'),
