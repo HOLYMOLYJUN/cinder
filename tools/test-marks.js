@@ -74,6 +74,54 @@ const standByWall = (page, at) => page.evaluate((at) => {
         /을|를/.test(words.samples[3]) && /을|를/.test(words.samples[4]),
         `조사가 낱말을 따라간다: ${words.samples[3]} / ${words.samples[4]}`);
 
+  /* 「위쪽 벽만」이던 시절에는 설 수 있는 칸의 20% 에서만 쓸 수 있었다.
+     나머지 80% 에서는 눌러도 아무 일이 없으므로 기능이 없는 것으로 읽혔다.
+     이 숫자가 다시 떨어지면 같은 일이 반복된다. */
+  console.log('\n[ 쓸 수 있는 자리가 드물지 않다 ]');
+  await A.evaluate((f) => { enterFloor(f); UI.closeIntro(); }, 2);
+  await A.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+  const reach = await A.evaluate(() => {
+    const m = state.map, p = state.player, ox = p.x, oy = p.y;
+    let walk = 0, write = 0;
+    for (let y = 1; y < m.tiles.length - 1; y++)
+      for (let x = 1; x < m.tiles[y].length - 1; x++) {
+        if (!isWalkable(m, x, y)) continue;
+        walk++;
+        p.x = x; p.y = y;
+        if (noteAction() === 'write') write++;
+      }
+    p.x = ox; p.y = oy;
+    // 네 방향 벽에 다 긁을 수 있는가
+    const dirs = { up: 0, left: 0, right: 0, down: 0 };
+    for (const [k, d] of Object.entries({ up: [0,-1], left: [-1,0], right: [1,0], down: [0,1] })) {
+      const w = { x: 5, y: 5 };
+      dirs[k] = NOTE_DIRS.some(v => v.dx === d[0] && v.dy === d[1]) ? 1 : 0;
+    }
+    return { walk, write, pct: write / walk * 100, dirs };
+  });
+  check(reach.pct > 40, `설 수 있는 칸의 ${reach.pct.toFixed(0)}% 에서 쓸 수 있다 (예전 20%)`);
+  check(Object.values(reach.dirs).every(v => v === 1), '네 방향 벽에 다 긁을 수 있다');
+
+  // 남길 수는 있는데 아무도 못 읽는 쪽지가 생기면 안 된다
+  const bothWays = await A.evaluate(() => {
+    const m = state.map, p = state.player;
+    const bad = [];
+    for (let y = 1; y < m.tiles.length - 1; y++)
+      for (let x = 1; x < m.tiles[y].length - 1; x++) {
+        if (!isWalkable(m, x, y)) continue;
+        p.x = x; p.y = y;
+        if (noteAction() !== 'write') continue;
+        const w = noteWall(x, y);
+        // 쓴 자리에서 그 쪽지가 읽혀야 한다
+        Marks.list.push({ id: 'probe', kind: 'note', x: w.x, y: w.y, a: 0, b: 0, nods: 0 });
+        const readable = !!Marks.noteNear(x, y);
+        Marks.list.pop();
+        if (!readable) bad.push([x, y]);
+      }
+    return bad.length;
+  });
+  check(bothWays === 0, '남긴 자리에서 그 쪽지가 읽힌다 — 못 읽는 쪽지는 안 생긴다');
+
   console.log('\n[ 남긴다 ]');
   await A.evaluate((f) => { enterFloor(f); UI.closeIntro(); }, floor);
   await A.waitForFunction(() => state.running === true, null, { timeout: 8000 });

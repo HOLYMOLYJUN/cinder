@@ -108,9 +108,12 @@ const Marks = {
     return this.list.find(m => m.x === x && m.y === y) || null;
   },
 
-  // 벽 쪽지는 그 벽 아래 칸에 서면 읽힌다 (횃불과 같은 조건)
+  /* 벽 쪽지는 그 벽에 손이 닿는 자리에서 읽힌다 — 맞닿은 네 칸 어디서든.
+     쓰는 쪽이 네 방향 벽에 다 긁을 수 있으므로 읽는 쪽도 같아야 한다.
+     한쪽만 넓히면 남길 수는 있는데 아무도 못 읽는 쪽지가 생긴다. */
   noteNear(x, y) {
-    return this.list.find(m => m.kind === 'note' && m.x === x && m.y === y - 1) || null;
+    return this.list.find(m => m.kind === 'note' &&
+                               Math.abs(m.x - x) + Math.abs(m.y - y) === 1) || null;
   },
 
   text(m) { return noteText(m.a, m.b); },

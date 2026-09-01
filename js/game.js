@@ -407,12 +407,11 @@ function playerAction(dir, intent) {
   }
 
   if (!isWalkable(state.map, tx, ty)) {        // 벽 — 턴 낭비 없음
-    /* 부딪힌 그 벽이 마침 긁을 수 있는 벽이면 알려준다.
-       위로 부딪혔다는 것은 곧 「벽 바로 아래에 서 있다」는 뜻이라 조건이 정확히 겹친다.
-       창을 띄우지는 않는다 — 길 찾다 벽에 부딪히는 일은 너무 잦아서,
+    /* 부딪힌 것이 벽이면 알려준다 — 벽에 부딪혔다는 것이 곧 벽 옆에 서 있다는 뜻이다.
+       창을 띄우지는 않는다: 길 찾다 벽에 부딪히는 일은 너무 잦아서,
        그때마다 모달이 뜨면 남기는 재미가 아니라 치우는 일이 된다.
        한 층에 한 번만 말한다. */
-    if (dir === 'up' && !state.noteHinted && noteAction() === 'write') {
+    if (!state.noteHinted && noteAction() === 'write') {
       state.noteHinted = true;
       UI.log('벽이 손에 닿습니다. ' + (touchMode() ? '「남기기」' : 'N') +
              ' — 다음 사람에게 한 마디 남길 수 있습니다.', 'sys');
@@ -857,6 +856,22 @@ function touchMode() {
 /* 지금 이 자리에서 흔적으로 할 수 있는 일 — 없으면 null.
    키보드는 N 을 눌러보면 알지만 손가락은 눌러볼 버튼이 없다.
    그래서 「할 수 있는가」를 한 군데서 답하고, 모바일 버튼이 이걸 보고 나타난다. */
+/* 긁을 벽 — 맞닿은 네 칸 중 벽인 것. 위를 먼저 본다(표지가 제일 잘 보이는 자리다).
+
+   처음에는 위쪽 벽만 쳤다. 그랬더니 설 수 있는 칸의 20% 에서만 쓸 수 있었는데,
+   나머지 80% 에서는 아무 일도 안 일어나므로 「조건이 안 맞는다」가 아니라
+   「이 기능은 없다」로 읽혔다. 벽을 옆에 두고도 못 쓰는 이유를 화면이
+   설명할 방법이 없다면, 그건 설명할 게 아니라 없애야 하는 규칙이다. */
+const NOTE_DIRS = [{ dx: 0, dy: -1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }];
+
+function noteWall(x, y) {
+  for (const d of NOTE_DIRS) {
+    const wx = x + d.dx, wy = y + d.dy;
+    if (tileAt(state.map, wx, wy) === T.WALL) return { x: wx, y: wy };
+  }
+  return null;
+}
+
 function noteAction() {
   if (!state.running || !state.player.alive) return null;
   const p = state.player;
@@ -864,7 +879,7 @@ function noteAction() {
   // 길잡이는 탑이 스스로 남긴 것이라 서버가 없어도 거기 있다. 끄덕임도 마찬가지다.
   if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
   if (!Marks.on() || Marks.wroteThisFloor) return null;
-  return tileAt(state.map, p.x, p.y - 1) === T.WALL ? 'write' : null;
+  return noteWall(p.x, p.y) ? 'write' : null;
 }
 
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
@@ -885,19 +900,16 @@ function noteKey() {
   }
   if (m && m.mine) { UI.log('당신이 남긴 말입니다.', 'sys'); return; }
 
-  // 위가 벽이어야 긁을 수 있다 (횃불이 걸리는 조건과 같다)
-  if (tileAt(state.map, p.x, p.y - 1) !== T.WALL) {
-    UI.log('긁을 벽이 앞에 없습니다.', 'sys');
-    return;
-  }
+  const wall = noteWall(p.x, p.y);
+  if (!wall) { UI.log('긁을 벽이 옆에 없습니다.', 'sys'); return; }
   if (Marks.wroteThisFloor) { UI.log('이 층에는 이미 하나 남겼습니다.', 'sys'); return; }
-  openNoteCompose();
+  openNoteCompose(wall);
 }
 
 /* 두 걸음으로 쓴다 — 낱말을 고르고, 그 낱말이 끼워진 틀을 고른다.
    두 번째 화면에서 완성된 문장이 그대로 보이므로 무엇을 남기는지 헷갈리지 않는다. */
-function openNoteCompose() {
-  Marks.pending = { word: 0 };
+function openNoteCompose(wall) {
+  Marks.pending = { word: 0, wall: wall };
   UI.showCamp(
     NOTE_WORDS.map((w, i) => ({ id: String(i), name: w, desc: '' })),
     (id) => { Marks.pending.word = Number(id); openNoteForm(); },
@@ -914,12 +926,14 @@ function openNoteForm() {
 
 function writeNote(a, b) {
   UI.hideCamp();
-  Marks.pending = null;
   const p = state.player;
+  const wall = (Marks.pending && Marks.pending.wall) || noteWall(p.x, p.y);
+  Marks.pending = null;
+  if (!wall) return;
   Marks.wroteThisFloor = true;
-  Marks.add('note', p.x, p.y - 1, { a: a, b: b });
+  Marks.add('note', wall.x, wall.y, { a: a, b: b });
   // 내 판에도 바로 보이게 — 서버 응답을 기다리면 남긴 실감이 안 난다
-  Marks.list.push({ id: 'mine-' + Date.now(), kind: 'note', x: p.x, y: p.y - 1,
+  Marks.list.push({ id: 'mine-' + Date.now(), kind: 'note', x: wall.x, y: wall.y,
                     a: a, b: b, by: Marks.who(), nods: 0, mine: true, read: true });
   Sound.play('key');
   UI.log('벽에 「' + noteText(a, b) + '」라고 긁어 두었습니다.', 'good');
