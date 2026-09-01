@@ -385,6 +385,7 @@ const UI = {
     const icon = this.gearIcon(gear);
     this.el.gearIconEl.src = icon || '';
     this.el.gearIconEl.hidden = !icon;
+    this.fitIcon(this.el.gearIconEl, gear, 40, 2.5);
     this.el.gearName.className = 'gear-name r-' + gear.rarity;
 
     this.el.gearRows.innerHTML = '';
@@ -485,7 +486,7 @@ const UI = {
       } else {
         const g = entry.gear;
         const ic = this.gearIcon(g);
-        if (ic) icon = `<img class="shop-ico" src="${ic}" alt="">`;
+        if (ic) icon = `<img class="shop-ico" style="${this.iconStyle(g, 26, 1.6)}" src="${ic}" alt="">`;
         name = `<span class="nm r-${g.rarity}">${gearFullName(g)}</span>`;
         const cur = player.gear[equipSlotFor(g, player)];
         const diffs = compareRows(g, cur)
@@ -708,6 +709,31 @@ const UI = {
     if (gear.unknown) return null;      // 그림도 정체를 흘리면 안 된다
     const s = typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
     return s ? s.f[0] : null;
+  },
+
+  /* 도트 그림을 상자에 앉힌다 — **꽉 채우지 않는다.**
+
+     object-fit: contain 은 큰 축을 상자에 꽉 맞춘다. 그러면 6px 짜리 단검은
+     세 배 넘게 부풀고 30px 짜리 창은 겨우 1.3배라, **작은 물건일수록 화면에서
+     더 크고 굵게** 보인다. 상자를 열 때마다 아이콘 크기가 널뛰는 이유가 이것이다.
+
+     배율에 뚜껑(cap)을 씌운다. 크기가 제각각이어도 픽셀 한 칸의 크기가
+     비슷하면 눈은 「같은 세계의 물건들」로 읽는다. */
+  fitIcon(el, gear, box, cap) {
+    if (!el) return;
+    const s = !gear.unknown && typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
+    if (!s || !s.w || !s.h) { el.style.width = ''; el.style.height = ''; return; }
+    const k = Math.min(cap, box / s.w, box / s.h);
+    el.style.width = Math.round(s.w * k) + 'px';
+    el.style.height = Math.round(s.h * k) + 'px';
+  },
+
+  // 상점 줄처럼 문자열로 그리는 곳을 위한 같은 계산
+  iconStyle(gear, box, cap) {
+    const s = !gear.unknown && typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
+    if (!s || !s.w || !s.h) return '';
+    const k = Math.min(cap, box / s.w, box / s.h);
+    return `width:${Math.round(s.w * k)}px;height:${Math.round(s.h * k)}px`;
   },
   gearThumb(gear) {
     const src = this.gearIcon(gear);

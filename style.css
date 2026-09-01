@@ -341,7 +341,7 @@ html, body {
   vertical-align: middle;
 }
 .g-ico { width: 16px; height: 16px; margin-right: 3px; }
-.shop-ico { width: 26px; height: 26px; flex: none; }
+.shop-ico { width: 26px; height: 26px; flex: none; align-self: center; }
 .gear-icon { width: 40px; height: 40px; display: block; margin: 0 auto 4px; }
 /* display:block 이 hidden 속성을 덮어써서, 그림이 없을 때 깨진 이미지가 떴다.
    (그림이 없는 장비, 그리고 정체불명처럼 일부러 안 보여주는 것) */

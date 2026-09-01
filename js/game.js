@@ -1486,9 +1486,15 @@ function poisonMonster(m, turns, amount) {
   // 붙어서 계속 때리는 것이 물러서는 것보다 이득이면 이 특성이 없는 것과 같다.
   m.poison = Math.max(m.poison || 0, turns);
   m.poisonAmount = Math.max(m.poisonAmount || 0, amount);
+  /* 처음 물었을 때는 몬스터 위에 뜬다 — 로그가 아니라.
+
+     독은 첫 타에 이미 묻는데, 처음에는 로그로만 알렸더니 「두 대 때려야
+     발동된다」로 읽혔다. 리자드는 빨라서 느린 몬스터가 제 턴을 쓰기 전에
+     두 번 움직이는 일이 잦고, 독은 몬스터의 턴에 들기 때문에 첫 초록 숫자가
+     늦게 보인다. 무는 순간 그 몸 위에 「독」이 뜨면 오해가 사라진다. */
   if (!m.poisonSaid) {
     m.poisonSaid = true;
-    UI.log(josa(m.name, '이', '가') + ' 독에 물듭니다.', 'good');
+    Render.addFloater(m.x, m.y, '독', COLORS.poison || '#A8E639');
   }
 }
 
@@ -2416,7 +2422,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('credits-close').addEventListener('click', () => UI.hideCredits());
   // 되짚기도 손가락으로 같게
   const story = document.getElementById('story-screen');
-  story.addEventListener('pointerdown', () => Story.setFast(true));
+  // 한 번은 「누르는 동안 빨리」, 두 번 연달아는 「다음 쪽」 — tap 이 가른다
+  story.addEventListener('pointerdown', () => Story.tap());
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
     story.addEventListener(ev, () => Story.setFast(false));
   }

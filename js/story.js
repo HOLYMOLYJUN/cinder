@@ -247,6 +247,27 @@ const Story = {
   // 크레딧과 같은 조작 — 누르고 있으면 빨라진다. 건너뛰지는 않는다.
   setFast(on) { if (this.open()) this.fast = !!on; },
 
+  /* 두 번 두드리면 다음 쪽으로 — **처음 보는 사람도.**
+
+     건너뛰기 단추는 한 번 본 사람에게만 준다(아래 show 참고). 그 판단은
+     그대로 두되, 읽는 속도가 찍히는 속도보다 빠른 사람을 붙잡아 두는 것도
+     벌이다. 다 읽었으면 제 손으로 넘길 수 있어야 한다.
+
+     한 번 두드림은 여전히 「누르는 동안 빨리」다. 두 번째 두드림이
+     350ms 안에 오면 그때 넘긴다 — 첫 두드림의 뜻을 바꾸지 않는 경계값이다. */
+  lastTap: 0,
+  tap() {
+    if (!this.open()) return;
+    const now = performance.now();
+    if (now - this.lastTap < 350) {
+      this.lastTap = 0;                 // 세 번째 두드림이 또 넘기지 않게
+      this.next();
+      return;
+    }
+    this.lastTap = now;
+    this.fast = true;
+  },
+
   resize() {
     if (!this.cv) return;
     const r = this.cv.getBoundingClientRect();
@@ -269,6 +290,10 @@ const Story = {
     const want = Math.floor(((this.t - this.BEAT) * 1000) / this.LINE_MS);
     const now = Math.max(0, Math.min(total, want));
     if (now !== this.typed) {
+      /* 글자가 찍힐 때 타닥거린다. 한 프레임에 몇 글자가 찍히든 소리는
+         한 번만 — 글자마다 내면 소리가 겹쳐 드르륵이 되는데, 어차피
+         Sound 쪽 간격 제한(GAP)이 그 이상은 걸러 준다. */
+      if (now > this.typed && typeof Sound !== 'undefined') Sound.play('type');
       this.typed = now;
       this.paintText(sc, lines);
     }

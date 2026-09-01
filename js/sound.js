@@ -129,6 +129,11 @@ const Sound = {
     const r = () => 0.94 + Math.random() * 0.12;      // 같은 소리도 매번 조금씩 다르게
 
     switch (name) {
+      case 'type':
+        // 되짚기의 글자 타닥임. 아주 작게 — 이야기 밑에 깔리는 소리다.
+        this.noise({ dur: 0.018, freq: 2500 * r(), freqTo: 1300, vol: 0.045, q: 2 });
+        break;
+
       case 'step': {
         /* 챱 — 축축한 바닥을 딛는 소리. 음(tone)으로는 이 소리가 안 난다 —
            「챱」의 정체는 음정이 아니라 **훅 꺼지는 잡음**이라, 밴드패스를
@@ -471,6 +476,7 @@ const Sound = {
 
 // 같은 소리가 이 간격 안에 다시 나면 건너뛴다 (초)
 const GAP = {
+  type: 0.05,
   step: 0.05, hit: 0.04, hurt: 0.05, magic: 0.05, gold: 0.06,
   kill: 0.06, bossWarn: 0.4, bossHit: 0.3, memory: 1, death: 1,
   cast: 0.12, spell: 0.1, miss: 0.15, fireball: 0.1, blast: 0.12, key: 0.2, unlock: 0.3,
