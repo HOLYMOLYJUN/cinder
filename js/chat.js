@@ -313,10 +313,18 @@ const Chat = {
 
       vv.addEventListener('resize', sync);
       vv.addEventListener('scroll', sync);
-      /* 손이 칸에 닿는 순간에도 본다. 키보드가 다 올라오기 전이라 아직 높이가
-         0 이어도, 그때부터 접을 것은 접어 두어야 한 번에 자리가 잡힌다. */
-      document.addEventListener('focusin', sync);
-      document.addEventListener('focusout', () => setTimeout(sync, 60));
+      /* 손이 칸에 닿는 순간부터 키보드가 다 올라올 때까지 몇 번 다시 잰다.
+
+         첫 포커스 순간에는 visualViewport 가 아직 옛 값이다 — 키보드는
+         애니메이션으로 올라오는데, 그 사이에 resize 가 안 오는 기기가 있다.
+         그러면 첫 판이 「키보드는 떠 있는데 배치는 안 바뀐」 채로 남고,
+         첫 글자를 치고서야 자리가 잡힌다.
+
+         sync 는 값이 안 바뀌면 아무 일도 안 하므로, 몇 번 더 불러도
+         비용도 번쩍임도 없다. */
+      const settle = () => { sync(); [80, 200, 400, 700].forEach(ms => setTimeout(sync, ms)); };
+      document.addEventListener('focusin', settle);
+      document.addEventListener('focusout', () => setTimeout(settle, 60));
       sync();
     },
   },
@@ -447,8 +455,16 @@ const Chat = {
       this.paintBadge();
       this.clearPeek();          // 판에 같은 말이 있으므로 밖의 한 줄은 거둔다
       this.stick = true;
-      const box = Net.status === 'off' ? this.el.room : this.el.text;
-      if (box && box.offsetParent) box.focus();
+      /* 자판이 있는 곳에서만 바로 포커스를 준다.
+
+         폰에서는 열자마자 포커스를 주면 키보드까지 같이 올라온다 —
+         읽으러 연 사람에게도 화면 절반을 빼앗는 셈이다. 폰에서는 입력칸을
+         직접 두드렸을 때만 키보드가 올라온다. 읽는 것과 쓰는 것은 다른 일이다. */
+      const touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+      if (!touch) {
+        const box = Net.status === 'off' ? this.el.room : this.el.text;
+        if (box && box.offsetParent) box.focus();
+      }
       this.scroll();
     }
   },

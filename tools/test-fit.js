@@ -398,6 +398,59 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
+  /* 방향키를 연달아 누르는 것은 곧 두 번 두드리기다. 그대로 두면 걸을 때마다
+     화면이 확대된다. <meta viewport> 의 user-scalable=no 는 iOS 10 부터
+     무시되므로 touch-action 으로 막아야 한다. */
+  console.log('\n[ 두 번 두드려도 확대되지 않는다 ]');
+  {
+    const p = await b.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2,
+                                isMobile: true, hasTouch: true });
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+    const r = await p.evaluate(() => {
+      UI.closeIntro();
+      const ta = el => el ? getComputedStyle(el).touchAction : '(없음)';
+      const dir = document.querySelector('#touch-pad button');
+      const act = document.querySelector('#touch-acts button');
+      return {
+        body: ta(document.body),
+        dir: ta(dir), act: ta(act),
+        canvas: ta(document.getElementById('view')),
+        tab: ta(document.getElementById('chat-tab')),
+      };
+    });
+    check(r.body === 'manipulation', `화면 전체 (${r.body})`);
+    check(r.dir === 'manipulation', `방향키 (${r.dir})`);
+    check(r.act === 'manipulation', `물약·도감 버튼 (${r.act})`);
+    check(r.tab === 'manipulation', `확성기 단추 (${r.tab})`);
+    // 캔버스는 아예 none — 쓸어 넘기는 것도 막아야 던전이 안 밀린다
+    check(r.canvas === 'none', `던전 화면은 통째로 막는다 (${r.canvas})`);
+
+    /* 끌어서 글자를 고르는 것도 막는다. 다만 글 치는 칸은 예외여야 한다 —
+       특히 초대 링크 칸은 「직접 골라 복사하라」고 내주는 것이라 여기서
+       고르기를 막으면 그 칸이 하는 일이 없어진다. */
+    const sel = await p.evaluate(() => {
+      const us = el => el ? getComputedStyle(el).webkitUserSelect ||
+                            getComputedStyle(el).userSelect : '(없음)';
+      return {
+        body: us(document.body),
+        dir: us(document.querySelector('#touch-pad button')),
+        log: us(document.getElementById('log')),
+        text: us(document.getElementById('chat-text')),
+        link: us(document.getElementById('chat-link')),
+      };
+    });
+    check(sel.body === 'none', `화면 전체는 안 잡힌다 (${sel.body})`);
+    check(sel.dir === 'none', `방향키를 꾹 눌러도 안 잡힌다 (${sel.dir})`);
+    check(sel.log === 'none', `로그도 안 잡힌다 (${sel.log})`);
+    check(sel.text === 'text', `말하는 칸은 잡힌다 (${sel.text})`);
+    check(sel.link === 'text', `초대 링크 칸은 잡힌다 — 골라 복사해야 한다 (${sel.link})`);
+    await p.close();
+  }
+
   await b.close();
   srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
