@@ -92,9 +92,10 @@ const GEAR = [
      그 위에 더 얹을 자리가 없다. 시작 무기는 **그 갈래에서 제일 약한 것**이어야
      한다 — 시작을 정하는 물건이지 앞서게 하는 물건이 아니다.
 
-     주문 7 인 이유는 아래 규칙 때문이다. 기본 공격(5)보다 확실히 높아야
-     다른 사람이 주워도 함정이 안 된다. */
-  { slot:'weapon', kind:'staff', name:'낡은 지팡이', min:1,  rarity:'common',  mod:{ sp:7 } },
+     주문이 4 뿐이라 「주문은 기본 공격(5)보다 높아야 한다」는 아래 규칙에
+     어긋난다 — 그래서 활처럼 only 로 마법사에게만 묶는다. 남에게는 애초에
+     안 나오므로 함정이 될 일이 없고, 마법사는 기본 주문(4)에 얹어 쓴다. */
+  { slot:'weapon', kind:'staff', name:'낡은 지팡이', min:1,  rarity:'common',  mod:{ sp:4 }, only:'wizard' },
   { slot:'weapon', kind:'staff', name:'나무 지팡이', min:2,  rarity:'common',  mod:{ sp:9 } },
   { slot:'weapon', kind:'staff', name:'주술 지팡이', min:5,  rarity:'fine',    mod:{ sp:12, md:1 } },
   { slot:'weapon', kind:'staff', name:'재의 지팡이', min:9,  rarity:'ancient', mod:{ sp:18, md:3 } },

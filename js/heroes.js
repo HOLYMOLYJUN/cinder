@@ -30,7 +30,14 @@ const HEROES = [
        "이 사람은 이걸 든다"는 시작할 때 한 자루와 드랍 무게로 충분하다. */
     startWeapon: '짧은 검',
     likes: ['sword'],
-    base: { atk: 8, sp: 0, def: 3, md: 1, spd: 10, maxHp: 50 },
+    /* 시작 무기(짧은 검 +4)가 얹는 만큼 기본기에서 뺀다 — 시작 무기는
+       시작을 정하는 물건이지 앞서게 하는 물건이 아니다. 실제로 안 뺐더니
+       파이어볼이 4층까지 전부 한 방이었다(마법사 쪽).
+
+       다만 기사는 절반만 뺀다(8 → 6). 통째로 뺐더니 40판에서 클리어 10%
+       까지 무너졌다 — 원거리가 통째로 없는 값을 기본기로 돌려받는 사람이라
+       (위 melee 참고), 그 값까지 무기에 실어 버리면 남는 것이 없다. */
+    base: { atk: 6, sp: 0, def: 3, md: 1, spd: 10, maxHp: 50 },
     grow: { pow: 0.70, maxHp: 4.8, def: 0.40, md: 0.30 },
   },
   {
@@ -49,7 +56,8 @@ const HEROES = [
     note: '처음부터 마법으로 싸운다. 다섯 중 가장 순하다 — 처음 오른다면 이쪽.',
     startWeapon: '낡은 지팡이',
     likes: ['staff'],
-    base: { atk: 3, sp: 8, def: 0, md: 4, spd: 10, maxHp: 30 },
+    // 맨손 4 > 공격 3 — 지팡이를 잃어도 마법사는 마법사다. 합계는 기사 절 참고.
+    base: { atk: 3, sp: 4, def: 0, md: 4, spd: 10, maxHp: 30 },
     grow: { pow: 0.56, maxHp: 2.6, def: 0.12, md: 0.38 },
   },
   {
@@ -80,7 +88,7 @@ const HEROES = [
        세지면 「치고 빠질」 이유가 사라져 그냥 붙어서 팬다. */
     startWeapon: '낡은 단검',
     likes: ['dagger'],
-    base: { atk: 5, sp: 0, def: 3, md: 1, spd: 11, maxHp: 48 },
+    base: { atk: 3, sp: 0, def: 3, md: 1, spd: 11, maxHp: 48 },   // +단검 2 = 5, 예전 그대로. 독이 새 힘이다
     grow: { pow: 0.40, maxHp: 5.0, def: 0.42, md: 0.12 },
   },
   {
@@ -111,7 +119,7 @@ const HEROES = [
     defPerFloor: 0.5,
     startWeapon: '손도끼',
     likes: ['axe'],
-    base: { atk: 8, sp: 0, def: 2, md: 0, spd: 7, maxHp: 46 },
+    base: { atk: 3, sp: 0, def: 2, md: 0, spd: 7, maxHp: 46 },   // +손도끼 5 = 8, 예전 그대로
     grow: { pow: 0.88, maxHp: 5.2, def: 0.30, md: 0.20 },
   },
 ];
