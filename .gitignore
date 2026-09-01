@@ -1,5 +1,9 @@
 node_modules/
 
+# 앱 빌드는 중간 산물이다. npm run build:app 이 언제든 다시 만들고,
+# cap sync 가 android/ 로 옮긴 복사본은 Capacitor 쪽 .gitignore 가 이미 뺀다.
+dist/app/
+
 # 눈으로 확인하려고 뽑는 대조용 그림. 도구가 언제든 다시 만든다.
 assets/icons/_*.png
 

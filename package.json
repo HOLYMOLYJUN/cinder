@@ -1,5 +1,22 @@
 {
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/status-bar": "^8.0.3",
     "playwright": "^1.62.1"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "build:app": "node build.js --app",
+    "app:sync": "node build.js --app && cap sync android",
+    "app:open": "cap open android",
+    "app:icons": "node tools/make-app-icon.js && capacitor-assets generate --android --assetPath assets/app"
+  },
+  "name": "cinder",
+  "private": true,
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
   }
 }

@@ -44,6 +44,11 @@ const Cast = {
     };
     if (!this.el.bar) return;
 
+    /* 확성기가 꺼져 있으면 관전도 없다. 방송을 켜는 버튼이 확성기 창 안에 있고,
+       볼 사람과 붙는 길도 그 소켓이라 반쪽만 살릴 수가 없다.
+       (흔적은 소켓을 안 쓰므로 이것과 상관없이 돈다) */
+    if (!Net.enabled()) return;
+
     Net.on('state', m => this.gotState(m));
     Net.on('over', m => this.gotOver(m));
     Net.on('status', s => { if (s.status !== 'open') this.roomGone(); });

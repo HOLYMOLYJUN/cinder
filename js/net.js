@@ -48,7 +48,9 @@ const Net = {
   /* ---------- 켜져 있는가 ----------
      배포 전에는 NET.HOST 가 비어 있다. 그때는 채팅 자체가 없는 것으로 친다. */
   enabled() {
-    return !!(typeof NET !== 'undefined' && NET.HOST);
+    // CHAT 이 꺼져 있으면 소켓 자체를 열지 않는다. 흔적은 소켓이 아니라
+    // 그냥 HTTP 라서 이것과 무관하게 계속 돈다.
+    return !!(typeof NET !== 'undefined' && NET.HOST && NET.CHAT !== false);
   },
 
   /* 방 이름은 URL 의 일부가 된다. 사람이 불러 줄 수 있는 글자만 남긴다. */

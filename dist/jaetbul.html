@@ -1,7 +1,7 @@
 <title>잿불</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;700&display=swap">
 
 <style>
 /* ===== 잿불 — 프로토타입 스타일 =====
@@ -1147,6 +1147,34 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
 }
 .cast-bar button:hover { background: var(--ember); border-color: var(--ember); }
 
+/* ===== 앱 껍데기 =====
+   Capacitor 로 감쌌을 때만 붙는다(shell.js 가 <html> 에 표를 단다).
+   브라우저에서는 이 규칙들이 통째로 잠들어 있다. */
+
+/* 노치·둥근 모서리·아래쪽 제스처 막대를 피한다.
+
+   화면들이 inset:0 으로 겹쳐 있어서 흐름으로는 밀어낼 수가 없는데,
+   절대 배치는 부모의 «안쪽 상자» 를 기준으로 잡히므로 여기에 여백을 주면
+   안에 겹쳐 둔 화면들이 통째로 함께 들어온다. 한 줄로 끝난다. */
+.in-app #app {
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* 길게 눌렀을 때 글자가 잡히거나 돋보기가 뜨면 앱처럼 안 보인다.
+   글을 넣는 칸만 예외로 둔다 — 거기서까지 막으면 붙여넣기를 못 한다. */
+.in-app, .in-app * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.in-app input, .in-app textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 </style>
 
 <div id="app">
@@ -1532,6 +1560,18 @@ const CFG = {
 
 const NET = {
   HOST:  '',
+
+  /* 확성기와 관전만 따로 끄는 스위치. 흔적(marks)은 그대로 남는다.
+
+     둘 다 HOST 하나에 매달아 두면 앱 빌드에서 곤란해진다 — 스토어는
+     사람이 쓴 글이 남의 화면에 뜨는 순간 신고·차단 기능을 요구하는데,
+     흔적은 서버에 번호만 보내서 그 요구를 애초에 안 받는다.
+     같이 꺼 버리면 문제 없는 쪽까지 잃는다.
+
+     그리고 채팅이 꺼지면 별명을 넣을 자리가 사라지므로, 흔적에 붙는 이름도
+     저절로 「누군가」가 된다. 앱 빌드에는 사람이 쓴 글자가 한 톨도 없다. */
+  CHAT:  true,
+
   PARTY: 'cinder-room',      // wrangler.jsonc 의 바인딩 이름을 kebab-case 로
   PROTO: 1,                  // 프로토콜 판 번호 — 서버와 같아야 한다
 
@@ -6282,7 +6322,9 @@ const Net = {
   /* ---------- 켜져 있는가 ----------
      배포 전에는 NET.HOST 가 비어 있다. 그때는 채팅 자체가 없는 것으로 친다. */
   enabled() {
-    return !!(typeof NET !== 'undefined' && NET.HOST);
+    // CHAT 이 꺼져 있으면 소켓 자체를 열지 않는다. 흔적은 소켓이 아니라
+    // 그냥 HTTP 라서 이것과 무관하게 계속 돈다.
+    return !!(typeof NET !== 'undefined' && NET.HOST && NET.CHAT !== false);
   },
 
   /* 방 이름은 URL 의 일부가 된다. 사람이 불러 줄 수 있는 글자만 남긴다. */
@@ -7150,6 +7192,11 @@ const Cast = {
     };
     if (!this.el.bar) return;
 
+    /* 확성기가 꺼져 있으면 관전도 없다. 방송을 켜는 버튼이 확성기 창 안에 있고,
+       볼 사람과 붙는 길도 그 소켓이라 반쪽만 살릴 수가 없다.
+       (흔적은 소켓을 안 쓰므로 이것과 상관없이 돈다) */
+    if (!Net.enabled()) return;
+
     Net.on('state', m => this.gotState(m));
     Net.on('over', m => this.gotOver(m));
     Net.on('status', s => { if (s.status !== 'open') this.roomGone(); });
@@ -7311,6 +7358,128 @@ const Cast = {
        띠가 뜬 만큼 안쪽을 내려 준다 — 안 그러면 하트 줄을 덮는다. */
     const app = document.getElementById('app');
     if (app) app.classList.toggle('has-cast', show);
+  },
+};
+
+
+/* ===== js/shell.js ===== */
+/* =========================================================
+   shell.js — 앱 껍데기 안에서만 필요한 것들
+
+   웹에서는 이 파일이 거의 아무 일도 하지 않는다. 브라우저에는 뒤로가기 버튼이
+   따로 없고 노치도 없기 때문이다. 앱(Capacitor)으로 감쌌을 때만 깨어난다.
+
+   ── 뒤로가기를 History 로 다루는 이유 ──
+   Capacitor 의 App 플러그인으로 잡는 방법도 있지만, 그러면 브라우저에서
+   시험할 수가 없어서 「폰에 올려 봐야 아는 코드」가 된다.
+   대신 없는 페이지를 하나 밀어 넣고 popstate 로 받는다 —
+   안드로이드 뒤로가기는 웹뷰에서 곧 히스토리 뒤로이므로 그대로 걸리고,
+   브라우저에서도 똑같이 걸려서 검사를 쓸 수 있다.
+   진짜 「앱 종료」만 플러그인이 필요하고, 그건 없으면 그냥 안 한다.
+
+   ── 무엇을 닫고 무엇을 안 닫는가 ──
+   Esc 가 하는 것과 똑같이 군다. 손과 키가 다른 데로 가면 안 된다.
+   특히 모닥불과 결말은 **닫는 키가 없는 것이 의도**다 — 불 앞에서 아무것도
+   안 하고 지나갈 수 있으면 그건 선택이 아니라 무시해도 되는 창이 된다.
+   그래서 뒤로가기도 거기서는 아무 일도 하지 않는다.
+   ========================================================= */
+
+const Shell = {
+  MARK: 'cinder-back',      // 밀어 넣은 가짜 페이지의 표
+  EXIT_MS: 2000,            // 이 안에 한 번 더 누르면 나간다
+  lastBack: 0,
+
+  native() {
+    try {
+      return !!(window.Capacitor && typeof Capacitor.isNativePlatform === 'function'
+        && Capacitor.isNativePlatform());
+    } catch (e) { return false; }
+  },
+
+  // 플러그인은 있으면 쓰고 없으면 만다. 없다고 게임이 멈추면 안 된다.
+  plugin(name) {
+    try { return (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins[name]) || null; }
+    catch (e) { return null; }
+  },
+
+  init() {
+    if (this.native()) {
+      document.documentElement.classList.add('in-app');
+      this.paintStatusBar();
+    }
+    this.armBack();
+  },
+
+  /* 상태바를 배경과 같은 어둠으로 맞춘다. 안 맞추면 게임 위에 밝은 띠가 하나 뜬다.
+     화면은 그 아래까지 쓰고(안쪽 여백은 CSS 의 safe-area 가 준다). */
+  paintStatusBar() {
+    const bar = this.plugin('StatusBar');
+    if (!bar) return;
+    try {
+      bar.setOverlaysWebView({ overlay: true });
+      bar.setStyle({ style: 'DARK' });        // 어두운 바탕 → 밝은 글자
+      bar.setBackgroundColor({ color: '#0C0A08' });
+    } catch (e) { /* 늙은 껍데기. 그냥 둔다 */ }
+  },
+
+  armBack() {
+    if (typeof history === 'undefined' || !history.pushState) return;
+    this.push();
+    window.addEventListener('popstate', () => {
+      if (this.back()) this.exit();
+      else this.push();               // 아직 나갈 때가 아니면 가짜 페이지를 다시 깐다
+    });
+  },
+
+  push() {
+    try { history.pushState({ [this.MARK]: true }, ''); } catch (e) {}
+  },
+
+  /* 눌렀을 때 무엇을 할지. 「이제 나가야 한다」면 true 를 돌려준다.
+
+     순서는 onKeyDown 의 순서를 그대로 따른다 — 위에 있는 창일수록 먼저 닫힌다. */
+  back() {
+    // 되짚기·크레딧이 흐르는 중이면 빨리 감는다 (건너뛰지는 않는다)
+    if (typeof Story !== 'undefined' && Story.open()) { Story.setFast(true); return false; }
+    if (UI.creditsOpen()) {
+      if (UI.creditsRolling()) UI.creditsFast(true);
+      else UI.hideCredits();
+      return false;
+    }
+
+    if (UI.codexOpen()) { UI.hideCodex(); return false; }
+
+    // 장비 비교창은 그냥 닫으면 안 된다. Esc 와 같이 「그대로 두기」로 끝낸다.
+    if (UI.gearOpen()) { resolveGear(false); return false; }
+
+    if (UI.shopOpen()) { UI.hideShop(); return false; }
+
+    // 모닥불과 결말은 닫는 길이 없는 것이 의도다. 삼켜 버린다.
+    if (UI.campOpen() || UI.endingOpen()) return false;
+
+    if (UI.intro.active) { UI.skipIntro(); return false; }
+
+    if (typeof Chat !== 'undefined' && Chat.open) { Chat.show(false); return false; }
+    if (state.spectating) { Cast.unwatch(); return false; }
+
+    /* 판을 하는 중이면 한 번에 안 나간다. 실수로 한 번 눌러서 판이 닫히면
+       (이어하기가 있어도) 그건 그냥 사고다. 두 번 눌러야 나간다. */
+    if (state.running) {
+      const now = Date.now();
+      if (now - this.lastBack < this.EXIT_MS) return true;
+      this.lastBack = now;
+      UI.toast('한 번 더 누르면 나갑니다', '하던 층은 저장되어 있습니다');
+      return false;
+    }
+
+    return true;      // 타이틀·결과 화면 — 나가도 잃을 것이 없다
+  },
+
+  exit() {
+    const app = this.plugin('App');
+    if (app && app.exitApp) { try { app.exitApp(); return; } catch (e) {} }
+    // 브라우저에서는 나갈 데가 없다. 가짜 페이지만 다시 깔아 둔다.
+    this.push();
   },
 };
 
@@ -9311,6 +9480,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.init();
   Chat.init();
   Cast.init();
+  Shell.init();
   Marks.init();
 
   updateRecordText(loadData());

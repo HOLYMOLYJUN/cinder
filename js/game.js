@@ -1993,6 +1993,7 @@ window.addEventListener('DOMContentLoaded', () => {
   Net.init();
   Chat.init();
   Cast.init();
+  Shell.init();
   Marks.init();
 
   updateRecordText(loadData());
