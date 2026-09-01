@@ -253,6 +253,82 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
+  /* 바닥에 붙이는 것을 넣었더니 이번엔 **한 글자마다 화면이 번쩍였다.**
+     iOS 는 예측 변환 막대가 떴다 사라질 때마다 보이는 창 높이를 한두 픽셀씩
+     흔드는데, 그 값을 그대로 쓰면 #app 높이가 매번 바뀌어 캔버스가 다시
+     가운데를 잡는다. 픽셀 몇 개짜리 떨림은 무시해야 한다. */
+  console.log('\n[ 글자를 쳐도 화면이 흔들리지 않는다 ]');
+  {
+    const p = await b.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2,
+                                isMobile: true, hasTouch: true });
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+
+    const r = await p.evaluate(async () => {
+      UI.closeIntro();
+      document.getElementById('chat').classList.remove('hidden');
+      document.getElementById('chat-join').classList.add('hidden');
+      document.getElementById('chat-live').classList.remove('hidden');
+      Chat.ready = true; Chat.open = true; Chat.stick = true;
+      Chat.el = Chat.el || {};
+      Chat.el.lines = document.getElementById('chat-lines');
+
+      /* visualViewport 를 갈아 끼운다 — 진짜 키보드는 검사에서 못 띄우므로
+         「한 글자마다 높이가 흔들리는」 그 상황만 그대로 만든다. */
+      let H = 852 - 336;
+      const on = [];
+      window.visualViewport = {
+        get height() { return H; }, offsetTop: 0,
+        addEventListener: (t, f) => on.push(f),
+      };
+      Chat.keyboard.bind();
+
+      const lines = Chat.el.lines;
+      lines.innerHTML = '';
+      for (let i = 1; i <= 20; i++) {
+        const d = document.createElement('div');
+        d.className = 'chat-line';
+        d.innerHTML = '<b>상주니</b><span>줄 ' + i + '</span>';
+        lines.appendChild(d);
+      }
+      Chat.scroll();
+      await new Promise(r => setTimeout(r, 80));
+
+      const app = document.getElementById('app');
+      const canvas = document.getElementById('view');
+      const snap = () => ({
+        app: Math.round(app.getBoundingClientRect().height),
+        canvasTop: Math.round(canvas.getBoundingClientRect().top),
+        scrollTop: lines.scrollTop,
+      });
+      const base = snap();
+
+      let moved = 0;
+      for (let i = 0; i < 12; i++) {
+        H = (852 - 336) + ((i % 3) - 1) * 2;      // -2, 0, +2 를 오간다
+        on.forEach(f => f());
+        await new Promise(r => setTimeout(r, 30));
+        const s = snap();
+        if (s.app !== base.app || s.canvasTop !== base.canvasTop ||
+            s.scrollTop !== base.scrollTop) moved++;
+      }
+
+      // 진짜로 내려가는 것은 여전히 잡혀야 한다 — 문턱이 사건까지 삼키면 안 된다
+      H = 852; on.forEach(f => f());
+      await new Promise(r => setTimeout(r, 60));
+
+      return { moved, base,
+               downApp: Math.round(app.getBoundingClientRect().height),
+               up: document.documentElement.classList.contains('kb-up') };
+    });
+    check(r.moved === 0, `한두 픽셀 떨림에는 아무것도 안 움직인다 (12번 중 ${r.moved}번)`);
+    check(r.downApp > r.base.app, `키보드가 내려가는 것은 그대로 잡는다 (${r.base.app} → ${r.downApp})`);
+    await p.close();
+  }
+
   await b.close();
   srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');

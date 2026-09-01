@@ -178,27 +178,62 @@ const Chat = {
 
          키보드만 보고 붙이지 않고 칸 크기가 바뀔 때마다 본다. 가로세로를
          돌리든 판이 커지든 이유는 여럿인데, 사람이 바라는 것은 하나다.
-         다만 위로 올려 읽는 중이면 건드리지 않는다 — 읽던 자리를 뺏는 것은
+
+         **다만 실제로 높이가 바뀌었을 때만** 움직인다. 글자를 칠 때마다
+         옵서버가 깨어나는데 거기서 매번 스크롤을 밀면 한 글자마다 번쩍인다.
+         이미 바닥이면 밀 것도 없다.
+
+         위로 올려 읽는 중이면 아예 건드리지 않는다 — 읽던 자리를 뺏는 것은
          못 보는 것보다 나쁘다. */
       const lines = Chat.el && Chat.el.lines;
       if (lines && typeof ResizeObserver === 'function') {
         lines.addEventListener('scroll', () => { Chat.stick = Chat.atBottom(); });
+        let lastH = lines.clientHeight;
         new ResizeObserver(() => {
-          if (Chat.open && Chat.stick) Chat.scroll();
+          const h = lines.clientHeight;
+          if (h === lastH) return;
+          lastH = h;
+          if (Chat.open && Chat.stick && !Chat.atBottom()) Chat.scroll();
         }).observe(lines);
       }
 
       if (!vv) return;
+
+      /* visualViewport 는 글자를 칠 때마다 깨어난다 — iOS 는 예측 변환 막대가
+         떴다 사라질 때마다 높이를 한두 픽셀씩 흔든다. 그 값을 그대로 --vvh 에
+         쓰면 #app 높이가 매번 바뀌고, 캔버스가 다시 가운데를 잡으면서
+         **한 글자마다 화면이 번쩍인다.**
+
+         그래서 셋 다 「달라졌을 때만」 쓴다. 픽셀 몇 개짜리 떨림은 무시한다 —
+         키보드가 오르내리는 것은 수백 픽셀짜리 사건이라 이 문턱에 안 걸린다. */
+      const JITTER = 8;
+      let lastKb = -1, lastVh = -1, lastUp = null;
+
       const sync = () => {
         const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-        root.style.setProperty('--kb', gap + 'px');
-        root.style.setProperty('--vvh', Math.round(vv.height) + 'px');
-        root.classList.toggle('kb-up', gap > Chat.keyboard.UP_AT || Chat.keyboard.typing());
-        /* 브라우저가 이미 화면을 밀어 올렸으면 되돌린다. 판을 키보드 위에
-           앉혀 놨으므로 밀어 올릴 이유가 없는데, 한 번 밀린 것은 저절로
-           안 돌아온다. */
-        if (window.scrollY) window.scrollTo(0, 0);
+        const vh = Math.round(vv.height);
+
+        if (Math.abs(gap - lastKb) > JITTER) {
+          lastKb = gap;
+          root.style.setProperty('--kb', gap + 'px');
+        }
+        if (Math.abs(vh - lastVh) > JITTER) {
+          lastVh = vh;
+          root.style.setProperty('--vvh', vh + 'px');
+        }
+
+        const up = gap > Chat.keyboard.UP_AT || Chat.keyboard.typing();
+        if (up !== lastUp) {
+          lastUp = up;
+          root.classList.toggle('kb-up', up);
+          /* 브라우저가 이미 화면을 밀어 올렸으면 되돌린다. 판을 키보드 위에
+             앉혀 놨으므로 밀어 올릴 이유가 없는데, 한 번 밀린 것은 저절로
+             안 돌아온다. **올라오고 내려가는 그 순간에만** 한다 —
+             매번 하면 그것 자체가 번쩍임이 된다. */
+          if (window.scrollY) window.scrollTo(0, 0);
+        }
       };
+
       vv.addEventListener('resize', sync);
       vv.addEventListener('scroll', sync);
       /* 손이 칸에 닿는 순간에도 본다. 키보드가 다 올라오기 전이라 아직 높이가
