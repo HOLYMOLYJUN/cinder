@@ -17,6 +17,7 @@ const Chat = {
   ready: false,
   open: false,
   unread: 0,
+  stick: true,             // 줄 칸이 바닥에 붙어 있는가 (위로 올려 읽는 중이면 false)
   lines: 0,
 
   /* 방 이름이 곧 열쇠다. 링크로 건네므로 외울 필요가 없고, 그래서 길어도 된다.
@@ -155,23 +156,55 @@ const Chat = {
   keyboard: {
     UP_AT: 80,        // 이보다 많이 먹었으면 키보드가 올라온 것으로 본다
 
+    /* 글자 칸에 손이 가 있는가. 키보드 높이만으로 판정하면 놓치는 경우가 있다 —
+       기기와 브라우저마다 재는 값이 다르고, 예측 변환 막대가 따로 뜨기도 한다.
+       「입력칸이 잡혀 있다」는 그 모든 것보다 확실한 신호다. */
+    typing() {
+      const el = document.activeElement;
+      if (!el) return false;
+      const t = el.tagName;
+      return (t === 'INPUT' || t === 'TEXTAREA') && !!el.closest('.chat');
+    },
+
     bind() {
       const vv = window.visualViewport;
-      if (!vv) return;
       const root = document.documentElement;
+
+      /* 줄 칸이 줄면 바닥으로 다시 붙인다.
+
+         브라우저는 칸이 작아져도 scrollTop 을 그대로 둔다. 그러면 보이던
+         자리가 위쪽에 남아서 **키보드를 올리는 순간 옛날 대화가 보인다** —
+         방금 온 말에 답하려고 키보드를 올린 사람에게 그건 고장이다.
+
+         키보드만 보고 붙이지 않고 칸 크기가 바뀔 때마다 본다. 가로세로를
+         돌리든 판이 커지든 이유는 여럿인데, 사람이 바라는 것은 하나다.
+         다만 위로 올려 읽는 중이면 건드리지 않는다 — 읽던 자리를 뺏는 것은
+         못 보는 것보다 나쁘다. */
+      const lines = Chat.el && Chat.el.lines;
+      if (lines && typeof ResizeObserver === 'function') {
+        lines.addEventListener('scroll', () => { Chat.stick = Chat.atBottom(); });
+        new ResizeObserver(() => {
+          if (Chat.open && Chat.stick) Chat.scroll();
+        }).observe(lines);
+      }
+
+      if (!vv) return;
       const sync = () => {
         const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
         root.style.setProperty('--kb', gap + 'px');
         root.style.setProperty('--vvh', Math.round(vv.height) + 'px');
-        const up = gap > Chat.keyboard.UP_AT;
-        root.classList.toggle('kb-up', up);
+        root.classList.toggle('kb-up', gap > Chat.keyboard.UP_AT || Chat.keyboard.typing());
         /* 브라우저가 이미 화면을 밀어 올렸으면 되돌린다. 판을 키보드 위에
            앉혀 놨으므로 밀어 올릴 이유가 없는데, 한 번 밀린 것은 저절로
            안 돌아온다. */
-        if (up && window.scrollY) window.scrollTo(0, 0);
+        if (window.scrollY) window.scrollTo(0, 0);
       };
       vv.addEventListener('resize', sync);
       vv.addEventListener('scroll', sync);
+      /* 손이 칸에 닿는 순간에도 본다. 키보드가 다 올라오기 전이라 아직 높이가
+         0 이어도, 그때부터 접을 것은 접어 두어야 한 번에 자리가 잡힌다. */
+      document.addEventListener('focusin', sync);
+      document.addEventListener('focusout', () => setTimeout(sync, 60));
       sync();
     },
   },
@@ -301,6 +334,7 @@ const Chat = {
       this.unread = 0;
       this.paintBadge();
       this.clearPeek();          // 판에 같은 말이 있으므로 밖의 한 줄은 거둔다
+      this.stick = true;
       const box = Net.status === 'off' ? this.el.room : this.el.text;
       if (box && box.offsetParent) box.focus();
       this.scroll();

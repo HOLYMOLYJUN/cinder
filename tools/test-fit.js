@@ -174,6 +174,85 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
+  /* 키보드가 올라오면 줄 칸이 줄어든다. 브라우저는 그때 scrollTop 을 그대로
+     두므로, 그냥 두면 **방금 온 말이 아니라 옛날 대화가 보인다.** 답하려고
+     키보드를 올린 사람에게 그건 고장이다. */
+  console.log('\n[ 키보드가 올라와도 맨 밑 대화가 보인다 ]');
+  {
+    const p = await b.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2,
+                                isMobile: true, hasTouch: true });
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+
+    const seed = async (page) => page.evaluate(async () => {
+      UI.closeIntro();
+      document.getElementById('chat').classList.remove('hidden');
+      document.getElementById('chat-join').classList.add('hidden');
+      document.getElementById('chat-live').classList.remove('hidden');
+      Chat.ready = true; Chat.open = true; Chat.stick = true;
+      Chat.el = Chat.el || {};
+      Chat.el.lines = document.getElementById('chat-lines');
+      Chat.keyboard.bind();
+      const lines = Chat.el.lines;
+      lines.innerHTML = '';
+      for (let i = 1; i <= 20; i++) {
+        const d = document.createElement('div');
+        d.className = 'chat-line';
+        d.innerHTML = '<b>상주니</b><span>줄 ' + i + '</span>';
+        lines.appendChild(d);
+      }
+      Chat.scroll();
+      await new Promise(r => requestAnimationFrame(r));
+    });
+    // 키보드가 올라온 것처럼 칸을 줄인다 (실제 아이폰 한글 키보드 대략치)
+    const squeeze = async (page) => page.evaluate(async () => {
+      const root = document.documentElement, KB = 336;
+      root.style.setProperty('--kb', KB + 'px');
+      root.style.setProperty('--vvh', (window.innerHeight - KB) + 'px');
+      root.classList.add('kb-up');
+      await new Promise(r => setTimeout(r, 140));
+      const lines = Chat.el.lines, lb = lines.getBoundingClientRect();
+      const vis = [...lines.children].filter(c => {
+        const q = c.getBoundingClientRect();
+        return q.top >= lb.top - 1 && q.bottom <= lb.bottom + 1;
+      });
+      return { last: vis.length ? vis[vis.length - 1].textContent : null,
+               atBottom: Chat.atBottom() };
+    });
+
+    await seed(p);
+    const shrunk = await squeeze(p);
+    check(/줄 20$/.test(shrunk.last || ''), `줄어들어도 맨 밑 줄이 보인다 (${shrunk.last})`);
+    check(shrunk.atBottom, '바닥에 붙어 있다');
+
+    /* 다만 위로 올려 읽는 중이면 건드리지 않는다 —
+       읽던 자리를 뺏는 것은 못 보는 것보다 나쁘다. */
+    await p.reload();
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+    await seed(p);
+    const kept = await p.evaluate(async () => {
+      const lines = Chat.el.lines;
+      lines.scrollTop = 0;                       // 사람이 맨 위로 올려 읽는 중
+      lines.dispatchEvent(new Event('scroll'));
+      await new Promise(r => setTimeout(r, 40));
+      const before = lines.scrollTop;
+      const root = document.documentElement, KB = 336;
+      root.style.setProperty('--kb', KB + 'px');
+      root.style.setProperty('--vvh', (window.innerHeight - KB) + 'px');
+      root.classList.add('kb-up');
+      await new Promise(r => setTimeout(r, 140));
+      return { stick: Chat.stick, before, after: lines.scrollTop };
+    });
+    check(kept.stick === false, '위로 올려 읽는 중이면 붙이지 않는다');
+    check(kept.after === kept.before, `읽던 자리를 그대로 둔다 (${kept.before} → ${kept.after})`);
+    await p.close();
+  }
+
   await b.close();
   srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
