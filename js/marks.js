@@ -100,8 +100,36 @@ const Marks = {
                                      '?uid=' + encodeURIComponent(this.uid)));
       if (!r.ok) return;
       const d = await r.json();
-      if (d && Array.isArray(d.marks)) this.list = this.list.concat(d.marks);
+      // 답이 늦게 왔고 그 사이에 다른 층으로 건너갔으면 이건 남의 층 것이다
+      if (state.depth !== depth) return;
+      if (d && Array.isArray(d.marks)) this.list = d.marks.filter(m => this.fits(m));
     } catch (e) { /* 조용히 없던 일로 */ }
+  },
+
+  /* 내 지형에 맞는 흔적만 남긴다.
+
+     흔적의 열쇠는 「날짜 + 층 + 좌표」다. 날짜가 들어 있으니 어제 것이
+     오늘 벽 속에 박힐 일은 없다. 그런데 **지형을 만드는 코드를 고치면**
+     같은 날짜에도 사람마다 다른 탑을 보게 된다. 웹은 새로고침 한 번이면
+     새 코드지만, 스토어에 구워 낸 앱은 사람이 직접 받기 전까지 옆 버전이다.
+     그때 가만히 두면 해골이 벽 속에 서 있고 쪽지가 바닥에 떠 있다.
+
+     열쇠에 지형 버전을 섞는 수도 있었는데, 그러면 웹과 앱이 서로 다른 방에
+     갇혀 같은 층을 올라도 서로의 흔적을 못 본다. 사람이 적은 게임에서
+     흔적 웅덩이를 나누는 것은 그 기능을 끄는 것과 비슷하다.
+
+     그래서 **받은 뒤에 거른다.** 지형이 달라졌다면 몸에 안 맞는 흔적이
+     조용히 사라질 뿐이다 — 틀린 자리에 떠 있는 것보다 없는 편이 낫고,
+     둘을 갈라 놓는 것보다도 낫다. 지형을 안 고치면 하나도 안 걸러진다. */
+  fits(m) {
+    if (!m) return false;
+    // 지형을 아직 모르면 판단할 근거가 없다. 근거 없이 버리지는 않는다.
+    if (typeof state === 'undefined' || !state.map) return true;
+    // 내가 방금 남긴 것은 내 지형에서 나온 것이므로 따질 일이 없다.
+    if (m.mine) return true;
+    if (m.kind === 'note') return tileAt(state.map, m.x, m.y) === T.WALL;
+    if (m.kind === 'grave') return isWalkable(state.map, m.x, m.y);
+    return true;   // 나중에 생길 종류를 미리 막지는 않는다
   },
 
   at(x, y) {

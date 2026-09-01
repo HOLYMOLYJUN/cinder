@@ -18,6 +18,11 @@ const PARTY = process.env.PARTY || 'http://127.0.0.1:8788';
 let fails = 0;
 const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails++; };
 
+// 손으로 받아 둔 크로뮴이 있으면 그것으로 띄운다 (CI·컨테이너용)
+const LAUNCH = process.env.CHROME
+  ? { executablePath: process.env.CHROME, args: ['--no-sandbox'] }
+  : {};
+
 async function open(browser, uid) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 820 } });
   page.on('pageerror', e => { console.log('  ! ' + e.message); fails++; });
@@ -42,7 +47,7 @@ async function open(browser, uid) {
 /* 사람을 벽 아래 빈 칸에 세운다 — 그래야 벽에 긁을 수 있다.
    자리를 옮길 수 있어야 한다: 같은 칸에 세우면 남이 이미 붙여 둔 쪽지가 있어서
    「남기기」가 아니라 「끄덕」이 뜬다 (실제로 이 검사가 그렇게 한 번 틀렸다). */
-const standByWall = (page, at) => page.evaluate((at) => {
+const standByWall = (page, at) => page.evaluate(async (at) => {
   const m = state.map;
   const cx = at ? at.x : 20, cy = at ? at.y : 12;
   for (let y = cy - 2; y <= cy + 2; y++)
@@ -53,11 +58,15 @@ const standByWall = (page, at) => page.evaluate((at) => {
   state.monsters.length = 0;
   m.props = [];
   refreshFov();
+  /* 지형을 손으로 고쳤으니 흔적도 다시 받는다 — 받는 쪽이 「내 지형에 맞는 것」만
+     남기기 때문이다(Marks.fits). 실제 게임에서는 지형이 먼저 서고 흔적이 뒤에 오는데,
+     이 검사만 순서가 거꾸로라 여기서 한 번 맞춰 준다. */
+  await Marks.enterFloor(state.depth);
   return { x: state.player.x, y: state.player.y };
 }, at);
 
 (async () => {
-  const b = await chromium.launch();
+  const b = await chromium.launch(LAUNCH);
   const floor = 40 + Math.floor(Math.random() * 50);   // 검사끼리 안 섞이게 빈 층을 쓴다
 
   console.log('\n[ 문구는 번호에서 만들어진다 ]');
@@ -265,8 +274,79 @@ const standByWall = (page, at) => page.evaluate((at) => {
   check(tapped.opened && tapped.mine === 1, '버튼을 눌러 남긴다');
   check(tapped.hidden, '남기고 나면 버튼이 스스로 물러난다');
 
+  /* 지형을 만드는 코드를 고치면 같은 날짜에도 사람마다 다른 탑을 본다.
+     웹은 새로고침 한 번이면 새 코드지만 스토어에 구워 낸 앱은 그렇지 않다.
+     그때 해골이 벽 속에 서 있으면 그건 「남의 흔적」이 아니라 그냥 고장이다.
+     흔적 열쇠에 지형 버전을 섞으면 웹과 앱이 서로의 흔적을 못 보게 되므로,
+     열쇠는 그대로 두고 받은 뒤에 거른다. */
+  console.log('\n[ 내 지형에 안 맞는 흔적은 안 붙는다 ]');
+  const E = await open(b, 'markE');
+  await E.evaluate((f) => { enterFloor(f); UI.closeIntro(); }, 7);
+  await E.waitForFunction(() => state.running === true, null, { timeout: 8000 });
+
+  // 이 지도에서 확실한 벽 한 칸과 확실히 걸을 수 있는 한 칸을 집어 온다
+  const spots = await E.evaluate(() => {
+    const m = state.map;
+    let wall = null, floor = null;
+    for (let y = 1; y < m.h - 1; y++)
+      for (let x = 1; x < m.w - 1; x++) {
+        if (!wall && tileAt(m, x, y) === T.WALL) wall = { x, y };
+        if (!floor && isWalkable(m, x, y)) floor = { x, y };
+      }
+    return { wall, floor };
+  });
+  check(spots.wall && spots.floor, `벽 (${spots.wall.x},${spots.wall.y}) · 바닥 (${spots.floor.x},${spots.floor.y})`);
+
+  // 남의 지형에서 온 것처럼 자리가 어긋난 흔적을 섞어 내려보낸다
+  await E.route('**/marks/floor/**', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ marks: [
+      { id: 'x-grave', kind: 'grave', x: spots.wall.x,  y: spots.wall.y,  by: '누군가', nods: 0 },
+      { id: 'x-note',  kind: 'note',  x: spots.floor.x, y: spots.floor.y, a: 0, b: 0, by: '누군가', nods: 0 },
+      { id: 'o-grave', kind: 'grave', x: spots.floor.x, y: spots.floor.y, by: '누군가', nods: 0 },
+      { id: 'o-note',  kind: 'note',  x: spots.wall.x,  y: spots.wall.y,  a: 0, b: 0, by: '누군가', nods: 0 },
+    ] }),
+  }));
+
+  const kept = await E.evaluate(async () => {
+    await Marks.enterFloor(state.depth);
+    return Marks.list.map(m => m.id);
+  });
+  check(!kept.includes('x-grave'), '벽 속에 선 해골은 버린다');
+  check(!kept.includes('x-note'),  '바닥에 떠 있는 쪽지도 버린다');
+  check(kept.includes('o-grave') && kept.includes('o-note'),
+        '자리가 맞는 것은 그대로 붙는다');
+
+  /* 거르는 규칙이 지나치면 멀쩡한 흔적까지 지운다. 근거가 없을 때는 안 버린다. */
+  const guards = await E.evaluate((s) => {
+    const saved = state.map;
+    state.map = null;
+    const noMap = Marks.fits({ kind: 'grave', x: s.wall.x, y: s.wall.y });
+    state.map = saved;
+    return {
+      noMap,
+      mine:    Marks.fits({ kind: 'note', x: s.floor.x, y: s.floor.y, mine: true }),
+      unknown: Marks.fits({ kind: '아직없는것', x: s.floor.x, y: s.floor.y }),
+    };
+  }, spots);
+  check(guards.noMap, '지형을 아직 모르면 안 버린다');
+  check(guards.mine, '내가 방금 남긴 것은 안 따진다');
+  check(guards.unknown, '나중에 생길 종류를 미리 막지 않는다');
+
+  // 답이 늦게 왔는데 그 사이에 층을 넘어갔으면 남의 층 것이다
+  const stale = await E.evaluate(async () => {
+    const here = state.depth;
+    const p = Marks.enterFloor(here);
+    state.depth = here + 1;
+    await p;
+    const n = Marks.list.length;
+    state.depth = here;
+    return n;
+  });
+  check(stale === 0, '늦게 온 답은 다른 층에 안 붙는다');
+
   console.log('\n[ 서버가 없어도 판은 돈다 ]');
-  const off = await chromium.launch();
+  const off = await chromium.launch(LAUNCH);
   const C = await off.newPage({ viewport: { width: 900, height: 800 } });
   const errs = []; C.on('pageerror', e => errs.push(e.message));
   await C.goto(GAME);                            // HOST 를 안 바꿨으므로 진짜 서버로 간다
