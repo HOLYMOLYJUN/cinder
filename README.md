@@ -1119,6 +1119,12 @@ npm run app:sync       # 위 + android/ 로 옮기기
 npm run app:open       # Android Studio 로 열기
 ```
 
+**`build` 라는 이름의 스크립트를 만들면 안 된다.** 버셀은 그 이름 하나만 보고
+「빌드하는 프로젝트」로 판단한 뒤, 끝나고 나서 `public/` 같은 출력 폴더를 찾다가
+없으면 배포를 통째로 실패시킨다. 이 저장소는 `index.html` 이 곧 사이트인 정적
+프로젝트라 그런 폴더가 없다. 그래서 아티팩트 빌드도 `build:artifact` 로 부른다.
+`vercel.json` 이 출력 자리를 뿌리로 못박아 두었지만, 이름은 이름대로 피하는 편이 낫다.
+
 `android/` 는 `npx cap add android` 가 만든 것이고 저장소에 들어 있다.
 Capacitor 가 자기 `.gitignore` 를 함께 깔아서 복사된 웹 자산과 생성 설정은 빠져 있다.
 
