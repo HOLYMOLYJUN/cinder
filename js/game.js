@@ -157,6 +157,8 @@ function enterFloor(depth) {
   // state.map 은 아직 지난 층이라 이번 지도를 직접 넘긴다 — 길잡이가 이걸 보고 자리를 잡는다
   Marks.enterFloor(depth, map);
   state.noteHinted = false;      // 벽에 부딪혔을 때의 귀띔은 층마다 한 번
+  state.noteReady = false;
+  state.wallBump = null;
   state.campUses = 0;
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
@@ -407,18 +409,31 @@ function playerAction(dir, intent) {
   }
 
   if (!isWalkable(state.map, tx, ty)) {        // 벽 — 턴 낭비 없음
-    /* 부딪힌 것이 벽이면 알려준다 — 벽에 부딪혔다는 것이 곧 벽 옆에 서 있다는 뜻이다.
+    /* 같은 벽을 몇 번 밀었는지 센다. 두 번이면 그 벽에 볼일이 있는 것으로 본다.
        창을 띄우지는 않는다: 길 찾다 벽에 부딪히는 일은 너무 잦아서,
        그때마다 모달이 뜨면 남기는 재미가 아니라 치우는 일이 된다.
-       한 층에 한 번만 말한다. */
-    if (!state.noteHinted && noteAction() === 'write') {
-      state.noteHinted = true;
-      UI.log('벽이 손에 닿습니다. ' + (touchMode() ? '「남기기」' : 'N') +
-             ' — 다음 사람에게 한 마디 남길 수 있습니다.', 'sys');
+       한 층에 한 번씩만 말한다. */
+    if (tileAt(state.map, tx, ty) === T.WALL) {
+      const b = state.wallBump;
+      if (b && b.x === tx && b.y === ty) b.n++;
+      else state.wallBump = { x: tx, y: ty, n: 1 };
+
+      const canWrite = Marks.on() && !Marks.wroteThisFloor && !Marks.noteNear(p.x, p.y);
+      if (canWrite && state.wallBump.n === 1 && !state.noteHinted) {
+        state.noteHinted = true;
+        UI.log('벽이 손에 닿습니다. 한 번 더 밀면 여기에 남길 수 있습니다.', 'sys');
+      } else if (canWrite && state.wallBump.n === 2 && !state.noteReady) {
+        state.noteReady = true;
+        UI.log((touchMode() ? '「남기기」' : 'N') +
+               ' — 다음 사람에게 한 마디 남깁니다.', 'good');
+      }
+      paintTouch();                            // 턴을 안 쓰므로 버튼은 여기서 직접 켠다
     }
     return;
   }
 
+  // 자리를 옮기면 밀던 벽은 잊는다 — 「두 번」은 잇달아 민 것이어야 뜻이 있다
+  state.wallBump = null;
   p.x = tx; p.y = ty;
   Sound.play('step');
   onPlayerEnter(tx, ty);
@@ -872,6 +887,19 @@ function noteWall(x, y) {
   return null;
 }
 
+/* 두 번 민 벽 — 그 벽이 아직 옆에 있을 때만.
+
+   벽 옆에 서기만 해도 열어 뒀더니 설 수 있는 칸의 절반에서 버튼이 떴다.
+   길을 걷다 보면 저절로 켜졌다 꺼졌다 하니, 「지금 할 수 있다」는 신호가 아니라
+   그냥 깜빡이는 것이 됐다. **같은 벽에 두 번 부딪히는 것은 우연히 일어나지 않는다** —
+   한 번은 길을 잘못 든 것이고, 두 번은 그 벽에 볼일이 있는 것이다. */
+function bumpedWall() {
+  const b = state.wallBump, p = state.player;
+  if (!b || b.n < 2) return null;
+  if (Math.abs(b.x - p.x) + Math.abs(b.y - p.y) !== 1) return null;
+  return { x: b.x, y: b.y };
+}
+
 function noteAction() {
   if (!state.running || !state.player.alive) return null;
   const p = state.player;
@@ -879,7 +907,7 @@ function noteAction() {
   // 길잡이는 탑이 스스로 남긴 것이라 서버가 없어도 거기 있다. 끄덕임도 마찬가지다.
   if (m) return (!m.mine && !Marks.nodded.has(m.id)) ? 'nod' : null;
   if (!Marks.on() || Marks.wroteThisFloor) return null;
-  return noteWall(p.x, p.y) ? 'write' : null;
+  return bumpedWall() ? 'write' : null;
 }
 
 /* N — 앞에 남의 말이 있으면 끄덕이고, 없으면 내가 남긴다.
@@ -900,7 +928,9 @@ function noteKey() {
   }
   if (m && m.mine) { UI.log('당신이 남긴 말입니다.', 'sys'); return; }
 
-  const wall = noteWall(p.x, p.y);
+  // 두 번 민 벽이 있으면 그 벽에 긁는다. 없으면 옆에 있는 아무 벽이나 —
+  // 자판에서 N 을 누르는 것은 그 자체로 「하겠다」는 뜻이라 두 번을 더 요구하지 않는다.
+  const wall = bumpedWall() || noteWall(p.x, p.y);
   if (!wall) { UI.log('긁을 벽이 옆에 없습니다.', 'sys'); return; }
   if (Marks.wroteThisFloor) { UI.log('이 층에는 이미 하나 남겼습니다.', 'sys'); return; }
   openNoteCompose(wall);

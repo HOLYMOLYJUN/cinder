@@ -99,9 +99,11 @@
         <button data-act="potion">물약 <b id="t-potion">0</b></button>
         <button data-act="aim" id="t-aim">원거리</button>
         <button data-act="ember" id="t-ember">불씨</button>
-        <!-- 흔적은 할 수 있을 때만 나타난다. 늘 떠 있으면 좁은 화면에서 자리만 먹는다 -->
-        <button data-act="mark" id="t-mark" hidden>남기기</button>
         <button data-act="codex">도감</button>
+        <!-- 흔적은 할 수 있을 때만 나타난다. 늘 떠 있으면 좁은 화면에서 자리만 먹는다.
+             맨 끝에 두는 이유는 자리다 — 가운데 끼우면 2열 격자에 빈 칸이 생겨서
+             나머지 버튼이 어긋난다. 끝에서 두 칸을 다 쓰면 아무것도 안 밀린다. -->
+        <button data-act="mark" id="t-mark" hidden>남기기</button>
       </div>
       <div class="touch-pad" id="touch-pad">
         <button data-dir="up">↑</button>
@@ -248,7 +250,7 @@
             <tr><td><kbd>Space</kbd></td><td>한 턴 대기. 상인 앞에서는 다시 말을 겁니다</td></tr>
             <tr><td><kbd>1</kbd></td><td>물약 마시기 — 10개까지 들 수 있습니다</td></tr>
             <tr><td><kbd>F</kbd></td><td>불씨 밝기 — 「끄던 손」을 되찾아야 열립니다</td></tr>
-            <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>할 수 있는 자리에서만</b> 「남기기」 버튼이 나타납니다</td></tr>
+            <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>같은 벽을 두 번 밀면</b> 「남기기」 버튼이 나타납니다</td></tr>
             <tr><td><kbd>Z</kbd> <span class="or">/</span> <kbd>X</kbd></td><td>장비 비교창에서 교체 / 그대로 두기</td></tr>
             <tr><td><kbd>M</kbd></td><td>소리 켜고 끄기</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>이 창 열고 닫기</td></tr>

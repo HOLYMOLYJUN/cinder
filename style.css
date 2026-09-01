@@ -389,7 +389,14 @@ canvas#view {
   display: none; align-items: flex-end; justify-content: center;
   gap: 10px; margin-top: 8px; width: 100%;
 }
-.touch-acts { display: grid; grid-template-columns: repeat(2, 78px); gap: 6px; }
+/* 칸 크기를 픽셀로 박아 두면 좁은 기기에서 좌우 여백이 사라져 다닥다닥 붙는다.
+   화면 폭을 따라가되 위아래로 한계를 둔다 — 작은 폰에서는 넘치지 않고,
+   큰 폰에서는 쓸데없이 커지지 않는다. */
+.touch-acts {
+  display: grid;
+  grid-template-columns: repeat(2, clamp(64px, 18vw, 96px));
+  gap: 8px;
+}
 .touch-acts button {
   font-family: inherit; font-size: 12px;
   color: var(--ink-soft);
@@ -417,9 +424,10 @@ canvas#view {
 /* 터치 조작 */
 .touch-pad {
   display: none;
-  grid-template-columns: repeat(3, 58px);
-  grid-template-rows: repeat(3, 52px);
-  gap: 6px;
+  /* 방향키도 같은 규칙으로. 엄지가 닿는 자리라 조금 크게 잡는다 */
+  grid-template-columns: repeat(3, clamp(52px, 17vw, 74px));
+  grid-template-rows: repeat(3, clamp(46px, 14.5vw, 64px));
+  gap: 8px;
 }
 .touch-pad button {
   font-size: 22px;
