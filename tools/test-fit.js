@@ -329,6 +329,61 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
+  /* 키보드 높이를 잘못 재면 판이 키보드 밑에 앉는다. 그러면 브라우저가
+     입력칸을 보이려고 화면을 밀어 올리고, 로그와 판 사이에 큰 여백이 생긴다.
+
+     처음에 vv.offsetTop 까지 뺐던 것이 그 원인이었다 — offsetTop 은
+     「보이는 창이 어디에 놓였나」이지 키보드가 아니다. 밀려 올라간 만큼
+     키보드가 작게 잡히고, 그래서 판을 조금밖에 안 올린다. */
+  console.log('\n[ 화면이 밀려 올라가도 판은 키보드 위에 앉는다 ]');
+  {
+    const p = await b.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2,
+                                isMobile: true, hasTouch: true });
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+
+    const r = await p.evaluate(async () => {
+      UI.closeIntro();
+      document.getElementById('chat').classList.remove('hidden');
+      document.getElementById('chat-join').classList.add('hidden');
+      document.getElementById('chat-live').classList.remove('hidden');
+      Chat.ready = true; Chat.open = true;
+      Chat.el = Chat.el || {};
+      Chat.el.lines = document.getElementById('chat-lines');
+      Chat.el.panel = document.getElementById('chat');
+
+      let H = 852, T = 0;
+      const on = [];
+      window.visualViewport = {
+        get height() { return H; }, get offsetTop() { return T; },
+        addEventListener: (t, f) => on.push(f),
+      };
+      Chat.keyboard.bind();
+
+      const kbTop = 852 - 336;                 // 키보드 윗선
+      const shot = async (h, t) => {
+        H = h; T = t;
+        on.forEach(f => f());
+        await new Promise(r => setTimeout(r, 80));
+        return Math.round(document.getElementById('chat').getBoundingClientRect().bottom);
+      };
+      return {
+        kbTop,
+        plain: await shot(516, 0),             // 키보드만 올라옴
+        pushed: await shot(516, 316),          // iOS 가 화면을 밀어 올린 상태
+        down: await shot(852, 0),              // 내려감
+      };
+    });
+    check(r.plain === r.kbTop, `판이 키보드 위에 앉는다 (아래끝 ${r.plain} = ${r.kbTop})`);
+    check(r.pushed === r.kbTop,
+          `화면이 밀려 올라가도 같은 자리다 (아래끝 ${r.pushed} = ${r.kbTop})`);
+    check(r.down === 852, `내려가면 바닥으로 돌아온다 (${r.down})`);
+    await p.close();
+  }
+
   await b.close();
   srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');

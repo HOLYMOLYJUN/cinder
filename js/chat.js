@@ -210,7 +210,18 @@ const Chat = {
       let lastKb = -1, lastVh = -1, lastUp = null;
 
       const sync = () => {
-        const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        /* 키보드 높이 = 레이아웃 높이 − 보이는 높이.
+
+           처음에는 여기서 vv.offsetTop 까지 뺐다. 틀렸다 — offsetTop 은
+           「보이는 창이 어디에 놓였나」이지 키보드가 아니다. iOS 가 입력칸을
+           보이려고 창을 밀어 올리면 offsetTop 이 커지고, 그만큼 키보드가
+           작게 잡힌다. 그러면 판을 조금밖에 안 올리고, 브라우저는 여전히
+           가려져 있다고 보고 화면을 더 밀어 올린다 —
+           **화면이 위로 떠오르고 로그와 판 사이에 큰 여백이 생긴다.**
+
+           iOS 에서 window.innerHeight 는 키보드가 떠도 그대로다(레이아웃
+           뷰포트). 그래서 이 뺄셈만으로 키보드 높이가 나온다. */
+        const gap = Math.max(0, Math.round(window.innerHeight - vv.height));
         const vh = Math.round(vv.height);
 
         if (Math.abs(gap - lastKb) > JITTER) {
@@ -232,6 +243,12 @@ const Chat = {
              매번 하면 그것 자체가 번쩍임이 된다. */
           if (window.scrollY) window.scrollTo(0, 0);
         }
+        /* 판을 제 자리에 올려 놨는데도 브라우저가 화면을 밀어 올렸다면
+           되돌린다. 전환할 때 한 번만으로는 못 잡는다 — iOS 는 키보드가
+           다 올라온 뒤에 한 번 더 미는 일이 있다. 이미 0 이면 아무 일도
+           안 하므로 번쩍이지 않는다. */
+        if (window.scrollY) window.scrollTo(0, 0);
+
       };
 
       vv.addEventListener('resize', sync);
