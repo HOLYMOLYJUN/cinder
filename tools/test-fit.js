@@ -277,13 +277,21 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       Chat.el.lines = document.getElementById('chat-lines');
 
       /* visualViewport 를 갈아 끼운다 — 진짜 키보드는 검사에서 못 띄우므로
-         「한 글자마다 높이가 흔들리는」 그 상황만 그대로 만든다. */
+         「한 글자마다 높이가 흔들리는」 그 상황만 그대로 만든다.
+
+         scrollY 를 0 이 아닌 값으로 못 박는 것이 중요하다. 실제 기기에서는
+         키보드가 떠 있는 동안 화면이 밀려 있어 0 이 아닌데, 검사에서 0 으로
+         두었더니 「scrollY 가 0 이면 아무 일도 안 한다」에 기대어 매 이벤트마다
+         화면을 되돌리는 코드가 통과해 버렸다. 그게 번쩍임으로 돌아왔다. */
       let H = 852 - 336;
       const on = [];
       window.visualViewport = {
         get height() { return H; }, offsetTop: 0,
         addEventListener: (t, f) => on.push(f),
       };
+      Object.defineProperty(window, 'scrollY', { get: () => 40, configurable: true });
+      window.__scrolls = 0;
+      window.scrollTo = () => { window.__scrolls++; };
       Chat.keyboard.bind();
 
       const lines = Chat.el.lines;
@@ -320,11 +328,13 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       H = 852; on.forEach(f => f());
       await new Promise(r => setTimeout(r, 60));
 
-      return { moved, base,
+      return { moved, base, scrolls: window.__scrolls,
                downApp: Math.round(app.getBoundingClientRect().height),
                up: document.documentElement.classList.contains('kb-up') };
     });
     check(r.moved === 0, `한두 픽셀 떨림에는 아무것도 안 움직인다 (12번 중 ${r.moved}번)`);
+    // 화면 되돌리기는 오르내리는 순간에만. 떨림마다 하면 그것이 곧 번쩍임이다.
+    check(r.scrolls <= 2, `화면을 매번 되돌리지 않는다 (12번 떨리는 동안 ${r.scrolls}번)`);
     check(r.downApp > r.base.app, `키보드가 내려가는 것은 그대로 잡는다 (${r.base.app} → ${r.downApp})`);
     await p.close();
   }
