@@ -39,6 +39,14 @@ html, body {
   height: 100dvh;
 }
 
+/* 키보드가 올라오면 화면도 그만큼 줄어야 한다.
+
+   안 줄이면 게임은 여전히 852px 짜리 화면인 줄 알고 캔버스를 그 한가운데
+   세운다 — 그 자리가 이미 키보드 밑이라, 확성기를 키보드 위에 올려 놓아도
+   던전은 안 보인다. 높이를 보이는 만큼으로 줄이면 캔버스가 남은 자리
+   가운데로 다시 선다. (--vvh 는 js/chat.js 의 keyboard 가 재서 준다) */
+:root.kb-up #app { height: var(--vvh, 100dvh); }
+
 .screen, .overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -370,6 +378,40 @@ canvas#view {
   image-rendering: pixelated;
   touch-action: none;
 }
+
+/* ---------- 확성기를 닫았을 때 남는 한 줄 ----------
+
+   폰에서는 확성기 판이 조작 버튼을 덮는다. 그래서 오르는 동안에는 닫아 두게
+   되는데, 닫으면 누가 말을 걸어도 모른다 — 그러면 그건 「같이 하는 것」이 아니다.
+
+   그래서 마지막 한 마디만 로그 위에 남긴다. 판을 여는 대신 눈만 스치면 되고,
+   두드리면 그 자리에서 열린다. 배지(안 읽은 수)는 몇 개인지를 말하고
+   이 줄은 무엇인지를 말한다 — 둘은 다른 물음이다. */
+.chat-peek {
+  width: 100%;
+  max-width: var(--game-w);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: -2px;
+  padding: 5px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line); border-bottom: none;
+  border-radius: 0;
+  font: inherit; font-size: 12px; line-height: 1.5;
+  color: var(--ink-soft); text-align: left;
+  cursor: pointer;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.chat-peek::before {
+  content: '';
+  flex: none; width: 6px; height: 6px;
+  background: var(--ember);
+}
+.chat-peek b { color: var(--ember-dim); font-weight: 600; margin-right: 6px; flex: none; }
+.chat-peek span { overflow: hidden; text-overflow: ellipsis; }
+.chat-peek:hover { border-color: var(--ember-dim); }
+/* 오래된 것은 조용해진다. 읽었든 안 읽었든 계속 밝으면 눈이 그리로 끌려간다. */
+.chat-peek.stale { opacity: .45; }
+.chat-peek.stale::before { background: var(--muted); }
 
 .log {
   width: 100%;
@@ -1192,15 +1234,43 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
 }
 
 /* 좁은 화면에서는 아래에 붙는 판으로. 폭을 다 쓴다 —
-   폰에서 300px 짜리 판은 던전과 겹쳐서 둘 다 못 읽는다. */
+   폰에서 300px 짜리 판은 던전과 겹쳐서 둘 다 못 읽는다.
+
+   높이를 58% 에서 46% 로 줄였다. 확성기는 「채팅을 열어 둔 채로 계속 오를 수
+   있어야」 하는 물건인데(위 머리말), 절반이 넘게 덮으면 그건 열어 둔 채로
+   오르는 것이 아니라 게임을 덮은 것이다.
+
+   --kb / --vvh 는 js/chat.js 의 keyboard 가 실제로 재서 내려 준다.
+   그 값이 없는 브라우저에서는 각각 0 과 100vh 로 떨어져 예전과 같이 군다. */
 @media (max-width: 560px) {
   .chat {
-    right: 0; left: 0; bottom: 0;
+    right: 0; left: 0;
+    bottom: var(--kb, 0px);
     width: auto; max-width: none;
-    max-height: 58%;
+    /* 던전이 최소 150px 은 남게 — 무엇이 다가오는지는 보여야 한다 */
+    max-height: min(46%, calc(var(--vvh, 100vh) - 150px));
     border-width: 2px 0 0;
   }
   .chat-tab { right: 8px; bottom: 8px; }
+
+  /* 키보드가 올라온 동안 — 지금 필요한 것은 입력칸과 최근 몇 줄뿐이다.
+     방송·링크·지우기·나가기는 글을 치는 중에 누를 일이 없으므로 접는다.
+     그렇게 벌어 둔 자리로 던전이 조금이라도 남는다. */
+  :root.kb-up .chat {
+    /* 절반씩 나눈다. 글을 치는 중에도 무엇이 다가오는지는 보여야 하고,
+       치는 사람에게는 입력칸과 최근 몇 줄이면 족하다. */
+    max-height: min(52%, calc(var(--vvh, 100vh) - 110px));
+  }
+
+  /* 남의 판을 보는 중에는 조작 버튼을 덮어도 된다 — 어차피 내 판이 아니라
+     누를 것이 없다. 그때는 판을 넓게 써서 대화가 더 보이는 편이 낫다.
+     (has-cast 는 js/cast.js 가 #app 에 붙인다) */
+  .has-cast .chat { max-height: min(64%, calc(var(--vvh, 100vh) - 96px)); }
+  .has-cast .touch-row { display: none; }
+  :root.kb-up .chat-lines { min-height: 0; }
+  :root.kb-up .chat-foot { display: none; }
+  /* 손가락 조작 버튼은 키보드에 가려 어차피 못 누른다. 자리만 차지한다. */
+  :root.kb-up .touch-row { display: none; }
 }
 
 /* ===== 관전 띠 =====

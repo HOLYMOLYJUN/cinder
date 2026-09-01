@@ -134,6 +134,48 @@ const Chat = {
     return tag === 'INPUT' || tag === 'TEXTAREA';
   },
 
+  /* ---------- 폰 키보드 ----------
+
+     폰에서 확성기에 글을 치면 판이 통째로 가려졌다. 왜냐하면 브라우저가
+     키보드를 띄울 때 **레이아웃 뷰포트는 그대로 두고 보이는 창만 줄이기**
+     때문이다. `bottom: 0` 은 여전히 화면 맨 아래를 가리키는데 그 자리가
+     이미 키보드 밑이라, iOS 는 입력칸을 보이게 하려고 화면 전체를 밀어 올린다.
+     그 결과 던전이 위로 사라진다.
+
+     그래서 키보드가 먹은 높이를 직접 잰다:
+
+       레이아웃 높이 − 보이는 높이 − 보이는 창이 밀린 만큼 = 키보드
+
+     그 값을 --kb 로 내려 주면 CSS 가 판을 키보드 바로 위에 앉힌다.
+     --vvh(보이는 창 높이)도 같이 준다 — 남은 높이를 알아야 판이 그 안에서
+     줄어들 수 있고, 그래야 던전이 몇 줄이라도 남는다.
+
+     visualViewport 가 없는 브라우저(오래된 것)에서는 아무 일도 안 한다.
+     그쪽은 예전과 똑같이 굴 뿐이라 나빠지지 않는다. */
+  keyboard: {
+    UP_AT: 80,        // 이보다 많이 먹었으면 키보드가 올라온 것으로 본다
+
+    bind() {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const root = document.documentElement;
+      const sync = () => {
+        const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        root.style.setProperty('--kb', gap + 'px');
+        root.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+        const up = gap > Chat.keyboard.UP_AT;
+        root.classList.toggle('kb-up', up);
+        /* 브라우저가 이미 화면을 밀어 올렸으면 되돌린다. 판을 키보드 위에
+           앉혀 놨으므로 밀어 올릴 이유가 없는데, 한 번 밀린 것은 저절로
+           안 돌아온다. */
+        if (up && window.scrollY) window.scrollTo(0, 0);
+      };
+      vv.addEventListener('resize', sync);
+      vv.addEventListener('scroll', sync);
+      sync();
+    },
+  },
+
   /* ---------- 시작 ---------- */
   init() {
     const $ = id => document.getElementById(id);
@@ -150,6 +192,7 @@ const Chat = {
       badge: $('chat-badge'),
       copy:  $('chat-copy'), linkBox: $('chat-link'),
       wipe:  $('chat-wipe'),
+      peek:  $('chat-peek'),
     };
     if (!this.el.panel) return;
 
@@ -160,6 +203,8 @@ const Chat = {
 
     this.ready = true;
     this.el.tab.classList.remove('hidden');
+    this.keyboard.bind();
+    if (this.el.peek) this.el.peek.addEventListener('click', () => this.show(true));
 
     const saved = this.restore() || {};
     const invited = this.roomFromHash();          // 링크를 타고 들어온 경우
@@ -255,6 +300,7 @@ const Chat = {
     if (v) {
       this.unread = 0;
       this.paintBadge();
+      this.clearPeek();          // 판에 같은 말이 있으므로 밖의 한 줄은 거둔다
       const box = Net.status === 'off' ? this.el.room : this.el.text;
       if (box && box.offsetParent) box.focus();
       this.scroll();
@@ -354,6 +400,47 @@ const Chat = {
     this.add(row);
 
     if (!this.open && m.id !== Net.self) { this.unread++; this.paintBadge(); }
+    // 닫아 두고 오르는 사람에게도 마지막 한 마디는 닿아야 한다
+    if (m.id !== Net.self) this.peek(m.name, m.text);
+  },
+
+  /* ---------- 닫았을 때 남는 한 줄 ----------
+
+     확성기 판은 폰에서 조작 버튼을 덮으므로 오르는 동안에는 닫게 된다.
+     닫으면 누가 말을 걸어도 모르는데, 그러면 같이 하는 것이 아니라
+     혼자 하는 것에 창이 하나 붙어 있을 뿐이다.
+
+     배지는 「몇 개」를 말하고 이 줄은 「무엇을」 말한다. 둘은 다른 물음이라
+     하나로 합칠 수 없다 — 숫자만 보고는 열지 말지 정할 수 없기 때문이다.
+
+     판이 열려 있으면 안 띄운다. 같은 말이 두 군데 있으면 눈이 두 번 읽는다. */
+  peekTimer: 0,
+
+  peek(name, text) {
+    const el = this.el.peek;
+    if (!el) return;
+    if (this.open) { el.classList.add('hidden'); return; }
+
+    el.innerHTML = '';
+    const b = document.createElement('b');
+    b.textContent = name;                  // 남이 보낸 글자다. 절대 innerHTML 이 아니다.
+    const t = document.createElement('span');
+    t.textContent = text;
+    el.appendChild(b);
+    el.appendChild(t);
+    el.classList.remove('hidden', 'stale');
+
+    /* 지우지는 않는다 — 잠깐 딴 데 보다가 돌아온 사람이 "뭐라 그랬지"를
+       다시 물을 데가 없어진다. 대신 조용해진다. */
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => el.classList.add('stale'), 12000);
+  },
+
+  clearPeek() {
+    const el = this.el.peek;
+    if (!el) return;
+    clearTimeout(this.peekTimer);
+    el.classList.add('hidden');
   },
 
   system(text) {

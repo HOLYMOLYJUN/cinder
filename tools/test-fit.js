@@ -122,6 +122,58 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
+  /* ---------- 확성기 ---------- */
+  console.log('\n[ 확성기를 닫아도 한 마디는 남는다 ]');
+  {
+    const p = await b.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2,
+                                isMobile: true, hasTouch: true });
+    p.on('pageerror', e => errs.push(e.message));
+    await p.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await p.waitForTimeout(400);
+    await p.click('#btn-start');
+    await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+    const r = await p.evaluate(() => {
+      UI.closeIntro();
+      /* 서버 없이 화면만 세운다 — 여기서 재는 것은 「닫았을 때 무엇이 남는가」라
+         소켓이 붙었는지는 상관이 없다. */
+      Chat.ready = true; Chat.open = false;
+      Chat.el = Chat.el || {};
+      Chat.el.peek = document.getElementById('chat-peek');
+      Chat.peek('상주니', '물약 최대5개로 바뀐거 봤어?');
+      const peek = document.getElementById('chat-peek');
+      const pad = document.getElementById('touch-row');
+      const log = document.getElementById('log');
+      const pb = peek.getBoundingClientRect();
+      const tb = pad.getBoundingClientRect();
+      const lb = log.getBoundingClientRect();
+      return {
+        shown: !peek.classList.contains('hidden') && pb.height > 0,
+        name: peek.querySelector('b') ? peek.querySelector('b').textContent : '',
+        aboveLog: pb.bottom <= lb.top + 2,
+        padVisible: tb.height > 0 && tb.bottom <= window.innerHeight + 1,
+        oneLine: pb.height < 34,
+      };
+    });
+    check(r.shown, '확성기를 닫아 두면 마지막 한 마디가 뜬다');
+    check(r.name === '상주니', `누가 말했는지 함께 뜬다 (${r.name})`);
+    check(r.aboveLog, '로그 바로 위에 붙는다');
+    check(r.oneLine, '한 줄을 넘지 않는다');
+    check(r.padVisible, '조작 버튼은 그대로 보인다 — 오르면서 볼 수 있다');
+
+    // 판을 열면 밖의 한 줄은 거둔다 — 같은 말이 두 군데 있으면 눈이 두 번 읽는다
+    const after = await p.evaluate(() => {
+      Chat.el.panel = document.getElementById('chat');
+      Chat.el.tab = document.getElementById('chat-tab');
+      Chat.el.badge = document.getElementById('chat-badge');
+      Chat.el.room = document.getElementById('chat-room');
+      Chat.el.text = document.getElementById('chat-text');
+      Chat.show(true);
+      return document.getElementById('chat-peek').classList.contains('hidden');
+    });
+    check(after, '판을 열면 그 한 줄은 거둔다');
+    await p.close();
+  }
+
   await b.close();
   srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
