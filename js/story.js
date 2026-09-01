@@ -176,6 +176,19 @@ const STORY_END = {
   },
 };
 
+/* 되짚기를 한 번이라도 끝까지 봤는가. 판을 넘어 남는다 —
+   건너뛰기를 내밀지 말지가 여기에 달려 있다. */
+function storySeen() {
+  return !!((loadData() || {}).sawStory);
+}
+
+function markStorySeen() {
+  const save = loadData() || {};
+  if (save.sawStory) return;
+  save.sawStory = true;
+  saveData(save);
+}
+
 const Story = {
   cv: null, ctx: null,
   scenes: [], at: 0, page: 0, t: 0, sceneT: 0, typed: 0,
@@ -197,6 +210,16 @@ const Story = {
     this.done = onDone || null;
     this.at = 0; this.page = 0; this.t = 0; this.sceneT = 0;
     this.typed = 0; this.fast = false;
+
+    /* 건너뛰기는 **한 번 끝까지 본 사람에게만** 보인다.
+       처음 보는 사람에게 내밀면, 읽을 만한 것이 아니라 넘겨도 되는 것으로 먼저 읽힌다.
+       두 번째부터는 반대다 — 아는 이야기를 다시 앉아서 보게 하는 것은 벌이다. */
+    const skip = document.getElementById('story-skip');
+    if (skip) {
+      skip.hidden = !storySeen();
+      skip.classList.toggle('hidden', !storySeen());
+      skip.onclick = () => this.finish();
+    }
 
     screen.classList.remove('hidden');
     this.cv = document.getElementById('story-canvas');
@@ -281,6 +304,9 @@ const Story = {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.fast = false;
+    /* 건너뛰어서 끝났어도 「봤다」로 친다. 끝까지 본 사람만 세면
+       한 번 건너뛴 사람은 다음에도 건너뛰기를 못 보게 되는데, 그건 거꾸로다. */
+    markStorySeen();
     document.getElementById('story-screen').classList.add('hidden');
     const d = this.done;
     this.done = null;

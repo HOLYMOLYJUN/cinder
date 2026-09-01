@@ -239,11 +239,19 @@ html, body {
 .hud-left { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 
 /* 체력은 하트로. 막대보다 로그라이크답고, 칸이 몇 개 남았는지가 숫자보다 빨리 읽힌다. */
-.hearts { display: flex; gap: 2px; flex-wrap: wrap; }
+/* 개수는 UI.HEART_MAX 가 묶는다. 그래도 좁은 화면에서 두 줄까지는 접히므로
+   접히더라도 아래를 밀지 않게 폭을 먼저 줄인다 — HUD 가 자라면 로그가 눌린다. */
+.hearts { display: flex; gap: 2px; flex-wrap: wrap; min-width: 0; }
 .heart {
   width: 18px; height: 17px;
   image-rendering: pixelated;
   display: block;
+  flex: 0 0 auto;
+}
+@media (hover: none) and (pointer: coarse) {
+  /* 손가락 화면에서는 한 줄에 들어가는 것이 줄 수보다 중요하다 */
+  .heart { width: 14px; height: 13px; }
+  .hearts { gap: 1px; }
 }
 #hp-text { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -769,10 +777,15 @@ canvas#view {
 
 .credits-foot {
   flex: none; padding: 14px 0 26px; text-align: center; min-height: 58px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
 .credits-hint {
   font-size: 11px; color: var(--muted); opacity: .55; letter-spacing: .06em;
 }
+/* 건너뛰기 — 한 번 본 사람에게만 뜬다. 눈에 먼저 들어오면 안 되는 버튼이라
+   귀띔보다 조용하게 두고, 마우스를 올렸을 때만 또렷해진다. */
+#story-skip, #credits-skip { opacity: .5; font-size: 12px; }
+#story-skip:hover, #credits-skip:hover { opacity: 1; }
 
 /* 손이 닿는 화면에서는 글자가 더 빨리 지나가도 읽히도록 조금 키운다 */
 @media (max-width: 760px) {
@@ -881,6 +894,19 @@ canvas#view {
 .codex-table td.hi { color: var(--ink); font-weight: 600; }
 .codex-table td.hi.mag { color: var(--cold); }
 .codex-table tr.locked td { color: #453E36; font-style: italic; }
+/* 잡은 수 — 스탯이 아니라 내 기록이라 불빛 색으로 구별한다 */
+.codex-table td.cx-kills { color: var(--ember); font-weight: 600; }
+
+/* 갖춰 입기 */
+.cx-tag.cx-set { color: var(--ember); border-color: color-mix(in srgb, var(--ember) 40%, transparent); }
+.gear-set { padding-top: 10px !important; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
+.gear-set b { color: var(--ember); }
+.gear-set b.down { color: var(--danger, #C9584C); }
+.g-slot.g-set b { color: var(--ember); }
+
+/* 매대 다시 깔기 — 물건이 아니라 기회를 사는 줄이라 위에 선을 긋는다 */
+.shop-row.shop-reroll { margin-top: 6px; border-top: 1px solid var(--line); }
+.shop-row.shop-reroll .nm { color: var(--ember); }
 .cx-thumb {
   display: block; width: 26px; height: 26px;
   object-fit: contain; object-position: bottom;

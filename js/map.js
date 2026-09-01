@@ -52,8 +52,18 @@ function addVault(map) {
     }
     if (!doors.length) continue;          // 어쩌다 길이 안 뚫렸으면 다시
 
+    /* 문은 하나만 남기고 나머지는 벽으로 메운다.
+       복도가 두 갈래로 닿으면 테두리에 구멍이 둘 생기고, 둘 다 문이 된다.
+       그런데 열쇠는 한 짝을 열면 사라지므로 「열었는데 문이 또 있다」가 된다 —
+       실제로 그렇게 신고가 들어왔다.
+
+       메워도 지도는 안 끊긴다. 보물방은 어차피 문으로 봉해지는 곳이라
+       나머지 지형이 이 방을 가로질러 이어져 있을 수가 없다. */
+    const door = doors[0];
+    for (const d of doors) if (d !== door) tiles[d.y][d.x] = T.WALL;
+
     map.vault = vault;
-    map.doors = doors;
+    map.doors = [door];
     return true;
   }
   return false;
@@ -131,6 +141,17 @@ function makeFloor(depth, withVault) {
       if (tiles[c.y][c.x] !== T.FLOOR) continue;
       tiles[c.y][c.x] = T.SHOP;
       map.shop = c;
+    }
+
+    /* 대장장이. 모닥불이 공짜로 한 번 벼려 주는 것과 달리 여기는 골드를 받고
+       몇 번이든 해 준다 — 골드가 쓸 데 없이 쌓이던 자리를 메우는 쪽이다.
+       없어도 판은 도므로 자리를 못 찾으면 그냥 넘어간다. */
+    for (let tries = 0; tries < 120 && !map.forge; tries++) {
+      const room = order[tries % order.length];
+      const c = randomTileIn(room);
+      if (tiles[c.y][c.x] !== T.FLOOR) continue;
+      tiles[c.y][c.x] = T.FORGE;
+      map.forge = c;
     }
   }
 

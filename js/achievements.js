@@ -30,6 +30,19 @@ const ACHIEVEMENTS = [
   { id: 'unhurt',   name: '스치지 않고',    desc: '한 층을 피해 없이 지나간다' },
   { id: 'magician', name: '지팡이를 든 자', desc: '마법으로 싸우는 채로 10층에 오른다' },
   { id: 'level10',  name: '단단해진 몸',   desc: '한 판에 10레벨에 닿는다' },
+
+  /* ---------- 탑을 오르는 「방식」에 붙는 것들 ----------
+     여기 있는 것은 전부 클리어를 전제로 하고, 그 위에 스스로 건 제약을 센다.
+     그래서 하나같이 「안 했다」가 조건이다 — 더 하는 것보다 참는 것이 어렵다.
+
+     조심할 것: 애초에 할 수 없는 사람에게는 공짜가 된다.
+     기사는 원거리가 아예 없으므로 「손으로만」이 그냥 딸려 온다.
+     그래서 조건을 「안 썼다」가 아니라 **「쓸 수 있었는데 안 썼다」** 로 잡는다. */
+  { id: 'noCamp',   name: '불을 쬐지 않고', desc: '모닥불을 한 번도 쓰지 않고 탑을 오른다' },
+  { id: 'noShop',   name: '빚 없이',        desc: '상인과 한 번도 거래하지 않고 탑을 오른다' },
+  { id: 'meleeOnly',name: '손으로만',       desc: '원거리를 쓸 수 있는 채로, 한 번도 쓰지 않고 오른다' },
+  { id: 'rangedOnly',name: '닿지 않고',     desc: '맞붙어 때리는 일 없이 탑을 오른다' },
+  { id: 'allHeroes',name: '모두의 탑',      desc: '다섯 사람 모두로 탑을 오른다' },
 ];
 
 function hasAch(id) {
@@ -63,6 +76,24 @@ function checkFloorAchievements(depth) {
 // 레벨이 오를 때
 function checkLevelAchievements() {
   if (state.level >= 10) unlockAch('level10');
+}
+
+/* 탑 끝까지 오른 순간에 한 번. chooseEnding 이 부른다 —
+   끝을 본 사람에게만 주는 것이라 「도달」이 아니라 「결말」이 기준이다. */
+function checkClearAchievements() {
+  if (!state.usedCamp) unlockAch('noCamp');
+  if (!state.traded) unlockAch('noShop');
+  // 쓸 수 있었는데 안 쓴 경우만. 기사에게는 애초에 열리지 않는다.
+  if (state.couldRanged && !state.usedRanged) unlockAch('meleeOnly');
+  if (!state.usedMelee) unlockAch('rangedOnly');
+
+  // 이 사람으로 오른 적이 있는가. 다섯을 다 채우면 열린다.
+  const save = loadData() || {};
+  const done = new Set(save.clearedHeroes || []);
+  done.add(currentHero().id);
+  save.clearedHeroes = [...done];
+  saveData(save);
+  if (done.size >= HEROES.length) unlockAch('allHeroes');
 }
 
 // 수집 관련 — 도감이 채워질 때마다

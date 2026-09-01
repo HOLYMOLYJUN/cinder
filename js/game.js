@@ -82,6 +82,13 @@ function startRun() {
   state.pendingMemory = null;
   state.gotMemoryThisRun = false;
   state.revived = false;
+  /* 「어떻게 올랐는가」를 세는 눈금들. 판이 끝날 때 업적이 이걸 본다.
+     층마다 리셋되는 campUses 와 달리 이건 판 하나를 통째로 산다. */
+  state.usedCamp = false;
+  state.traded = false;
+  state.usedMelee = false;
+  state.usedRanged = false;
+  state.couldRanged = false;     // 쏠 수 있는 상태가 한 번이라도 됐는가
   state.seenMonsters = new Set();
   state.ember = 0;
   state.hasKey = false;
@@ -158,6 +165,8 @@ function enterFloor(depth) {
   state.noteReady = false;
   state.wallBump = null;
   state.campUses = 0;
+  state.shopRerolls = 0;         // 매대 값은 층마다 처음으로 돌아간다
+  state.restFloor = isRest;      // 「스치지 않고」가 안식처를 세지 않게
   state.floorEntryHp = state.player ? state.player.hp : 0;
   state.hurtThisFloor = false;
   applyFov();
@@ -359,9 +368,11 @@ function playerAction(dir, intent) {
   const p = state.player;
 
   if (intent === 'wait') {
-    // 상인 앞에서 대기하면 다시 말을 건다.
+    // 상인·대장장이 앞에서 대기하면 다시 말을 건다.
     // 창을 실수로 닫았을 때 타일을 벗어났다 돌아올 필요가 없도록.
-    if (state.map.tiles[p.y][p.x] === T.SHOP) { openShop(); return; }
+    const here = state.map.tiles[p.y][p.x];
+    if (here === T.SHOP) { openShop(); return; }
+    if (here === T.FORGE) { openForge(); return; }
     spendPlayerTurn();
     return;
   }
@@ -504,11 +515,16 @@ function onPlayerEnter(x, y) {
 
   if (t === T.SHOP) openShop();
 
+  if (t === T.FORGE) openForge();
+
   if (t === T.CAMP) openCamp(x, y);
 
   if (t === T.STAIRS) {
     Sound.play('stairs');
-    if (!state.hurtThisFloor && state.depth >= 2) unlockAch('unhurt');
+    /* 안식처는 몬스터가 아예 없다. 그냥 지나가기만 해도 「스치지 않고」가
+       달성되므로 세지 않는다 — 피할 것이 없는 곳에서 피했다고 하면
+       업적이 아니라 통과 도장이 된다. */
+    if (!state.hurtThisFloor && !state.restFloor && state.depth >= 2) unlockAch('unhurt');
     if (state.depth >= CFG.TOP_FLOOR) {
       endRun(true);
     } else {
@@ -615,7 +631,10 @@ function canRanged() {
   if (!state.player) return false;               // 판 밖(타이틀)에서도 불릴 수 있다
   if (currentHero().melee) return false;
   const w = state.player.gear.weapon;
-  return !!(w && w.bow) || MEM.has('throw');
+  const ok = !!(w && w.bow) || MEM.has('throw');
+  // 「손으로만」은 쓸 수 있었는데 안 쓴 사람에게만 준다 (achievements.js 참고)
+  if (ok && state.running) state.couldRanged = true;
+  return ok;
 }
 
 // 지금 이 턴에 쏠 수 있는가 — 쓸 줄 아는 것(canRanged)과 손이 돌아왔는가는 다른 물음이다
@@ -706,6 +725,9 @@ function rangedAttack(dir) {
       return false;
     }
   }
+
+  // 여기까지 왔으면 실제로 쏜 것이다 — 「손으로만」이 이걸 보고 닫힌다
+  state.usedRanged = true;
 
   // 가는 길에 다른 것이 서 있으면 그것이 맞는다 — 관통하지 않는다
   if (target) {
@@ -806,13 +828,19 @@ function resolveGear(take) {
   const p = state.player;
 
   if (!take) {
-    // 바닥에 그대로 남긴다. 마음이 바뀌면 다시 밟으면 된다.
-    // (지금 서 있는 칸이므로 한 번 벗어났다 돌아와야 다시 뜬다 — 나가라고 조르지 않는다)
-    state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g });
+    /* 바닥에 그대로 남긴다. 마음이 바뀌면 다시 밟으면 된다.
+       (지금 서 있는 칸이므로 한 번 벗어났다 돌아와야 다시 뜬다 — 나가라고 조르지 않는다)
+
+       seen 을 달아 둔다. 한 번 열어 본 것은 무엇인지 이미 아는 물건이라
+       바닥에 상자로 두면 "저게 아까 그건가"를 다시 밟아서 확인해야 한다.
+       열어 보지 않은 것은 그대로 상자다 — 처음부터 아이콘을 깔면
+       던전 바닥이 진열장처럼 보여서 어디가 길인지 헷갈린다. */
+    state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: true });
     UI.log(josa(gearFullName(g), '을', '를') + ' 그대로 두었습니다.', 'sys');
     return;
   }
-  const old = p.gear[g.slot];
+  const into = equipSlotFor(g, p);      // 장신구는 둘 중 어디로 갈지 여기서 정해진다
+  const old = p.gear[into];
 
   /* 정체불명은 손에 쥔 순간 드러난다. 열고 나서 무를 수 없다는 것이
      이 물건의 값어치이자 값이다 — 여기서 되돌릴 수 있게 하면 도박이 아니라 감정이 된다. */
@@ -827,7 +855,7 @@ function resolveGear(take) {
       : josa(gearFullName(g), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
   }
 
-  p.gear[g.slot] = g;
+  p.gear[into] = g;
   recalcStats(p);
 
   UI.log(josa(gearFullName(g), '을', '를') + ' 착용했습니다' +
@@ -1114,6 +1142,7 @@ function pickCamp(id) {
   }
 
   state.campUses++;
+  state.usedCamp = true;         // 판을 통째로 사는 눈금 (「불을 쬐지 않고」)
   // 「돌아선 밤」을 되찾았으면 모닥불이 한 번 더 탄다 — 두 가지를 고를 수 있다
   const maxUses = MEM.has('night') ? 2 : 1;
   if (state.campUses >= maxUses) state.map.tiles[spot.y][spot.x] = T.FLOOR;
@@ -1129,12 +1158,156 @@ function pickCamp(id) {
    상점
    ========================================================= */
 
+/* 매대를 다시 까는 값. 누를수록 오른다 —
+   싸게 두면 원하는 것이 나올 때까지 돌리는 것이 언제나 최선이 되어,
+   상인이 「고르는 자리」가 아니라 「돌리는 자리」가 된다. */
+function rerollPrice() {
+  return Math.round((16 + state.depth * 4) * Math.pow(1.9, state.shopRerolls || 0));
+}
+
+function rerollShop() {
+  const price = rerollPrice();
+  if (state.gold < price) return;
+  state.gold -= price;
+  state.shopRerolls = (state.shopRerolls || 0) + 1;
+  state.traded = true;
+
+  /* 물약 줄은 남긴다. 물약은 이 게임에서 유일하게 「언제나 사도 되는 것」이라
+     그걸 굴려서 없애 버리면 다시 까는 것이 손해가 되는 판이 생긴다. */
+  const potion = state.shopStock.find(e => e.kind === 'potion');
+  state.shopStock = rollShopStock(state.depth + 2, state.player, 3);
+  if (potion) state.shopStock.push(potion);
+
+  Sound.play('buy');
+  UI.log('상인이 자루를 뒤집어 새로 늘어놓습니다.', 'sys');
+  UI.updateHud(state);
+  saveRun();
+  openShop();
+}
+
 function openShop() {
   if (!state.shopStock.length) return;
   UI.setShopSay(state.depth >= 12
     ? '여기까지 온 사람은 오랜만이군. 위에는 아무것도 없어.'
     : '위로 가는 사람은 드물지. 필요한 걸 골라.');
-  UI.showShop(state.shopStock, state.gold, state.player, buyFromShop);
+  UI.showShop(state.shopStock, state.gold, state.player, buyFromShop, {
+    price: rerollPrice(),
+    done: state.shopRerolls || 0,
+    onPick: rerollShop,
+  });
+}
+
+/* =========================================================
+   대장장이 — 골드를 쓰는 자리
+
+   모닥불도 벼려 주지만 그건 한 층에 한 번뿐이고, 그 한 번은 회복·최대 체력과
+   경쟁한다. 여기는 골드만 있으면 몇 번이든 해 준다.
+
+   왜 필요했나: 골드가 남아돌았다. 상인의 매대는 세 칸이고 살 것이 없으면
+   그걸로 끝이라, 후반에는 200~300 골드를 들고 다니며 쓸 데가 없었다.
+   쓸 데 없는 재화는 주워도 기쁘지 않고, 그러면 골드가 놓인 칸이 그냥 배경이 된다.
+
+   값은 벼릴 때마다 오른다. 안 그러면 골드가 곧 스탯이 되어,
+   싸움을 피하고 금화만 줍는 것이 언제나 최선이 된다. */
+/* 한 장비를 몇 번까지 손봐 주는가.
+
+   값만 올려서는 안 잡혔다. 골드는 층마다 계속 들어오는데 대장장이는 언제나
+   그 자리에 있으므로, 비싸지기만 하면 「좀 더 모아서 또」가 될 뿐이다.
+   시뮬을 돌려 보니 봇이 골드가 바닥날 때까지 두드려서 클리어율이 통째로 올랐다.
+   사람도 똑같이 한다 — 값을 쓰는 최선의 방법이 하나뿐이면 그건 선택이 아니다.
+
+   상한이 있으면 「무엇을 세 번 두드릴 것인가」가 된다. 무기냐 방어구냐,
+   지금 든 것이냐 다음에 나올 것이냐. 그게 골드로 사는 판단이다. */
+const FORGE_MAX = 3;
+
+function forgePrice(kind, times) {
+  const base = { weapon: 44, armor: 38, trinket: 32 }[kind] || 38;
+  return Math.round((base + state.depth * 5) * Math.pow(2.0, times || 0));
+}
+
+// 이 장비를 몇 번 손봤는가. 장비에 직접 붙여 두므로 이어하기에 그냥 실려 간다.
+function forgeTimes(g) { return (g && g.forged) || 0; }
+
+function forgeOptions() {
+  const p = state.player;
+  const out = [];
+  for (const slot of SLOTS) {
+    const g = p.gear[slot];
+    if (!g) {
+      out.push({ id: slot, name: SLOT_NAME[slot] + ' 없음', desc: '가져오면 손봐 주지.', disabled: true });
+      continue;
+    }
+    if (g.unknown) {
+      out.push({ id: slot, name: gearFullName(g), desc: '무엇인지도 모르는 걸 두드릴 순 없어.', disabled: true });
+      continue;
+    }
+    const times = forgeTimes(g);
+    if (times >= FORGE_MAX) {
+      out.push({ id: slot, name: gearFullName(g),
+                 desc: `더는 못 두드린다. (${FORGE_MAX}번 다 썼다)`, disabled: true });
+      continue;
+    }
+    const price = forgePrice(g.slot, times);
+    // 무엇이 오르는가는 그 장비가 이미 하던 일을 따라간다 — 지팡이는 주문이 오른다
+    const key = forgeGainKey(g);
+    const amount = forgeGainAmount(g, key);
+    out.push({
+      id: slot,
+      name: gearFullName(g) + '  ' + price + ' G',
+      desc: STAT_LABEL[key] + ' +' + amount + `  (${times}/${FORGE_MAX})`,
+      disabled: state.gold < price,
+    });
+  }
+  return out;
+}
+
+/* 무엇을 올릴지는 그 장비가 이미 무엇을 하는지가 정한다.
+   방어구에 공격을 붙이면 장비의 성격이 사라지고, 그러면 무엇을 낄지 고를 이유가 없어진다. */
+function forgeGainKey(g) {
+  if (g.slot === 'weapon') return ((g.mod.sp || 0) > (g.mod.atk || 0)) ? 'sp' : 'atk';
+  // 나머지는 이미 제일 큰 값을 더 키운다
+  let best = null, bestN = -Infinity;
+  for (const [k, n] of Object.entries(g.mod)) if (n > bestN) { best = k; bestN = n; }
+  return best || 'def';
+}
+
+function forgeGainAmount(g, key) {
+  return key === 'maxHp' ? 5 : (key === 'sp' ? 4 : 3);
+}
+
+function openForge() {
+  UI.showCamp(forgeOptions(), forgeGear,
+    '가진 걸 두드려 주지. 값은 손볼수록 오른다.  (' + state.gold + ' G)',
+    '대장장이');
+}
+
+function forgeGear(slot) {
+  const p = state.player;
+  const g = p.gear[slot];
+  if (!g || g.unknown) return;
+  if (forgeTimes(g) >= FORGE_MAX) return;
+  const price = forgePrice(g.slot, forgeTimes(g));
+  if (state.gold < price) return;
+
+  state.gold -= price;
+  state.traded = true;           // 대장장이도 거래다 — 「빚 없이」는 여기서도 닫힌다
+
+  const key = forgeGainKey(g);
+  const amount = forgeGainAmount(g, key);
+  /* 벼린 것은 장비에 직접 얹는다. 모닥불의 「벼림」과 같은 규칙이라
+     recalcStats 가 자동으로 따라오고 이어하기·관전에도 장비째로 실려 간다. */
+  g.mod[key] = (g.mod[key] || 0) + amount;
+  g.forged = forgeTimes(g) + 1;
+  recalcStats(p);
+
+  Sound.play('gearAncient');
+  Render.addFloater(p.x, p.y, '+' + amount, COLORS.ember);
+  UI.log(josa(gearFullName(g), '을', '를') + ' 두드렸습니다. ' +
+         STAT_LABEL[key] + ' +' + amount + '.', 'good');
+  UI.updateHud(state);
+  saveRun();
+
+  openForge();                   // 계속 맡길 수 있게 창을 다시 연다
 }
 
 function buyFromShop(i) {
@@ -1148,6 +1321,8 @@ function buyFromShop(i) {
   state.gold -= entry.price;
   Sound.play('buy');
 
+  state.traded = true;           // 「빚 없이」가 이걸 본다
+
   // 재고가 있는 물건은 하나씩 줄고, 다 팔리면 그때 사라진다
   if (entry.stock > 1) entry.stock--;
   else { entry.stock = 0; entry.sold = true; }
@@ -1158,8 +1333,9 @@ function buyFromShop(i) {
                       : '물약을 샀습니다. 상인에게 ' + entry.stock + '개 남았습니다.', 'good');
   } else {
     const p = state.player;
-    const old = p.gear[entry.gear.slot];
-    p.gear[entry.gear.slot] = entry.gear;
+    const into = equipSlotFor(entry.gear, p);
+    const old = p.gear[into];
+    p.gear[into] = entry.gear;
     rememberGear(entry.gear);
     recalcStats(p);
     UI.log(josa(gearFullName(entry.gear), '을', '를') + ' 샀습니다' +
@@ -1168,7 +1344,11 @@ function buyFromShop(i) {
   }
 
   UI.updateHud(state);
-  UI.showShop(state.shopStock, state.gold, state.player, buyFromShop);   // 다시 그린다
+  UI.showShop(state.shopStock, state.gold, state.player, buyFromShop, {
+    price: rerollPrice(),
+    done: state.shopRerolls || 0,
+    onPick: rerollShop,
+  });   // 다시 그린다
 }
 
 function spendPlayerTurn() {
@@ -1222,6 +1402,7 @@ function noteSeenMonsters() {
 function attack(attacker, defender, dir) {
   const { dmg, magic } = rollDamage(attacker, defender);
 
+  if (attacker.kind === 'player') state.usedMelee = true;   // 「닿지 않고」가 이걸 본다
   attacker.bump = { dx: dir.dx, dy: dir.dy, t: 0 };
   defender.hp -= dmg;
   defender.flash = CFG.FLASH_TIME;
@@ -1295,6 +1476,7 @@ function kill(entity) {
   entity.alive = false;
   entity.marks = null;
   state.kills++;
+  tallyKill(entity.defId);        // 도감에 몇 마리째인지 남는다
   Sound.play('kill');
   gainXp(entity.boss ? 25 + state.depth * 4 : LV.ofMonster(entity));
   if (entity.hasKey) {
@@ -1440,7 +1622,7 @@ function advanceTurns() {
         UI.showCurtain(mem.name, mem.line, mem.effect, () => {
           if (state.pendingGear) {
             const g = state.pendingGear;
-            UI.showGearCompare(g, state.player.gear[g.slot]);
+            UI.showGearCompare(g, state.player.gear[equipSlotFor(g, state.player)]);
           }
         });
         return;
@@ -1450,7 +1632,7 @@ function advanceTurns() {
       if (state.pendingGear) {
         const g = state.pendingGear;
         Sound.play('gear' + g.rarity[0].toUpperCase() + g.rarity.slice(1));
-        UI.showGearCompare(g, state.player.gear[g.slot]);
+        UI.showGearCompare(g, state.player.gear[equipSlotFor(g, state.player)]);
       }
       return;
     }
@@ -1594,6 +1776,18 @@ function rememberMonster(id) {
   checkCollectionAchievements();
 }
 
+/* 종류별로 몇 마리를 잡았는가. 판을 넘어 쌓인다.
+   save.kills 는 이미 「통째로 몇 마리」라는 다른 숫자로 쓰이고 있어서
+   여기는 killCount 로 따로 둔다 — 같은 이름에 다른 뜻을 얹으면 반드시 어긋난다. */
+function tallyKill(id) {
+  if (!id) return;
+  const save = loadData() || {};
+  const tally = save.killCount || {};
+  tally[id] = (tally[id] || 0) + 1;
+  save.killCount = tally;
+  saveData(save);
+}
+
 // 손에 넣어본 장비를 도감에 남긴다 (교체하지 않고 두더라도)
 function rememberGear(gear) {
   const save = loadData() || {};
@@ -1620,6 +1814,7 @@ function chooseEnding(which) {
   persist({ endings: [...seen] });
   unlockAch(which === 'light' ? 'endLight' : 'endLeave');
   if (seen.size >= 2) unlockAch('bothEnds');
+  checkClearAchievements();      // 「어떻게 올랐는가」에 붙는 것들
 
   const rows = [
     ['도달한 층', state.depth + '층'],

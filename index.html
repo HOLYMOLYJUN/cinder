@@ -212,6 +212,9 @@
       </div>
     </div>
     <div class="credits-foot">
+      <!-- 한 번 끝까지 본 사람에게만 나타난다. 처음 보는 사람에게 건너뛰기를
+           내밀면, 읽을 만한 것이 아니라 넘겨도 되는 것으로 먼저 읽힌다. -->
+      <button id="story-skip" class="btn-ghost hidden">건너뛴다</button>
       <span class="credits-hint">누르고 있으면 빨리 넘어갑니다</span>
     </div>
   </div>
@@ -224,6 +227,7 @@
     </div>
     <div class="credits-foot">
       <button id="credits-close" class="btn-ghost hidden">돌아간다</button>
+      <button id="credits-skip" class="btn-ghost hidden">건너뛴다</button>
       <span class="credits-hint" id="credits-hint">누르고 있으면 빨리 감깁니다</span>
     </div>
   </div>
@@ -249,6 +253,7 @@
             <tr><td><kbd>Z</kbd> + 방향 <span class="or">/</span> <kbd>J</kbd></td><td>원거리 — 「던지던 손」을 되찾아야 열립니다. <b>지팡이를 들면 불덩이</b>가 나가 주변까지 태웁니다. <b>활을 들면(엘프) 기억 없이도</b> 화살이 나갑니다. 기사는 쓰지 못하고, 한 번 쏘면 한 턴 쉬어야 합니다</td></tr>
             <tr><td><kbd>Space</kbd></td><td>한 턴 대기. 상인 앞에서는 다시 말을 겁니다</td></tr>
             <tr><td><kbd>1</kbd></td><td>물약 마시기 — 10개까지 들 수 있습니다</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>상인·대장장이 앞에서 다시 말을 겁니다</td></tr>
             <tr><td><kbd>F</kbd></td><td>불씨 밝기 — 「끄던 손」을 되찾아야 열립니다</td></tr>
             <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>같은 벽을 두 번 밀면</b> 「남기기」 버튼이 나타납니다</td></tr>
             <tr><td><kbd>Z</kbd> <span class="or">/</span> <kbd>X</kbd></td><td>장비 비교창에서 교체 / 그대로 두기</td></tr>

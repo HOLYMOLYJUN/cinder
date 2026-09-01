@@ -77,7 +77,7 @@ const NET = {
 
 /* ---------- 타일 ---------- */
 
-const T = { WALL: 0, FLOOR: 1, STAIRS: 2, CAMP: 3, SHOP: 4, DOOR: 5 };
+const T = { WALL: 0, FLOOR: 1, STAIRS: 2, CAMP: 3, SHOP: 4, DOOR: 5, FORGE: 6 };
 
 /* ---------- 색 (스프라이트 붙이기 전 임시 표현) ---------- */
 

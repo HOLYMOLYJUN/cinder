@@ -58,11 +58,23 @@ const UI = {
   // 체력은 하트로 보여준다. 막대보다 로그라이크답고,
   // 한 칸이 몇 점인지 몸에 익으면 숫자를 안 읽어도 위험한지 알 수 있다.
   HEART: 6,
+  /* 하트가 몇 개까지 늘어나도 되는가.
+     최대 체력은 레벨·반지·재·셋으로 계속 자라는데 한 칸을 6점으로 못 박아 두면
+     후반에 스무 개가 넘어간다. 좁은 화면에서는 그게 여러 줄로 접히면서
+     HUD 가 아래를 밀어내고, 로그가 한 줄로 눌린다.
+     그래서 개수를 묶고 대신 한 칸의 값을 키운다 — 숫자는 옆에 그대로 있다. */
+  HEART_MAX: 12,
+
+  // 이 판에서 하트 한 칸이 몇 점인가
+  heartUnit(maxHp) {
+    return Math.max(this.HEART, Math.ceil(maxHp / this.HEART_MAX));
+  },
 
   updateHearts(p) {
     const box = document.getElementById('hearts');
     if (!box || typeof SPRITES === 'undefined' || !SPRITES.heartFull) return;
-    const total = Math.max(1, Math.ceil(p.maxHp / this.HEART));
+    const unit = this.heartUnit(p.maxHp);
+    const total = Math.max(1, Math.ceil(p.maxHp / unit));
 
     // 최대 체력이 바뀔 때만 다시 짓는다 (매 턴 새로 만들면 깜빡인다)
     if (box.childElementCount !== total) {
@@ -74,9 +86,13 @@ const UI = {
       }
     }
     for (let i = 0; i < total; i++) {
-      const v = clamp(p.hp - i * this.HEART, 0, this.HEART);
-      const key = v >= this.HEART * 0.75 ? 'heartFull'
-                : v >= this.HEART * 0.25 ? 'heartHalf' : 'heartEmpty';
+      /* 마지막 칸은 한 칸을 다 못 채우는 경우가 있다 (50 = 8칸 + 2).
+         그때도 한 칸으로 그리면, 가득 찬 상태인데 반 칸으로 보인다 —
+         칸의 크기를 남은 만큼으로 잡아야 「가득」이 가득으로 그려진다. */
+      const cap = Math.min(unit, p.maxHp - i * unit);
+      const v = clamp(p.hp - i * unit, 0, cap);
+      const key = v >= cap * 0.75 ? 'heartFull'
+                : v >= cap * 0.25 ? 'heartHalf' : 'heartEmpty';
       const src = SPRITES[key].f[0];
       if (box.children[i].src !== src) box.children[i].src = src;
     }
@@ -239,6 +255,16 @@ const UI = {
     hint.classList.remove('hidden');
     this._creditsDone = onDone || null;
 
+    /* 건너뛰기는 한 번 본 사람에게만. 되짚기와 같은 규칙이다 —
+       처음 보는 사람에게 내밀면 「넘겨도 되는 것」으로 먼저 읽힌다.
+       끝으로 감는 것이므로 「돌아간다」가 그 자리에 뜬다. */
+    const skip = document.getElementById('credits-skip');
+    if (skip) {
+      const seen = !!((loadData() || {}).sawCredits);
+      skip.classList.toggle('hidden', !seen);
+      skip.onclick = () => this.endCredits();
+    }
+
     /* CSS 애니메이션이 아니라 직접 굴린다.
        누르고 있는 동안 빨라져야 하는데, 애니메이션은 도중에 속도를 바꾸면
        진행한 만큼을 잃고 처음부터 다시 흐른다. 위치를 우리가 들고 있으면
@@ -281,6 +307,13 @@ const UI = {
     box.style.transform = 'translateY(0)';
     document.getElementById('credits-close').classList.remove('hidden');
     document.getElementById('credits-hint').classList.add('hidden');
+    const skip = document.getElementById('credits-skip');
+    if (skip) skip.classList.add('hidden');
+    // 건너뛰어서 끝났어도 「봤다」로 친다 (되짚기와 같은 이유)
+    try {
+      const save = loadData() || {};
+      if (!save.sawCredits) { save.sawCredits = true; saveData(save); }
+    } catch (e) {}
   },
 
   hideCredits() {
@@ -317,6 +350,14 @@ const UI = {
              (ic ? `<img class="g-ico" src="${ic}" alt="">` : '') +
              `<b style="color:${c}">${gearFullName(g)}</b></span>`;
     });
+    /* 갖춰 입은 것 — 몇 조각인지 보여야 「하나만 더」가 생긴다.
+       한 조각뿐이면 안 적는다. 그건 아직 셋이 아니라 그냥 장비다. */
+    for (const [k, n] of Object.entries(wornSets(player))) {
+      if (n < 2) continue;
+      const s = SETS[k];
+      parts.push(`<span class="g-slot g-set"><i>${s.name}</i>` +
+                 `<b>${n}/${s.pieces.length}</b></span>`);
+    }
     // 곁에 있는 것 — 스탯이 왜 그런지 설명하는 자리라 능력치 옆에 둔다
     if (typeof PET !== 'undefined' && PET.has()) {
       const d = PET.current();
@@ -364,6 +405,33 @@ const UI = {
     }
     }
 
+    /* 셋이 걸린 물건이면 그 줄을 따로 적는다.
+       숫자만으로는 지금 든 것이 더 세 보이는데도 이쪽을 집는 이유가
+       여기 있기 때문이다 — 비교창에 처음 생긴 「그렇지만」이다. */
+    const gaining = SET_OF[gear.name];
+    const losing = current && SET_OF[current.name];
+    if (gaining || losing) {
+      const worn = wornSets(state.player);
+      const lines = [];
+      if (gaining) {
+        const s = SETS[gaining];
+        // 지금 낀 것이 같은 셋이면 조각 수는 그대로다
+        const after = (worn[gaining] || 0) + (losing === gaining ? 0 : 1);
+        lines.push(`<b>${s.name}</b> 갖춤 ${after}/${s.pieces.length}` +
+                   (after >= 3 ? ' — 완성' : after >= 2 ? ' — 둘' : '') +
+                   ` · <span class="cx-mod">${s.line}</span>`);
+      }
+      if (losing && losing !== gaining && (worn[losing] || 0) >= 2) {
+        lines.push(`<b class="down">${SETS[losing].name}</b> 갖춤이 풀린다` +
+                   ` (${worn[losing]} → ${worn[losing] - 1})`);
+      }
+      if (lines.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="4" class="gear-set">${lines.join('<br>')}</td>`;
+        this.el.gearRows.appendChild(tr);
+      }
+    }
+
     // 활을 버리면 원거리가 같이 사라진다 — 스탯 표에는 안 보이는 값이라 말로 적어 준다
     const losesBow = current && current.bow && !gear.bow && !MEM.has('throw');
     this.el.gearOld.textContent = current
@@ -377,7 +445,7 @@ const UI = {
   gearOpen() { return !this.el.gearModal.classList.contains('hidden'); },
 
   /* ---------- 상점 ---------- */
-  showShop(stock, gold, player, onBuy) {
+  showShop(stock, gold, player, onBuy, reroll) {
     this.el.shopGold.textContent = gold;
     this.el.shopList.innerHTML = '';
 
@@ -402,7 +470,7 @@ const UI = {
         const ic = this.gearIcon(g);
         if (ic) icon = `<img class="shop-ico" src="${ic}" alt="">`;
         name = `<span class="nm r-${g.rarity}">${gearFullName(g)}</span>`;
-        const cur = player.gear[g.slot];
+        const cur = player.gear[equipSlotFor(g, player)];
         const diffs = compareRows(g, cur)
           .filter(r => r.diff !== 0)
           .map(r => `<span class="${r.diff > 0 ? 'up' : 'down'}">${r.label} ${r.diff > 0 ? '+' : ''}${r.diff}</span>`)
@@ -415,6 +483,21 @@ const UI = {
       btn.addEventListener('click', () => onBuy(i));
       this.el.shopList.appendChild(btn);
     });
+
+    /* 매대를 다시 깐다. 살 것이 하나도 없는 매대를 만나면 안식처가
+       그냥 지나가는 층이 되는데, 그때 골드를 쓸 자리를 만들어 준다.
+       물건이 아니라 「기회」를 사는 것이라 맨 아래에 따로 둔다. */
+    if (reroll) {
+      const b = document.createElement('button');
+      b.className = 'shop-row shop-reroll';
+      b.disabled = gold < reroll.price;
+      b.innerHTML = `<span class="num">R</span><span class="shop-ico"></span>` +
+        `<span><span class="nm">매대를 다시 깐다</span>` +
+        `<span class="sub">${reroll.done ? reroll.done + '번 바꿨다 · ' : ''}물건이 전부 새로 나온다</span></span>` +
+        `<span class="price">${reroll.price} G</span>`;
+      b.addEventListener('click', reroll.onPick);
+      this.el.shopList.appendChild(b);
+    }
 
     this.el.shopModal.classList.remove('hidden');
   },
@@ -585,7 +668,7 @@ const UI = {
 
   showCodex(tab) {
     const save = loadData() || {};
-    this.renderMonsterCodex(new Set(save.codex || []));
+    this.renderMonsterCodex(new Set(save.codex || []), save.killCount || {});
     this.renderItemCodex(new Set(save.itemCodex || []));
     this.renderMemories(new Set(save.memories || []));
     this.renderAchievements(new Set(save.achievements || []));
@@ -620,26 +703,30 @@ const UI = {
     return s ? `<img class="cx-thumb" src="${s.f[0]}" alt="">` : '<span class="cx-thumb"></span>';
   },
 
-  renderMonsterCodex(seen) {
+  renderMonsterCodex(seen, tally) {
+    const killed = tally || {};
     const rows = [`<thead><tr><th></th><th>이름</th><th>층</th><th>체력</th><th>공격</th>` +
-                  `<th>주문</th><th>방어</th><th>마방</th><th>속도</th></tr></thead><tbody>`];
+                  `<th>주문</th><th>방어</th><th>마방</th><th>속도</th><th>잡음</th></tr></thead><tbody>`];
     for (const m of MONSTERS) {
       if (!seen.has(m.id)) {
         rows.push('<tr class="locked"><td></td><td>아직 마주치지 않았다</td>' +
-                  '<td colspan="7"></td></tr>');
+                  '<td colspan="8"></td></tr>');
         continue;
       }
       const magic = m.sp > m.atk;
+      // 마주치기만 하고 아직 못 잡은 것도 있다 — 그때는 숫자 대신 가운뎃점
+      const n = killed[m.id] || 0;
       rows.push(`<tr><td>${this.thumb(m.id + '.idle')}</td>` +
         `<td class="cx-name">${m.name}${magic ? ' <span class="cx-tag">원거리</span>' : ''}</td>` +
         `<td>${m.min}</td><td>${m.hp}</td>` +
         `<td${magic ? '' : ' class="hi"'}>${m.atk}</td>` +
         `<td${magic ? ' class="hi mag"' : ''}>${m.sp}</td>` +
-        `<td>${m.def}</td><td>${m.md}</td><td>${m.spd}</td></tr>`);
+        `<td>${m.def}</td><td>${m.md}</td><td>${m.spd}</td>` +
+        `<td class="cx-kills">${n ? n : '·'}</td></tr>`);
     }
     rows.push('</tbody>');
     // 엘리트는 몬스터가 아니라 몬스터에 붙는 것이므로 표 아래에 따로 적는다
-    rows.push('<tbody><tr class="cx-note"><td colspan="9" class="cx-mod" style="padding-top:14px">' +
+    rows.push('<tbody><tr class="cx-note"><td colspan="10" class="cx-mod" style="padding-top:14px">' +
       '<b>이름 앞에 붙는 것</b> — 3층부터, 위로 갈수록 자주 붙습니다. 발밑이 빛납니다.<br>' +
       ELITES.map(e => `「${e.name}」 ${e.note}`).join(' · ') +
       '</td></tr></tbody>');
@@ -656,12 +743,34 @@ const UI = {
       const mods = STAT_ORDER.filter(k => g.mod[k])
         .map(k => `${STAT_LABEL[k]} ${g.mod[k] > 0 ? '+' : ''}${g.mod[k]}`).join(' · ');
       const only = g.only ? ` <span class="cx-tag">${(HEROES.find(h => h.id === g.only) || {}).name || g.only} 전용</span>` : '';
+      const set = SET_OF[g.name]
+        ? ` <span class="cx-tag cx-set">${SETS[SET_OF[g.name]].name} 셋</span>` : '';
       rows.push(`<tr><td>${this.gearThumb(g)}</td>` +
         `<td class="cx-name" style="color:${RARITY[g.rarity].color}">` +
-        `${gearFullName(g)}${only}</td><td>${SLOT_NAME[g.slot]}</td><td>${g.min}</td>` +
+        `${gearFullName(g)}${only}${set}</td><td>${SLOT_NAME[g.slot]}</td><td>${g.min}</td>` +
         `<td class="cx-mod">${mods}</td></tr>`);
     }
     rows.push('</tbody>');
+
+    /* 셋은 장비가 아니라 장비들 사이의 관계라 표 아래에 따로 적는다.
+       엘리트를 몬스터 표 아래에 적는 것과 같은 자리다. */
+    const setRows = Object.values(SETS).map(s => {
+      const worn = STAT_ORDER.filter(k => s.three[k])
+        .map(k => `${STAT_LABEL[k]} +${s.three[k]}`).join(' · ');
+      const two = STAT_ORDER.filter(k => s.two[k])
+        .map(k => `${STAT_LABEL[k]} +${s.two[k]}`).join(' · ');
+      /* 아직 손에 넣지 못한 조각은 이름을 가린다. 도감의 규칙이 「마주친 것만
+         열린다」인데, 셋 목록이 그걸 통째로 흘리면 표를 잠가 둔 뜻이 없어진다.
+         (검사가 이걸 잡았다 — 「갑옷」이 잠긴 도감에서 읽혔다.) */
+      const names = s.pieces.map(n => seen.has(n) ? n : '<span class="locked">???</span>');
+      return `<b>${s.name}</b> — ${names.join(' · ')}<br>` +
+             `<span class="cx-mod">둘 갖추면 ${two} / 셋 다 갖추면 ${worn} (겹쳐 붙습니다)</span>`;
+    });
+    rows.push('<tbody><tr class="cx-note"><td colspan="5" class="cx-mod" style="padding-top:14px">' +
+      '<b>갖춰 입기</b> — 같은 셋을 두 조각 이상 걸치면 값이 더 붙습니다. ' +
+      '한 조각을 걸치면 나머지가 더 자주 나옵니다.<br><br>' +
+      setRows.join('<br><br>') + '</td></tr></tbody>');
+
     document.getElementById('codex-items').innerHTML = rows.join('');
   },
 

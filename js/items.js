@@ -9,10 +9,32 @@
    이게 물리/마법 노선이 갈리는 유일한 장치다.
    ========================================================= */
 
-const SLOTS = ['weapon', 'armor', 'trinket'];
+/* 몸에 걸치는 자리. 장신구는 둘이다 —
+   장신구는 원래 성격을 정하는 물건인데 한 칸뿐일 때는 「제일 센 것 하나」로
+   끝나서 고를 일이 없었다. 둘이면 속도와 마방을 같이 갈지, 한쪽에 몰지가 갈린다.
 
-const SLOT_NAME = { weapon: '무기', armor: '방어구', trinket: '장신구' };
-const SLOT_GLYPH = { weapon: ')', armor: ']', trinket: '=' };
+   장비의 `slot` 은 「어떤 종류인가」이고, 여기 이름은 「몸의 어느 자리인가」다.
+   장신구 하나가 trinket 과 trinket2 중 어디로 가는지는 equipSlotFor 가 정한다. */
+const SLOTS = ['weapon', 'armor', 'trinket', 'trinket2'];
+
+const SLOT_NAME = { weapon: '무기', armor: '방어구', trinket: '장신구', trinket2: '장신구' };
+const SLOT_GLYPH = { weapon: ')', armor: ']', trinket: '=', trinket2: '=' };
+
+// 이 장비가 들어갈 수 있는 몸의 자리들
+function slotsFor(kind) {
+  return kind === 'trinket' ? ['trinket', 'trinket2'] : [kind];
+}
+
+/* 이 장비를 끼면 어느 자리에 들어가는가.
+   빈 자리가 있으면 거기로, 둘 다 찼으면 **값이 낮은 쪽**을 밀어낸다 —
+   어느 쪽을 뺄지 또 묻는 창을 띄우면, 인벤토리를 없앤 이유가 사라진다. */
+function equipSlotFor(gear, player) {
+  const cand = slotsFor(gear.slot);
+  if (cand.length === 1) return cand[0];
+  for (const s of cand) if (!player.gear[s]) return s;
+  return cand.reduce((a, b) =>
+    gearPrice(player.gear[b]) < gearPrice(player.gear[a]) ? b : a);
+}
 
 // 등급 — '고대의' 가 희귀 등급이고, 나중에 기억을 되찾는 계기가 된다
 const RARITY = {
@@ -56,13 +78,17 @@ const GEAR = [
   { slot:'armor',  name:'그을린 갑옷', min:6,  rarity:'ancient', mod:{ def:5, md:3 } },
   { slot:'armor',  name:'재의 외투',   min:10, rarity:'ancient', mod:{ def:6, md:6 } },
 
-  // ---- 장신구 ----
-  { slot:'trinket', name:'가죽 장화',  min:1,  rarity:'common',  mod:{ spd:3 } },
-  { slot:'trinket', name:'부적',       min:2,  rarity:'common',  mod:{ md:3 } },
-  { slot:'trinket', name:'생명의 반지',min:4,  rarity:'common',  mod:{ maxHp:10 } },
-  { slot:'trinket', name:'날랜 장화',  min:6,  rarity:'fine',    mod:{ spd:6 } },
-  { slot:'trinket', name:'수정 목걸이',min:6,  rarity:'fine',    mod:{ md:5, sp:3 } },
-  { slot:'trinket', name:'등불지기의 반지', min:10, rarity:'ancient', mod:{ maxHp:12, md:3, sp:3 } },
+  /* ---- 장신구 ----
+     자리가 둘로 늘면서 값을 낮췄다. 두 칸을 준 것은 **고를 것을 늘리려는 것**이지
+     세지게 하려는 것이 아니다 — 그대로 두었더니 클리어율이 기사 57→73%,
+     드워프 50→88%, 마법사 79→98% 가 됐다. 판이 쉬워진 게 아니라 없어졌다.
+     둘을 합쳐서 예전 한 칸쯤 되게 맞췄다. */
+  { slot:'trinket', name:'가죽 장화',  min:1,  rarity:'common',  mod:{ spd:2 } },
+  { slot:'trinket', name:'부적',       min:2,  rarity:'common',  mod:{ md:2 } },
+  { slot:'trinket', name:'생명의 반지',min:4,  rarity:'common',  mod:{ maxHp:6 } },
+  { slot:'trinket', name:'날랜 장화',  min:6,  rarity:'fine',    mod:{ spd:3 } },
+  { slot:'trinket', name:'수정 목걸이',min:6,  rarity:'fine',    mod:{ md:3, sp:2 } },
+  { slot:'trinket', name:'등불지기의 반지', min:10, rarity:'ancient', mod:{ maxHp:8, md:2, sp:2 } },
 
   /* 기억을 굴릴 기회는 「고대의」를 밟는 순간에만 온다. 그런데 위 목록은
      4층까지 후보가 하나도 없고 그마저 무기라, 초반에 죽는 판은 확률이 낮은 게 아니라
@@ -70,9 +96,65 @@ const GEAR = [
 
      그래서 앞쪽에 둘을 둔다. 세기로 앞서는 물건이면 초반 균형이 무너지므로,
      같은 등급이되 값은 얌전하게 잡았다 — 이건 힘이 아니라 기회를 놓는 자리다. */
-  { slot:'trinket', name:'재의 부적',   min:2,  rarity:'ancient', mod:{ md:4, sp:2 } },
+  { slot:'trinket', name:'재의 부적',   min:2,  rarity:'ancient', mod:{ md:3, sp:1 } },
   { slot:'armor',   name:'재의 조끼',   min:3,  rarity:'ancient', mod:{ def:3, spd:1 } },
 ];
+
+/* ---------- 갖춰 입기 ----------
+
+   장비를 하나씩 보면 언제나 「숫자가 큰 것」이 정답이라 고를 일이 없다.
+   셋을 맞추면 값이 붙는다고 하면, 지금 든 것보다 조금 낮은 물건을 일부러
+   집는 판단이 생긴다 — 이게 비교창에 처음으로 「그렇지만」을 만든다.
+
+   새로 그린 것은 없다. 이미 있는 장비에 이름표만 붙였다.
+   기사·법사 셋은 좋은 등급이라 모으기 어렵고, 궁수·창병 셋은 평범한 것이
+   섞여 있어 일찍 맞출 수 있다 — 어려운 셋일수록 값이 크다. */
+const SETS = {
+  knight: { name: '기사', pieces: ['대검', '판금 갑옷', '생명의 반지'],
+            two: { def: 2 },  three: { def: 3, maxHp: 10 },
+            line: '두꺼운 것을 두르고 앞에 선다' },
+  wizard: { name: '법사', pieces: ['주술 지팡이', '수호의 로브', '수정 목걸이'],
+            two: { sp: 2 },   three: { sp: 4, md: 3 },
+            line: '멀리서 태운다' },
+  archer: { name: '궁수', pieces: ['긴 활', '가죽 갑옷', '날랜 장화'],
+            two: { spd: 2 },  three: { spd: 3, atk: 3 },
+            line: '닿기 전에 물러선다' },
+  /* 창병 셋은 세 조각이 전부 흔한 것이라 제일 일찍 맞춰진다.
+     그래서 값을 제일 얌전하게 잡았다 — 공격은 이 게임에서 제일 센 수치라,
+     쉽게 맞춰지는 셋에 크게 얹으면 그 셋 하나가 정답이 된다. */
+  spear:  { name: '창병', pieces: ['긴 창', '사슬 갑옷', '가죽 장화'],
+            two: { atk: 2 },  three: { atk: 3, spd: 1 },
+            line: '한 칸 앞에서 찌른다' },
+};
+
+// 이름 → 셋 열쇠. GEAR 에 열쇠를 적어 두면 두 곳이 어긋나므로 여기서 한 번에 만든다.
+const SET_OF = {};
+for (const [key, s] of Object.entries(SETS))
+  for (const n of s.pieces) SET_OF[n] = key;
+
+/* 지금 몇 조각을 걸치고 있는가. { knight: 2, ... } */
+function wornSets(player) {
+  const out = {};
+  for (const slot of SLOTS) {
+    const g = player.gear[slot];
+    if (!g || g.unknown) continue;          // 정체불명은 열기 전까지 셈에 안 든다
+    const k = SET_OF[g.name];
+    if (k) out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+// 갖춰 입어서 붙는 값. recalcStats 가 마지막에 얹는다.
+function setBonus(player) {
+  const mod = {};
+  for (const [k, n] of Object.entries(wornSets(player))) {
+    const s = SETS[k];
+    if (!s) continue;
+    if (n >= 2) for (const [stat, v] of Object.entries(s.two)) mod[stat] = (mod[stat] || 0) + v;
+    if (n >= 3) for (const [stat, v] of Object.entries(s.three)) mod[stat] = (mod[stat] || 0) + v;
+  }
+  return mod;
+}
 
 const STAT_LABEL = { atk:'공격', sp:'주문', def:'방어', md:'마방', spd:'속도', maxHp:'최대 체력' };
 const STAT_ORDER = ['atk', 'sp', 'def', 'md', 'spd', 'maxHp'];
@@ -103,6 +185,8 @@ function rollGear(depth, luck) {
      돌아온 사람은 한 판에 고대의를 두어 번밖에 못 만났다. 굴릴 기회가 그만큼 없으니
      "기억이 안 모인다"가 된다 — 확률이 아니라 기회 쪽 문제라 여기를 올린다. */
   const base = { common: 6, fine: 3, ancient: 3 + clamp(luck || 0, 0, 5) * 2 };
+  // 이미 시작한 셋이 있으면 그쪽 조각이 더 자주 나온다 (아래 참고)
+  const started = (typeof state !== 'undefined' && state.player) ? wornSets(state.player) : {};
   const weighted = [];
   for (const g of pool) {
     const age = depth - g.min;
@@ -118,6 +202,13 @@ function rollGear(depth, luck) {
        그래서 최소 하나는 남긴다 — 드물어질 뿐 없어지지는 않는다. */
     const kind = weaponKind(g);
     if (kind) w = Math.max(1, Math.round(w * (hero.likes.includes(kind) ? 3 : 0.4)));
+
+    /* 이미 한 조각을 걸친 셋의 나머지가 더 자주 나온다.
+       기울이지 않으면 세 조각이 우연히 모일 일이 없어서, 셋 효과가
+       「있다는 것만 아는 것」이 된다 — 그건 없는 것과 같다.
+       다만 확정은 아니다. 두 조각째부터 더 세게 기운다. */
+    const setKey = SET_OF[g.name];
+    if (setKey && started[setKey]) w = Math.round(w * (started[setKey] >= 2 ? 5 : 3));
 
     for (let i = 0; i < w; i++) weighted.push(g);
   }
@@ -177,8 +268,8 @@ function rollShopStock(depth, player, count) {
       const g = rollGear(depth);
       if (!g) break;
       if (taken.has(g.name)) continue;
-      const worn = player.gear[g.slot];
-      if (worn && worn.name === g.name) continue;
+      // 이미 낀 것과 같은 물건은 안 판다 — 장신구는 두 자리를 다 본다
+      if (slotsFor(g.slot).some(s => player.gear[s] && player.gear[s].name === g.name)) continue;
       taken.add(g.name);
       stock.push({ kind: 'gear', gear: g, price: gearPrice(g), sold: false });
       break;
@@ -230,6 +321,8 @@ function recalcStats(player) {
   if (typeof PET !== 'undefined') {
     for (const [k, n] of Object.entries(PET.mod())) s[k] = (s[k] || 0) + n;
   }
+  // 갖춰 입어서 붙는 값. 장비를 다 더한 뒤에 얹는다 — 조각 수를 세야 하므로
+  for (const [k, n] of Object.entries(setBonus(player))) s[k] = (s[k] || 0) + n;
 
   const beforeMax = player.maxHp;
   player.maxHp = Math.max(1, s.maxHp);
