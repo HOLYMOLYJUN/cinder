@@ -129,9 +129,25 @@ const Sound = {
     const r = () => 0.94 + Math.random() * 0.12;      // 같은 소리도 매번 조금씩 다르게
 
     switch (name) {
-      case 'step':
-        this.tone({ from: 150 * r(), to: 90, dur: 0.035, vol: 0.055, type: 'triangle', release: 0.03 });
+      case 'step': {
+        /* 챱 — 축축한 바닥을 딛는 소리. 음(tone)으로는 이 소리가 안 난다 —
+           「챱」의 정체는 음정이 아니라 **훅 꺼지는 잡음**이라, 밴드패스를
+           위에서 아래로 빠르게 쓸어내려 만든다. 밑에 낮은 툭(tone)을 얇게
+           깔면 발바닥이 땅에 닿는 무게가 붙는다.
+
+           하수도(11층~)는 물기가 더 많다 — 더 낮게, 더 오래, 더 질척하게.
+           걸음은 이 게임에서 제일 자주 나는 소리라 음량은 아껴 잡는다. */
+        const sewer = typeof state !== 'undefined' && typeof CFG !== 'undefined' &&
+                      state.depth >= CFG.SEWER_FLOOR && state.depth < CFG.TOP_FLOOR;
+        if (sewer) {
+          this.noise({ dur: 0.1, freq: 640 * r(), freqTo: 130, vol: 0.1, type: 'bandpass', q: 0.9 });
+          this.noise({ dur: 0.05, freq: 2300 * r(), freqTo: 800, vol: 0.035, q: 2 });
+        } else {
+          this.noise({ dur: 0.06, freq: 1500 * r(), freqTo: 320, vol: 0.08, type: 'bandpass', q: 1.1 });
+          this.tone({ from: 120 * r(), to: 75, dur: 0.028, vol: 0.03, type: 'triangle', release: 0.02 });
+        }
         break;
+      }
 
       case 'hit':                      // 내가 때린다
         this.noise({ dur: 0.07, freq: 1400 * r(), freqTo: 500, vol: 0.16, q: 0.8 });
@@ -348,6 +364,7 @@ const Sound = {
       this.drone = { a, b, g, f };
       g.gain.exponentialRampToValueAtTime(0.05, this.now() + 2);
       this.startCrackle();
+      this.startMusic();
     }
     // 램프는 "직전에 예약된 값"에서 출발한다. .value 만 건드려 놓고 램프를 걸면
     // 출발점이 없어서 두 번째 층부터 아무 일도 일어나지 않는다.
@@ -378,6 +395,59 @@ const Sound = {
     }
   },
 
+  /* ---------- 배경 선율 ----------
+
+     곡을 트는 것이 아니라 **음을 드문드문 놓는다.** 드론이 이미 바닥음을
+     쥐고 있으므로, 그 위에 같은 뿌리의 단조 5음계에서 한두 음씩 떨어뜨리면
+     화음이 저절로 맞는다 — 층이 내려앉으면(setFloor) 선율도 함께 내려앉는다.
+
+     음은 이웃한 것으로만 옮긴다. 멀리 뛰면 선율이 아니라 무작위로 들린다.
+     간격은 3~9초로 흩뜨리고 층이 깊을수록 뜸해진다 — 어두워질수록 말이
+     줄어드는 쪽이 이 게임답다. 가끔(둘에 하나) 두 음짜리 구절이 되고,
+     가끔(다섯에 하나) 5도 아래가 옅게 받친다.
+
+     소리 하나하나는 길게 피어났다 길게 사그라든다(attack 0.5s, release 2s).
+     또렷한 멜로디가 아니라 「탑 어딘가에서 들려오는 것」이어야 하므로. */
+  MUSIC_SCALE: [1, 1.1892, 1.3348, 1.4983, 1.7818],   // 단조 5음계 (반음 0·3·5·7·10)
+  musicTimer: null,
+  musicDeg: 0,
+
+  musicNote(deg, oct, delay, vol) {
+    const f = this.droneHz * oct * this.MUSIC_SCALE[deg];
+    this.tone({ from: f, to: f, dur: 1.4, vol: vol, type: 'sine',
+                attack: 0.5, release: 2, delay: delay || 0 });
+  },
+
+  startMusic() {
+    if (this.musicTimer) return;
+    const tick = () => {
+      if (!this.ctx) return;
+      const depth = (typeof state !== 'undefined' && state.depth) || 1;
+      const roof = typeof CFG !== 'undefined' && depth >= CFG.TOP_FLOOR;
+      if (!this.muted && this.droneHz && this.voices < 6 && !roof) {
+        // 이웃 음으로 한 걸음 (가장자리에서는 안으로 꺾는다)
+        const stepTo = this.musicDeg + (Math.random() < 0.5 ? -1 : 1);
+        this.musicDeg = Math.min(this.MUSIC_SCALE.length - 1, Math.max(0, stepTo));
+
+        // 드론(~58Hz)의 두 옥타브 위가 기본 자리. 가끔 한 옥타브 더 올라간다.
+        const oct = Math.random() < 0.22 ? 8 : 4;
+        this.musicNote(this.musicDeg, oct, 0, 0.038);
+
+        if (Math.random() < 0.5) {          // 두 음짜리 구절
+          const next = Math.min(this.MUSIC_SCALE.length - 1,
+                                Math.max(0, this.musicDeg + (Math.random() < 0.5 ? -1 : 1)));
+          this.musicNote(next, oct, 1.1 + Math.random() * 0.6, 0.03);
+          this.musicDeg = next;
+        }
+        if (Math.random() < 0.2) {          // 5도 아래 받침
+          this.musicNote(0, oct / 2, 0.2, 0.024);
+        }
+      }
+      this.musicTimer = setTimeout(tick, 3000 + Math.random() * 6000 + depth * 180);
+    };
+    this.musicTimer = setTimeout(tick, 2500);
+  },
+
   startCrackle() {
     const tick = () => {
       if (!this.ctx) return;
@@ -392,6 +462,7 @@ const Sound = {
 
   stopAmbience() {
     if (this.crackleTimer) clearTimeout(this.crackleTimer);
+    if (this.musicTimer) { clearTimeout(this.musicTimer); this.musicTimer = null; }
     if (this.drone) {
       this.drone.g.gain.exponentialRampToValueAtTime(0.0001, this.now() + 0.8);
     }

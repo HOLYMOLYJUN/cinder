@@ -89,6 +89,38 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(drone.f15 < drone.f1,
         `위로 갈수록 드론이 낮아짐 (1층 ${drone.f1.toFixed(1)}Hz → 15층 ${drone.f15.toFixed(1)}Hz)`);
 
+  /* ---------- 배경 선율 ---------- */
+  console.log('\n[ 배경 선율 ]');
+  const music = await page.evaluate(() => {
+    const before = Sound.voices;
+    // 층에 들어서면 선율 시계가 돈다 (setFloor 가 startMusic 을 부른다)
+    const timer = !!Sound.musicTimer;
+    // 음 하나를 직접 떨어뜨려 본다 — 실제로 소리가 만들어지는가
+    Sound.musicNote(0, 4, 0, 0.04);
+    const after = Sound.voices;
+    // 음계가 드론 뿌리를 따라간다 — 첫 음은 드론의 두 옥타브 위
+    const root = Sound.droneHz * 4 * Sound.MUSIC_SCALE[0];
+    return { timer, made: after > before, root, drone: Sound.droneHz };
+  });
+  check(music.timer, '층에 들어서면 선율 시계가 돈다');
+  check(music.made, '선율 음이 실제로 만들어짐');
+  check(Math.abs(music.root - music.drone * 4) < 0.01,
+        `선율이 드론과 같은 뿌리에서 자란다 (드론 ${music.drone.toFixed(1)}Hz → ${music.root.toFixed(1)}Hz)`);
+
+  const wetStep = await page.evaluate(() => {
+    // 발소리 — 돌 층과 하수도 층이 다른 소리를 낸다 (예외 없이 재생되고 소리 수가 느는가)
+    const out = {};
+    let b = Sound.voices;
+    Sound.last = {}; state.depth = 4;  Sound.play('step'); out.stone = Sound.voices - b;
+    b = Sound.voices;
+    Sound.last = {}; state.depth = 12; Sound.play('step'); out.sewer = Sound.voices - b;
+    state.depth = 4;
+    out.total = Sound.voices;
+    return out;
+  });
+  check(wetStep.stone > 0 && wetStep.sewer > 0,
+        `발소리가 돌 층에서도 하수도에서도 난다 (돌 +${wetStep.stone} · 하수도 +${wetStep.sewer} · 총 ${wetStep.total})`);
+
   /* ---------- 5. 음소거 ---------- */
   console.log('\n[ 음소거 ]');
   const muted = await page.evaluate(() => {
