@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "잿불 — 불씨를 들고 오르는 탑",
+  "short_name": "잿불",
+  "description": "불씨를 들고 탑을 오르는 턴제 로그라이크. 매일 탑이 새로 선다.",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0B0908",
+  "background_color": "#0C0A08",
+  "icons": [
+    { "src": "/assets/app/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/app/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

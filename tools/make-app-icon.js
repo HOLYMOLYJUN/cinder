@@ -19,6 +19,12 @@
      icon-background.png   1024  적응형 아이콘의 뒷면 — 어둠과 옅은 빛무리
      splash.png            2732  첫 화면 (어두운 바탕 가운데 작은 불씨)
      splash-dark.png       2732  같은 것. 이 게임에 밝은 낮은 없다
+
+   웹(홈 화면에 추가)용도 같은 그림에서 뽑는다:
+     icon-192.png          192   안드로이드 크롬이 manifest 로 읽는다
+     icon-512.png          512   같은 것의 큰 판
+     apple-touch-icon.png  180   아이폰. 투명을 안 받고 모서리는 iOS 가 깎으므로
+                                 바탕을 채운 네모로 준다
    ========================================================= */
 
 const fs = require('fs');
@@ -204,6 +210,13 @@ writePng(at('icon-foreground.png'), 1024, 1024,
   render(1024, { scale: 0.58, lift: 0, bg: false, glow: 0.5 }));
 writePng(at('icon-background.png'), 1024, 1024,
   render(1024, { scale: 0.9, lift: 0, glow: 0.35, cells: 1 }));   // 불꽃 없이 어둠과 빛만
+
+/* 홈 화면에 추가했을 때 쓰는 것들. 안 두면 아이폰이 화면을 찍어 썸네일로 쓴다 —
+   던전이 어두워서 그 썸네일은 거의 검은 네모가 된다.
+   투명을 쓰지 않는다. iOS 는 투명을 검게 깔고 모서리는 자기가 깎는다. */
+writePng(at('icon-192.png'), 192, 192, render(192, { scale: 0.86, lift: 0, cells: 22 }));
+writePng(at('icon-512.png'), 512, 512, render(512, { scale: 0.86, lift: 0, cells: 22 }));
+writePng(at('apple-touch-icon.png'), 180, 180, render(180, { scale: 0.86, lift: 0, cells: 22 }));
 
 /* 첫 화면 — 가운데 작은 불씨 하나. 여기서 요란할 이유가 없다.
    이 게임에 밝은 낮은 없으므로 밝은 판도 같은 것을 쓴다. */

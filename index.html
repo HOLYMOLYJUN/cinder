@@ -29,6 +29,16 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0B0908">
 
+<!-- 홈 화면에 추가했을 때. 안 두면 아이폰이 화면을 찍어 썸네일로 쓰는데,
+     던전이 어두워서 그게 거의 검은 네모가 된다.
+     아이폰은 manifest 의 아이콘을 안 보고 apple-touch-icon 만 본다. -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/assets/app/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/app/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="잿불">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;700&display=swap">

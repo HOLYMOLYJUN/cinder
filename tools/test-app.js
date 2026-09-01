@@ -42,6 +42,9 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   const app = await open(APP);
 
   check('앱 빌드가 혼자 열린다', await app.isVisible('#title-screen'));
+  // 앱은 네이티브라 manifest 가 필요 없다. 새어 들어가면 웹뷰가 헛되이 찾는다.
+  check('앱 빌드에는 manifest 가 안 들어간다',
+    (await app.$$eval('link[rel=manifest]', e => e.length)) === 0);
   check('viewport-fit=cover 가 있다',
     (await app.getAttribute('meta[name=viewport]', 'content')).includes('viewport-fit=cover'));
 
@@ -62,6 +65,36 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   /* ---------- 2. 웹 빌드는 그대로인가 ---------- */
   const web = await open(WEB);
   check('웹 빌드는 확성기가 그대로 있다', await web.isVisible('#chat-tab'));
+
+  /* 홈 화면에 추가 — 아이폰은 manifest 의 아이콘을 안 보고 apple-touch-icon 만 본다.
+     둘 다 없으면 화면을 찍어 썸네일로 쓰는데, 던전이 어두워서 검은 네모가 된다. */
+  const head = await web.evaluate(() => ({
+    manifest: (document.querySelector('link[rel=manifest]') || {}).href || '',
+    apple: (document.querySelector('link[rel=apple-touch-icon]') || {}).href || '',
+    capable: (document.querySelector('meta[name=apple-mobile-web-app-capable]') || {}).content || '',
+    title: (document.querySelector('meta[name=apple-mobile-web-app-title]') || {}).content || '',
+  }));
+  check('manifest 를 가리킨다', head.manifest.endsWith('/manifest.json'));
+  check('아이폰용 아이콘을 가리킨다', head.apple.endsWith('apple-touch-icon.png'));
+  check('홈 화면에서 전체화면으로 연다', head.capable === 'yes');
+  check('홈 화면 이름이 붙어 있다', head.title === '잿불', head.title);
+
+  // 가리키기만 하고 파일이 없으면 아무 소용이 없다. 실제로 받아 본다.
+  const got = await web.evaluate(async () => {
+    const r = await fetch('/manifest.json');
+    if (!r.ok) return { ok: false };
+    const m = await r.json();
+    const codes = [];
+    for (const u of m.icons.map(i => i.src).concat('/assets/app/apple-touch-icon.png')) {
+      codes.push((await fetch(u)).status);
+    }
+    return { ok: true, name: m.short_name, display: m.display, codes: codes };
+  });
+  check('manifest 가 실제로 내려온다', got.ok);
+  check('홈 화면에 뜨는 이름이 「잿불」', got.name === '잿불', got.name);
+  check('창 없이 뜬다 (standalone)', got.display === 'standalone', got.display);
+  check('가리킨 아이콘이 전부 실제로 있다',
+    got.codes && got.codes.every(c => c === 200), (got.codes || []).join(','));
 
   /* 브라우저에서는 뒤로가기를 가로채지 않는다. 여기까지 온 사람은
      뒤로가기로 오던 데로 돌아갈 줄 알고 누른다 — 그걸 뺏으면 덫이 된다. */
