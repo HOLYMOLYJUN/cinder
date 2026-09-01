@@ -62,6 +62,19 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   /* ---------- 2. 웹 빌드는 그대로인가 ---------- */
   const web = await open(WEB);
   check('웹 빌드는 확성기가 그대로 있다', await web.isVisible('#chat-tab'));
+
+  /* 브라우저에서는 뒤로가기를 가로채지 않는다. 여기까지 온 사람은
+     뒤로가기로 오던 데로 돌아갈 줄 알고 누른다 — 그걸 뺏으면 덫이 된다. */
+  const len0 = await web.evaluate(() => history.length);
+  await web.evaluate(() => location.hash = '#여기서-뒤로');
+  await wait(200);
+  await back(web);
+  check('웹에서는 뒤로가기를 가로채지 않는다',
+    (await web.evaluate(() => location.hash)) === '',
+    '해시=' + (await web.evaluate(() => location.hash)));
+  check('웹에서는 가짜 페이지를 깔지 않는다',
+    (await web.evaluate(() => history.length)) <= len0 + 1,
+    'length ' + len0 + ' → ' + (await web.evaluate(() => history.length)));
   await web.close();
 
   /* ---------- 3. 뒤로가기 ---------- */
@@ -72,6 +85,9 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   await app.evaluate(() => {
     window.__exits = 0;
     Shell.exit = () => { window.__exits++; Shell.push(); };
+    /* 브라우저에서는 스스로 안 건다(웹 유저의 뒤로가기를 뺏으면 안 되므로).
+       History 로 짠 것은 여기서 시험하려고 그런 것이라, 검사가 직접 건다. */
+    Shell.armBack();
   });
   await back(app);
   check('타이틀에서 뒤로가기는 앱을 나간다',
