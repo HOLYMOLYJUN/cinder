@@ -106,6 +106,19 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   await app.evaluate(() => UI.hideCamp());
   await wait(200);
 
+  /* 대장장이는 같은 창을 빌려 쓰지만 상인이지 관문이 아니다.
+     폰에는 Esc 가 없으므로 뒤로가기가 유일한 나갈 길이다 —
+     여기서도 삼키면 골드가 없을 때 창에 갇혀 판이 멈춘다. */
+  await app.evaluate(() => UI.showCamp(
+    [{ name: '두드린다' }, { name: '그만둔다' }], () => {}, '', '대장장이', true));
+  await wait(200);
+  check('대장장이 창은 나갈 수 있는 창이다',
+    (await app.evaluate(() => UI.campCanLeave())) === true);
+  await back(app);
+  check('대장장이는 뒤로가기로 나갈 수 있다', await app.isHidden('#camp-modal'));
+  check('나가는 것이지 앱을 닫는 것은 아니다',
+    (await app.evaluate(() => window.__exits)) === 1);
+
   /* 판을 하는 중이면 한 번에 안 나간다 — 실수로 한 번 눌러서 닫히면 사고다 */
   await back(app);
   check('판 중에 한 번 누르면 안 나간다', (await app.evaluate(() => window.__exits)) === 1);
