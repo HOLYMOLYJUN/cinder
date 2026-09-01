@@ -308,6 +308,8 @@ const Render = {
       }
     }
 
+    this.meleeHint(ctx, state);
+
     /* ----- 바닥의 물건 ----- */
     for (const it of map.items) {
       if (!map.explored[it.y][it.x]) continue;
@@ -830,6 +832,67 @@ const Render = {
 
     const f = Math.floor(performance.now() / 180) % 4;
     this.sprite(ctx, 'pet.' + pet.id, px, py + bob, 1, 1, null, pet.face || 1, f);
+  },
+
+  /* ---------- 무기가 닿는 자리 ----------
+
+     들고 있는 것이 어디까지 닿는지는 **숫자로 적어 두면 아무도 안 읽는다.**
+     칼을 바꿨을 때 무엇이 달라졌는지는 화면에서 보여야 한다.
+
+     그렇다고 늘 켜 두면 안 된다. 네 방향을 항상 밝히면 빈 복도를 걷는 내내
+     열두 칸이 깜빡이고, 그러면 그건 정보가 아니라 무늬다.
+     **닿는 자리에 실제로 뭔가 있을 때만** 켠다 — 그 순간에만 뜻이 있는 표시다.
+
+     여러 방향에 적이 있으면 여러 방향이 함께 뜬다. 그게 맞는 정보다 —
+     지금 어느 쪽을 치면 몇 마리가 맞는지가 한눈에 갈린다. */
+  meleeHint(ctx, state) {
+    if (typeof meleeReach !== 'function' || typeof monsterAt !== 'function') return;
+    if (!state.running || !state.player || !state.player.alive) return;
+    // 원거리 무기는 이 규칙을 안 쓴다 (사거리가 화면보다 길다)
+    if (typeof reachOf === 'function' && typeof WEAPON_REACH === 'object') {
+      const k = weaponKind(state.player.gear.weapon);
+      if (k && !WEAPON_REACH[k]) return;
+    }
+
+    const TS = CFG.TILE;
+    const pulse = 0.72 + Math.abs(Math.sin(performance.now() / 520)) * 0.28;
+
+    for (const key of ['up', 'down', 'left', 'right']) {
+      const dir = DIRS[key];
+      if (!dir) continue;
+      const tiles = meleeReach(dir);
+      // 이 방향으로 실제로 칠 것이 있을 때만 켠다
+      if (!tiles.some(t => t.init && (monsterAt(t.x, t.y) || {}).alive)) continue;
+
+      for (const t of tiles) {
+        if (!isVisible(state.visible, state.map, t.x, t.y)) continue;
+        const px = t.x * TS, py = t.y * TS;
+        const hot = !!(monsterAt(t.x, t.y) || {}).alive;
+
+        /* 쓸리기만 하는 자리(검의 대각선)는 옅게 둔다. 정면과 같은 세기로 칠하면
+           "저기서도 공격을 시작할 수 있다"로 읽혀서 실제 조작과 어긋난다. */
+        const weight = t.mult >= 1 ? 1 : 0.55;
+
+        ctx.fillStyle = COLORS.ember;
+        ctx.globalAlpha = (hot ? 0.20 : 0.09) * weight * pulse;
+        ctx.fillRect(px + 1, py + 1, TS - 2, TS - 2);
+
+        // 테두리는 모서리만 — 네 변을 다 그리면 바닥이 격자무늬가 된다
+        ctx.strokeStyle = COLORS.ember;
+        ctx.globalAlpha = (hot ? 0.85 : 0.42) * weight * pulse;
+        ctx.lineWidth = 1;
+        const c = Math.max(3, Math.round(TS * 0.28));
+        ctx.beginPath();
+        for (const [cx, cy, dx, dy] of [[0, 0, 1, 1], [1, 0, -1, 1], [0, 1, 1, -1], [1, 1, -1, -1]]) {
+          const ax = px + 1.5 + cx * (TS - 3), ay = py + 1.5 + cy * (TS - 3);
+          ctx.moveTo(ax + dx * c, ay);
+          ctx.lineTo(ax, ay);
+          ctx.lineTo(ax, ay + dy * c);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
   },
 
   /* 남이 지나간 자리 — 해골(쓰러진 곳)과 표지판(벽에 긁어 둔 말). */

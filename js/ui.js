@@ -375,7 +375,12 @@ const UI = {
 
   /* ---------- 장비 비교창 ---------- */
   showGearCompare(gear, current) {
-    this.el.gearSlot.textContent = SLOT_NAME[gear.slot];
+    /* 무기는 자리 이름(「무기」) 대신 갈래와 그 갈래가 하는 일을 적는다.
+       셋 다 「무기」라고만 적혀 있으면 도끼와 창이 무엇이 다른지 화면에
+       한 번도 안 나온다 — 범위를 만들어 놓고 안 알려주는 셈이다. */
+    this.el.gearSlot.textContent = gear.slot === 'weapon'
+      ? kindName(gear) + (kindNote(gear) ? '  ·  ' + kindNote(gear) : '')
+      : SLOT_NAME[gear.slot];
     this.el.gearName.textContent = gearFullName(gear);
     const icon = this.gearIcon(gear);
     this.el.gearIconEl.src = icon || '';

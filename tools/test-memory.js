@@ -30,14 +30,27 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   // running 은 연출이 닫힌 뒤에야 true 가 된다
   await page.waitForFunction(() => state.running === true, null, { timeout: 8000 });
 
-  const fresh = await page.evaluate(() => ({
-    mem: [...state.memories], pity: state.pity,
-    stats: { ...state.player.stats }, maxHp: state.player.maxHp,
-    base: baseStats(),
-  }));
+  /* 이제 다섯 사람 모두 무기를 하나 들고 시작하므로(heroes.js 의 startWeapon)
+     스탯이 baseStats() 와 같을 수가 없다. 물어야 할 것은 「기억이 없을 때
+     기억만큼의 값이 안 붙는가」이지 「맨몸 값인가」가 아니다 —
+     그래서 시작 장비까지 더한 값을 기준선으로 삼는다. */
+  const fresh = await page.evaluate(() => {
+    const want = baseStats();
+    for (const slot of SLOTS) {
+      const g = state.player.gear[slot];
+      if (!g) continue;
+      for (const [k, n] of Object.entries(g.mod)) want[k] = (want[k] || 0) + n;
+    }
+    return {
+      mem: [...state.memories], pity: state.pity,
+      stats: { ...state.player.stats }, maxHp: state.player.maxHp,
+      base: baseStats(), want,
+      weapon: state.player.gear.weapon ? state.player.gear.weapon.name : '맨손',
+    };
+  });
   check(fresh.mem.length === 0, '새 판은 기억 0개로 시작');
-  check(fresh.stats.spd === fresh.base.spd && fresh.maxHp === fresh.base.maxHp,
-        `기억 없을 때 기본 스탯 (속${fresh.stats.spd} 체${fresh.maxHp})`);
+  check(fresh.stats.spd === fresh.want.spd && fresh.maxHp === fresh.want.maxHp,
+        `기억 없을 때는 시작 장비 값만 붙는다 (${fresh.weapon} — 속${fresh.stats.spd} 체${fresh.maxHp})`);
 
   /* ---------- 2. 원거리는 잠겨 있다 ---------- */
   const lockedRanged = await page.evaluate(() => {
@@ -59,7 +72,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     recalcStats(state.player);
     return { stats: { ...state.player.stats }, maxHp: state.player.maxHp };
   });
-  check(withAll.stats.spd === fresh.base.spd + 2, `「오르던 발」 속도 +2 반영 (${withAll.stats.spd})`);
+  check(withAll.stats.spd === fresh.want.spd + 2, `「오르던 발」 속도 +2 반영 (${withAll.stats.spd})`);
   check(withAll.maxHp === fresh.base.maxHp + 10, `「첫 번째 이름」 최대 체력 +10 반영 (${withAll.maxHp})`);
 
   /* ---------- 4. 원거리가 실제로 맞는가 ---------- */

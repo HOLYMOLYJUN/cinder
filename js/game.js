@@ -42,7 +42,6 @@ const state = {
   ashHp: 0,               // 모닥불에서 재를 삼켜 늘린 최대 체력 (판이 끝나면 사라진다)
   campSpot: null,         // 지금 고르고 있는 모닥불 자리
   pet: null,              // 따라오는 것 — 5층 문지기를 넘으면 붙는다 (js/pets.js)
-  regen: 0,               // 스스로 아무는 사람이 지금까지 걸은 걸음 (리자드)
   lastKiller: '',         // 마지막으로 나를 때린 것 — 쓰러진 자리에 남는다
   resumable: false,       // 지금 상태를 이어할 수 있는가
   spectating: false,      // 남의 판을 보고 있는가 — 그러면 저장도 입력도 멈춘다
@@ -98,7 +97,6 @@ function startRun() {
   state.ashHp = 0;
   state.campSpot = null;
   state.pet = null;       // 판을 넘어 남지 않는다 — 이번 판의 동행이다
-  state.regen = 0;
   state.level = 1;
   state.xp = 0;
   Render.dawnAt = 0;      // 다시 밤부터
@@ -396,7 +394,16 @@ function playerAction(dir, intent) {
       UI.log(target.name + ' 때문에 그쪽으로 지나갈 수 없습니다.', 'sys');
       return;
     }
-    attack(p, target, d);
+    meleeSwing(d);
+    spendPlayerTurn();
+    return;
+  }
+
+  /* 앞 칸이 비었어도 무기가 더 멀리 닿으면 거기서 친다 — 창이다.
+     두 칸 밖에서 찌를 수 있다는 것이 창의 전부이므로, 여기서 걸어 들어가 버리면
+     그 무기는 없는 것과 같다. 지나가려면 pass 로 지나간다. */
+  if (intent !== 'pass' && meleeReachTarget(d)) {
+    meleeSwing(d);
     spendPlayerTurn();
     return;
   }
@@ -1018,40 +1025,6 @@ function poisonStep() {
   if (p.hp <= 0) kill(p);
 }
 
-/* 스스로 아무는 사람 (리자드).
-
-   걸음을 세는 것이지 턴을 세는 것이 아니다 — 라고 하기엔 이 게임에서 한 턴이
-   곧 한 걸음이라 같은 말이다. 다만 제자리에서 기다리는 것(Space)도 걸음으로 친다.
-   기다려서 회복하는 것이 이 사람의 정당한 수단이기 때문이다.
-
-   가득 찼으면 세지 않는다. 안 그러면 성한 몸으로 걸어다니는 동안 눈금이 차서,
-   정작 다친 뒤에 첫 회복이 언제 올지 예측할 수 없게 된다. */
-function regenStep() {
-  const r = currentHero().regen;
-  const p = state.player;
-  if (!r || !p || !p.alive) return;
-  if (p.hp >= p.maxHp) { state.regen = 0; return; }
-
-  /* 보이는 것이 하나라도 있으면 아물지 않는다.
-     싸우는 내내 차오르면 최대 체력이 몇이든 상관없어져서 (실제로 그릇을 깎아 봤더니
-     클리어율이 오히려 올랐다) 조절할 수 있는 손잡이가 사라진다.
-     화면에 보이는 것으로 규칙이 정해지므로 사람이 눈으로 예측할 수 있다. */
-  if (r.calmOnly && state.monsters.some(m =>
-        m.alive && isVisible(state.visible, state.map, m.x, m.y))) {
-    state.regen = 0;
-    return;
-  }
-
-  state.regen = (state.regen || 0) + 1;
-  if (state.regen < r.every) return;
-  state.regen = 0;
-
-  const heal = Math.min(r.amount, p.maxHp - p.hp);
-  if (heal <= 0) return;
-  p.hp += heal;
-  Render.addFloater(p.x, p.y, '+' + heal, COLORS.heal);
-  UI.updateHud(state);
-}
 
 /* =========================================================
    모닥불 — 같은 불을 무엇에 쓸 것인가
@@ -1218,7 +1191,15 @@ function openShop() {
 
    상한이 있으면 「무엇을 세 번 두드릴 것인가」가 된다. 무기냐 방어구냐,
    지금 든 것이냐 다음에 나올 것이냐. 그게 골드로 사는 판단이다. */
-const FORGE_MAX = 3;
+/* 남들은 세 번, 드워프는 다섯 번 (heroes.js 의 forgeMax).
+
+   하나를 끝까지 벼리는 사람이라 상한 자체가 다르다 — 값을 깎아 주는 것만으로는
+   "골드가 조금 더 많은 사람"에서 안 벗어나는데, 상한이 다르면 **남이 못 만드는
+   물건**이 손에 남는다. 거기서부터 다른 판이 된다. */
+const FORGE_MAX_BASE = 3;
+function forgeMax() {
+  return currentHero().forgeMax || FORGE_MAX_BASE;
+}
 
 function forgePrice(kind, times) {
   const base = { weapon: 44, armor: 38, trinket: 32 }[kind] || 38;
@@ -1242,19 +1223,19 @@ function forgeOptions() {
       continue;
     }
     const times = forgeTimes(g);
-    if (times >= FORGE_MAX) {
+    if (times >= forgeMax()) {
       out.push({ id: slot, name: gearFullName(g),
-                 desc: `더는 못 두드린다. (${FORGE_MAX}번 다 썼다)`, disabled: true });
+                 desc: `더는 못 두드린다. (${forgeMax()}번 다 썼다)`, disabled: true });
       continue;
     }
-    const price = forgePrice(g.slot, times);
+    const price = priceFor(forgePrice(g.slot, times));
     // 무엇이 오르는가는 그 장비가 이미 하던 일을 따라간다 — 지팡이는 주문이 오른다
     const key = forgeGainKey(g);
     const amount = forgeGainAmount(g, key);
     out.push({
       id: slot,
       name: gearFullName(g) + '  ' + price + ' G',
-      desc: STAT_LABEL[key] + ' +' + amount + `  (${times}/${FORGE_MAX})`,
+      desc: STAT_LABEL[key] + ' +' + amount + `  (${times}/${forgeMax()})`,
       disabled: state.gold < price,
     });
   }
@@ -1289,8 +1270,8 @@ function forgeGear(slot) {
   const p = state.player;
   const g = p.gear[slot];
   if (!g || g.unknown) return;
-  if (forgeTimes(g) >= FORGE_MAX) return;
-  const price = forgePrice(g.slot, forgeTimes(g));
+  if (forgeTimes(g) >= forgeMax()) return;
+  const price = priceFor(forgePrice(g.slot, forgeTimes(g)));
   if (state.gold < price) return;
 
   state.gold -= price;
@@ -1360,7 +1341,6 @@ function spendPlayerTurn() {
   state.awaitingInput = false;
   state.turns++;
   PET.step();             // 곁에 있는 것이 한 칸 따라온다
-  regenStep();            // 스스로 아무는 사람은 걷는 동안 낫는다
   // 던진 손이 돌아온다 — 원거리는 연사가 아니라 리듬이다
   if (state.rangedCd > 0) state.rangedCd--;
   if (state.chill > 0) state.chill--;
@@ -1403,8 +1383,102 @@ function noteSeenMonsters() {
    전투
    ========================================================= */
 
-function attack(attacker, defender, dir) {
-  const { dmg, magic } = rollDamage(attacker, defender);
+/* =========================================================
+   근접 — 무기가 닿는 자리
+   ========================================================= */
+
+/* 이번 방향으로 휘두르면 닿는 칸들 (items.js 의 WEAPON_REACH).
+   벽 너머는 안 닿는다 — 창이 벽을 뚫고 찌르면 그건 사거리가 아니라 버그로 읽힌다.
+   앞이 막혀 있으면 그 뒤도 못 찌른다(창의 두 칸째). */
+function meleeReach(dir) {
+  const p = state.player;
+  const tiles = meleeTiles(p.x, p.y, dir, p.gear.weapon);
+  const out = [];
+  for (const t of tiles) {
+    if (blocksSight(state.map, t.x, t.y)) continue;
+    // 창의 두 칸째 — 바로 앞이 벽이면 그 너머로는 못 간다
+    if (Math.abs(t.x - p.x) + Math.abs(t.y - p.y) > 1) {
+      const mx = p.x + dir.dx, my = p.y + dir.dy;
+      if (blocksSight(state.map, mx, my)) continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+/* 이 방향으로 「공격을 시작할 수 있는」 적이 있는가.
+   init 이 붙은 칸만 본다 — 검의 대각선은 함께 쓸리는 자리일 뿐이라
+   거기 있는 적을 보고 앞으로 못 걷게 되면 안 된다 (items.js 참고). */
+function meleeReachTarget(dir) {
+  for (const t of meleeReach(dir)) {
+    if (!t.init) continue;
+    const m = monsterAt(t.x, t.y);
+    if (m && m.alive) return m;
+  }
+  return null;
+}
+
+/* 한 번 휘두른다. 닿는 칸에 있는 것을 **전부** 친다.
+   피해는 칸마다 배율이 다르다 — 정면이 온전한 값이고 쓸리는 자리는 얕다. */
+function meleeSwing(dir) {
+  const p = state.player;
+  const hits = [];
+  for (const t of meleeReach(dir)) {
+    const m = monsterAt(t.x, t.y);
+    if (m && m.alive) hits.push({ m, mult: t.mult });
+  }
+  if (!hits.length) return false;
+
+  // 앞의 것부터 친다. 뒤엣것이 먼저 죽으면 로그가 거꾸로 읽힌다.
+  for (const h of hits) {
+    if (!h.m.alive) continue;
+    attack(p, h.m, dir, h.mult);
+  }
+  if (hits.length > 1) Sound.play('hit');
+  return true;
+}
+
+/* ---------- 독 ----------
+
+   불(state.burn)과 같은 자리의 규칙인데 방향이 반대다. 저쪽은 몬스터가 사람에게
+   붙이는 것이고 이쪽은 사람이 몬스터에게 바르는 것이다.
+
+   **쫓아오는 동안 깎인다**가 이 규칙의 전부다. 치고 물러서면 상대는 따라오고,
+   따라오는 턴마다 독이 든다 — 도망치는 것이 곧 공격이 된다. 그래서 리자드는
+   물러서는 것이 겁이 아니라 수다. 보스는 언제나 쫓아오므로 보스전에서 가장 세다. */
+// 단검 자체가 바르는 독. 리자드는 heroes.js 에서 이보다 센 값을 들고 온다.
+const DAGGER_POISON = { turns: 3, amount: 1 };
+
+function poisonMonster(m, turns, amount) {
+  if (!m || !m.alive) return;
+  // 덧바르면 시간이 길어지고, 더 센 독이면 그 값으로 바뀐다. 더하지는 않는다 —
+  // 붙어서 계속 때리는 것이 물러서는 것보다 이득이면 이 특성이 없는 것과 같다.
+  m.poison = Math.max(m.poison || 0, turns);
+  m.poisonAmount = Math.max(m.poisonAmount || 0, amount);
+  if (!m.poisonSaid) {
+    m.poisonSaid = true;
+    UI.log(josa(m.name, '이', '가') + ' 독에 물듭니다.', 'good');
+  }
+}
+
+// 몬스터 한 마리의 독이 한 턴 든다. 몬스터가 자기 턴을 쓸 때 불린다.
+function poisonTick(m) {
+  if (!m || !m.alive || !(m.poison > 0)) return;
+  m.poison--;
+  const dmg = m.poisonAmount || 1;
+  m.hp -= dmg;
+  m.flash = CFG.FLASH_TIME;
+  Render.addFloater(m.x, m.y, String(dmg), COLORS.poison || '#A8E639');
+  if (m.hp <= 0) {
+    UI.log(josa(m.name, '이', '가') + ' 독에 무너집니다.', 'good');
+    kill(m);
+  }
+}
+
+function attack(attacker, defender, dir, mult) {
+  const { dmg: raw, magic } = rollDamage(attacker, defender);
+  // 쓸리는 자리는 얕게 든다. 최소 1은 지킨다 — 0 이 뜨면 「닿았는데 안 아프다」가 된다.
+  const dmg = (mult && mult !== 1) ? Math.max(1, Math.round(raw * mult)) : raw;
 
   if (attacker.kind === 'player') state.usedMelee = true;   // 「닿지 않고」가 이걸 본다
   attacker.bump = { dx: dir.dx, dy: dir.dy, t: 0 };
@@ -1414,6 +1488,15 @@ function attack(attacker, defender, dir) {
 
   Render.addFloater(defender.x, defender.y, String(dmg),
                     magic ? COLORS.cast : COLORS.damage);
+
+  /* 단검은 독을 바른다. 무기 갈래의 값이라 누가 들어도 묻지만,
+     리자드는 더 오래·더 아프게 든다 (heroes.js 의 poison). 그 사람의
+     추천 무기가 단검인 것과 이 규칙이 한 덩어리다. */
+  if (attacker.kind === 'player' && defender.alive &&
+      weaponKind(attacker.gear.weapon) === 'dagger') {
+    const v = currentHero().poison || DAGGER_POISON;
+    poisonMonster(defender, v.turns, v.amount);
+  }
 
   const verb = magic ? '마법으로' : '';
   if (attacker.kind === 'player') {
@@ -1647,6 +1730,13 @@ function advanceTurns() {
 }
 
 function monsterTurn(m) {
+  /* 독은 자기 턴을 쓸 때 든다. 여기 두면 빠른 것은 자주, 굼뜬 것은 드물게
+     — 「몇 번 움직였나」로 세어지므로, 쫓아오느라 바쁜 놈이 제일 많이 깎인다.
+     보스도 같은 규칙이라 bossTurn 보다 앞에 둔다. */
+  if (m.poison > 0) {
+    poisonTick(m);
+    if (!m.alive) return;
+  }
   if (m.boss) { bossTurn(m); return; }
   const p = state.player;
   const dist = chebyshev(m.x, m.y, p.x, p.y);

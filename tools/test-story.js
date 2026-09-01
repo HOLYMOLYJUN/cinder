@@ -99,77 +99,66 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(tail.story, `고른 뒤에도 그 결말의 마지막 장면이 흐른다 (${tail.title})`);
   check(/붙이지/.test(tail.title), '고른 쪽의 장면이 맞다');
 
-  console.log('\n[ 스스로 아무는 사람 ]');
-  const regen = await p.evaluate(() => {
+  console.log('\n[ 리자드 — 단검의 독 ]');
+
+  /* 예전에는 「스스로 아무는 사람」이었다. 그 검사는 통째로 지웠다 —
+     특성이 바뀐 것이지 고장 난 것이 아니므로 낡은 검사를 고쳐 쓰면 안 된다.
+     이제 물어야 할 것은 「치고 물러서면 쫓아오는 동안 깎이는가」다. */
+
+  const bite = await p.evaluate(() => {
     chooseHero('lizard'); startRun(); UI.closeIntro();
-    state.monsters.length = 0;            // 아무것도 안 보이는 상태
-    refreshFov();
     const p = state.player;
-    p.hp = 10;
-    state.regen = 0;
-    const seen = [];
-    for (let i = 1; i <= 10; i++) { regenStep(); seen.push(p.hp); }
-    return { seen };
-  });
-  check(regen.seen[4] === 12 && regen.seen[9] === 14,
-        `다섯 걸음마다 2씩 (${regen.seen.join(' ')})`);
-
-  // 보이는 것이 있으면 아물지 않는다 — 이게 이 능력의 유일한 손잡이다
-  const watched = await p.evaluate(() => {
-    const p = state.player;
-    p.hp = 10; state.regen = 0;
     state.monsters.length = 0;
-    const m = makeMonster(MONSTERS.find(x => x.id === 'goblin'), p.x + 2, p.y);
+    const m = makeMonster(MONSTERS.find(x => x.id === 'goblin'), p.x + 1, p.y);
+    m.hp = m.maxHp = 200;                 // 한 대에 안 죽게 — 독만 보려는 것이다
     state.monsters.push(m);
-    state.fovRadius = 10; refreshFov();
-    const before = p.hp;
-    for (let i = 0; i < 12; i++) regenStep();
-    const during = p.hp;
-    // 치우면 다시 아문다
-    m.alive = false; refreshFov();
-    for (let i = 0; i < 5; i++) regenStep();
-    return { before, during, after: p.hp };
+    attack(p, m, { dx: 1, dy: 0 });
+    return { kind: weaponKind(p.gear.weapon), poison: m.poison, amount: m.poisonAmount };
   });
-  check(watched.during === watched.before,
-        `보이는 것이 있으면 안 아문다 (${watched.before} → ${watched.during})`);
-  check(watched.after > watched.during,
-        `치우고 나면 다시 아문다 (${watched.during} → ${watched.after})`);
+  check(bite.kind === 'dagger', `리자드는 단검을 들고 시작한다 (${bite.kind})`);
+  check(bite.poison > 0, `단검으로 치면 독이 묻는다 (${bite.poison}턴)`);
+  check(bite.amount === 2, `리자드의 독이 더 아프다 (턴당 ${bite.amount})`);
 
-  const capped = await p.evaluate(() => {
+  // 쫓아오는 동안 깎인다 — 몬스터가 제 턴을 쓸 때마다 든다
+  const chase = await p.evaluate(() => {
+    const m = state.monsters[0];
+    const before = m.hp;
+    const seen = [];
+    for (let i = 0; i < 6; i++) { poisonTick(m); seen.push(m.hp); }
+    return { before, seen, left: m.poison };
+  });
+  check(chase.seen[0] === chase.before - 2, `한 턴에 2씩 든다 (${chase.before} → ${chase.seen[0]})`);
+  check(chase.left === 0, '정해진 턴만큼만 들고 멎는다');
+  check(chase.seen[4] === chase.seen[3],
+        `다 든 뒤에는 안 깎인다 (${chase.seen.join(' ')})`);
+
+  // 단검이 아니면 안 묻는다 — 독은 무기 갈래의 값이다
+  const axe = await p.evaluate(() => {
     const p = state.player;
-    state.monsters.length = 0; refreshFov();
-    p.hp = p.maxHp; state.regen = 0;
-    for (let i = 0; i < 12; i++) regenStep();
-    const idle = state.regen;
-    p.hp = p.maxHp - 1; state.regen = 0;
-    for (let i = 0; i < 5; i++) regenStep();
-    return { idle, hp: p.hp, max: p.maxHp };
+    p.gear.weapon = makeGear(GEAR.find(g => g.name === '손도끼'));
+    recalcStats(p);
+    const m = makeMonster(MONSTERS.find(x => x.id === 'goblin'), p.x + 1, p.y);
+    m.hp = m.maxHp = 200;
+    state.monsters.length = 0; state.monsters.push(m);
+    attack(p, m, { dx: 1, dy: 0 });
+    return { kind: weaponKind(p.gear.weapon), poison: m.poison || 0 };
   });
-  check(capped.idle === 0, '가득 찼으면 눈금이 안 찬다 — 다친 뒤 첫 회복이 예측된다');
-  check(capped.hp === capped.max, '넘치게 회복하지 않는다');
+  check(axe.kind === 'axe' && axe.poison === 0, '도끼로는 독이 안 묻는다');
 
-  const others = await p.evaluate(() => {
+  // 남이 단검을 들어도 묻는다. 다만 리자드보다 얕다.
+  const other = await p.evaluate(() => {
     chooseHero('knight'); startRun(); UI.closeIntro();
     const p = state.player;
-    state.monsters.length = 0; refreshFov();
-    p.hp = 10; state.regen = 0;
-    for (let i = 0; i < 12; i++) regenStep();
-    return { hp: p.hp, has: !!currentHero().regen };
+    p.gear.weapon = makeGear(GEAR.find(g => g.name === '낡은 단검'));
+    recalcStats(p);
+    const m = makeMonster(MONSTERS.find(x => x.id === 'goblin'), p.x + 1, p.y);
+    m.hp = m.maxHp = 200;
+    state.monsters.length = 0; state.monsters.push(m);
+    attack(p, m, { dx: 1, dy: 0 });
+    return { poison: m.poison, amount: m.poisonAmount, has: !!currentHero().poison };
   });
-  check(!others.has && others.hp === 10, '다른 사람은 안 아문다 (기사 체력 그대로 10)');
-
-  const kept = await p.evaluate(() => {
-    chooseHero('lizard'); startRun(); UI.closeIntro();
-    state.player.hp = 10;
-    state.regen = 3;
-    state.resumable = true;
-    saveRun();
-    const d = savedRun();
-    state.regen = 0;
-    loadRun(d, {});
-    return state.regen;
-  });
-  check(kept === 3, `걸음 눈금이 이어하기에 남는다 (${kept})`);
+  check(!other.has && other.poison > 0, `기사가 단검을 들어도 독은 묻는다 (${other.poison}턴)`);
+  check(other.amount < 2, `다만 리자드보다 얕다 (턴당 ${other.amount} vs 2)`);
 
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
   console.log(fails ? `\n실패 ${fails}건` : '\n전부 통과');

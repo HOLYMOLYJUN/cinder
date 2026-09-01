@@ -104,32 +104,43 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(el.aimHidden === false, '모바일 원거리 버튼 보임');
 
   console.log('\n[ 직업에 맞는 무기가 더 자주 나온다 ]');
-  const drop = await p.evaluate(() => {
+  /* 갈래가 여섯으로 갈렸다 (단검·검·창·도끼·활·지팡이).
+     예전에는 근접이 통째로 blade 하나라 「맞는 무기」가 절반을 넘기 쉬웠는데,
+     이제 근접만 넷이라 같은 잣대를 그대로 쓰면 안 된다 — 물어야 할 것은
+     **자기 갈래가 제일 자주 나오는가**이지 절반을 넘는가가 아니다. */
+  const KINDS = ['dagger', 'sword', 'spear', 'axe', 'bow', 'staff'];
+  const KIND_NAME = { dagger:'단검', sword:'검', spear:'창', axe:'도끼', bow:'활', staff:'지팡이' };
+  const drop = await p.evaluate((kinds) => {
     const out = {};
     for (const h of HEROES) {
       chooseHero(h.id);
-      const c = { blade: 0, staff: 0, bow: 0 };
+      const c = {};
+      for (const k of kinds) c[k] = 0;
       for (let i = 0; i < 3000; i++) {
         const g = rollGear(10, 0);
         const k = g && weaponKind(g);
-        if (k) c[k]++;
+        if (k && k in c) c[k]++;
       }
-      const n = c.blade + c.staff + c.bow;
-      out[h.id] = { pct: { blade: c.blade / n, staff: c.staff / n, bow: c.bow / n },
-                    likes: h.likes, raw: c };
+      const n = kinds.reduce((a, k) => a + c[k], 0);
+      const pct = {};
+      for (const k of kinds) pct[k] = n ? c[k] / n : 0;
+      out[h.id] = { pct, likes: h.likes, raw: c, n };
     }
     return out;
-  });
+  }, KINDS);
   for (const [id, d] of Object.entries(drop)) {
     const want = d.likes[0];
-    const rest = ['blade', 'staff', 'bow'].filter(k => k !== want);
-    const line = `${id}: 날붙이 ${(d.pct.blade*100).toFixed(0)}% · 지팡이 ${(d.pct.staff*100).toFixed(0)}% · 활 ${(d.pct.bow*100).toFixed(0)}%`;
-    check(rest.every(k => d.pct[want] > d.pct[k]), `${want} 을(를) 가장 자주 만난다 — ${line}`);
-    check(d.pct[want] > 0.6, `맞는 무기가 무기 드랍의 절반을 넘는다 (${(d.pct[want]*100).toFixed(0)}%)`);
+    const rest = KINDS.filter(k => k !== want);
+    const line = KINDS.map(k => `${KIND_NAME[k]} ${(d.pct[k]*100).toFixed(0)}%`).join(' · ');
+    check(rest.every(k => d.pct[want] > d.pct[k]), `${KIND_NAME[want]}이(가) 가장 자주 나온다 — ${id}: ${line}`);
+    // 여섯이 고르게 나오면 17%. 세 배로 기울였으니 그 두 배는 넘어야 뜻이 있다.
+    check(d.pct[want] > 0.34, `${id} — 자기 갈래가 무기 드랍의 3분의 1을 넘는다 (${(d.pct[want]*100).toFixed(0)}%)`);
   }
   // 잠그지는 않는다 — 노선을 갈아타는 판이 사라지면 안 된다
   check(drop.knight.raw.staff > 0, `기사도 지팡이를 만나기는 한다 (3000회 중 ${drop.knight.raw.staff})`);
-  check(drop.wizard.raw.blade > 0, `마법사도 날붙이를 만나기는 한다 (3000회 중 ${drop.wizard.raw.blade})`);
+  const wizardMelee = drop.wizard.raw.dagger + drop.wizard.raw.sword +
+                      drop.wizard.raw.spear + drop.wizard.raw.axe;
+  check(wizardMelee > 0, `마법사도 날붙이를 만나기는 한다 (3000회 중 ${wizardMelee})`);
   check(drop.knight.raw.bow === 0 && drop.wizard.raw.bow === 0, '활은 여전히 엘프에게만 나온다');
 
   console.log('\n[ 사거리 — 내가 먼저 쏠 자리가 있는가 ]');

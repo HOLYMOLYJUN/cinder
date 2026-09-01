@@ -135,6 +135,8 @@ function makeMonster(def, x, y, eliteId) {
     chill: !!def.chill,        // 때리면 상대를 굳게 하는가
     burn: !!def.burn,          // 때리면 불을 붙이는가
     casting: 0,
+    // 발린 독 — 남은 턴과 한 턴에 드는 값 (game.js 의 poisonMonster)
+    poison: 0, poisonAmount: 0, poisonSaid: false,
     bump: null, flash: 0, face: 1,
   };
 }

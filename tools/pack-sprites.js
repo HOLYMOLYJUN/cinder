@@ -192,17 +192,27 @@ for (const p of ['sewer_vent', 'sewer_pipe', 'sewer_barrel2', 'sewer_web',
    무기는 팩에 그림이 있다. 방어구와 장신구는 어느 팩에도 없어서
    tools/make-icons.js 가 같은 16px 격자·같은 팔레트로 그려 assets/icons/ 에 둔다. */
 const GEAR_ICONS = {
+  // 단검
   '낡은 단검':   'weapon_knife',
-  '짧은 검':     'weapon_regular_sword',
-  '전투 도끼':   'weapon_axe',
-  '긴 창':       'weapon_spear',
-  '대검':        'weapon_knight_sword',
+  '사냥칼':      'weapon_machete',
   '불씨 단검':   'weapon_red_gem_sword',
+  // 검
+  '짧은 검':     'weapon_regular_sword',
+  '카타나':      'weapon_katana',
+  '대검':        'weapon_knight_sword',
   '불씨 검':     'weapon_lavish_sword',
+  // 창
+  '긴 창':       'weapon_spear',
+  // 도끼·망치
+  '손도끼':      'weapon_throwing_axe',
+  '전투 도끼':   'weapon_axe',
+  '쇠망치':      'weapon_hammer',
+  '재의 도끼':   'weapon_waraxe',
   '사냥 활':     'weapon_bow',
   '긴 활':       'weapon_bow_2',
   '재의 활':     'icon_bow_ash',
-  '나무 지팡이': 'weapon_green_magic_staff',
+  '낡은 지팡이': 'weapon_green_magic_staff',
+  '나무 지팡이': 'weapon_baton_with_spikes',
   '주술 지팡이': 'weapon_red_magic_staff',
   '재의 지팡이': 'icon_staff_ash',
   '가죽 갑옷':   'icon_armor_leather',

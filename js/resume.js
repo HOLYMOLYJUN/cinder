@@ -50,7 +50,6 @@ function packRun() {
       ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       // 곁에 있는 것. 스탯과 불씨 반경이 여기 달려 있어서 빠뜨리면 조용히 약해진다
       pet: state.pet ? { id: state.pet.id, x: state.pet.x, y: state.pet.y } : null,
-      regen: state.regen || 0,   // 걸음 눈금. 없으면 이어할 때마다 처음부터 센다
       campUses: state.campUses, revived: state.revived,
       rerolls: state.shopRerolls || 0, rest: !!state.restFloor,
       /* 「어떻게 올랐는가」를 세는 눈금들. 안 실으면 새로고침 한 번으로
@@ -142,7 +141,6 @@ function loadRun(d, opts) {
   state.level = d.level || 1; state.xp = d.xp || 0;
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
   state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
-  state.regen = d.regen || 0;
   // 배경은 층에서 정해지므로 따로 저장하지 않는다. 다만 다시 세워 주지 않으면
   // 이어하기나 관전으로 11층에 들어갔을 때 1층 돌벽으로 그려진다.
   Render.setBiome(d.depth);
