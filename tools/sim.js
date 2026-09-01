@@ -69,8 +69,13 @@ ctx.UI = {
   showGame: () => {}, showTitle: () => {},
   hideResult: () => {}, hideGearCompare: () => {}, hideShop: () => {}, hideCodex: () => {},
   gearOpen: () => false, shopOpen: () => false, codexOpen: () => false, campOpen: () => false,
-  // 봇은 늘 몸을 녹인다 — 예전 모닥불과 같은 행동이라 이전 측정과 이어진다
-  showCamp: (opts, pick) => { ctx.__campPick = pick; ctx.__campOpts = opts; }, hideCamp: () => {},
+  /* 봇은 늘 몸을 녹인다 — 예전 모닥불과 같은 행동이라 이전 측정과 이어진다.
+     대장장이도 같은 창을 쓰므로 제목으로 갈라 둔다. 안 가르면 봇이 모닥불인 줄 알고
+     골드가 바닥날 때까지 두드려서, 재는 것이 난이도가 아니라 「골드로 산 스탯」이 된다. */
+  showCamp: (opts, pick, say, title) => {
+    ctx.__campPick = pick; ctx.__campOpts = opts; ctx.__campTitle = title || '';
+  },
+  hideCamp: () => {},
   intro: { active: false },
   setRecord: () => {},
   toast: (t) => { ctx.__lastToast = t; },
@@ -98,7 +103,7 @@ ctx.Render = {
 /* ---------- 게임 코드 ---------- */
 
 const FILES = ['js/config.js','js/util.js','js/sound.js','js/map.js','js/fov.js','js/actors.js',
-               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/guide.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
+               'js/heroes.js','js/levels.js','js/items.js','js/memories.js','js/pets.js','js/story.js','js/marks.js','js/bosses.js','js/achievements.js','js/resume.js','js/game.js'];
 for (const f of FILES) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
@@ -288,7 +293,16 @@ function playRun() {
     if (ctx.__campPick) {
       const pick = ctx.__campPick;
       const opts = ctx.__campOpts || [];
-      ctx.__campPick = null; ctx.__campOpts = null;
+      const title = ctx.__campTitle;
+      ctx.__campPick = null; ctx.__campOpts = null; ctx.__campTitle = null;
+
+      /* 대장장이 — 무기부터 손본다. 상한(FORGE_MAX)까지만 돌고,
+         물약 살 돈은 남긴다. 사람도 전 재산을 두드리는 데 붓지는 않는다. */
+      if (title === '대장장이') {
+        const can = opts.find(o => !o.disabled);
+        if (can && s.gold > 80) pick(can.id);
+        continue;
+      }
       pick(opts.some(o => o.id === 'warm') ? 'warm' : (opts[0] && opts[0].id));
       continue;
     }

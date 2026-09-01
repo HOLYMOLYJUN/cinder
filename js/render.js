@@ -296,10 +296,14 @@ const Render = {
           if (mk) this.mark(ctx, mk, px, py, lit);
         }
 
-        // 상인은 타일이 아니라 사람이라 스프라이트로 세워둔다
+        // 상인과 대장장이는 타일이 아니라 사람이라 스프라이트로 세워둔다
         if (t === T.SHOP) {
           if (this.ready) this.sprite(ctx, 'merchant.idle', px, py, 1, lit ? 1 : 0.42, null);
           else this.glyph(ctx, 'V', px, py, COLORS.shop, lit, true);
+        }
+        if (t === T.FORGE) {
+          if (this.ready) this.sprite(ctx, 'smith.idle', px, py, 1, lit ? 1 : 0.42, null);
+          else this.glyph(ctx, 'T', px, py, COLORS.ember, lit, true);
         }
       }
     }
@@ -325,10 +329,15 @@ const Render = {
           ctx.fillStyle = g;
           ctx.fillRect(px - TS/2, py - TS/2, TS * 2, TS * 2);
           ctx.globalAlpha = lit ? 1 : 0.5;
-          // 바닥에서는 무엇이든 상자로 둔다. 무기·갑옷 아이콘을 그대로 깔아 봤더니
-          // 던전 바닥이 아이콘 진열장처럼 보여서 어디가 길인지 눈이 헷갈렸다.
-          // 무엇인지는 밟았을 때 뜨는 비교창이 알려주고, 여기서는 등급 빛만 알린다.
-          this.tile(ctx, 'chest', 0, px, py, lit);
+          /* 아직 안 열어 본 것은 상자로 둔다. 처음부터 아이콘을 깔아 봤더니
+             던전 바닥이 진열장처럼 보여서 어디가 길인지 눈이 헷갈렸다.
+
+             한 번 열어 보고 두고 간 것(seen)은 무엇인지 이미 아는 물건이라
+             그림을 보여준다 — 안 그러면 "아까 그거였나"를 확인하러
+             다시 밟아야 하고, 그건 판단이 아니라 심부름이다. */
+          const icon = it.seen && SPRITES['gear.' + it.gear.name];
+          if (icon) this.tile(ctx, 'gear.' + it.gear.name, 0, px, py, lit);
+          else this.tile(ctx, 'chest', 0, px, py, lit);
         }
         ctx.globalAlpha = 1;
       } else {

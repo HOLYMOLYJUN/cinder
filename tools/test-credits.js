@@ -4,6 +4,8 @@
    결말을 고르면 이름이 흐르고, 그다음에 결과표가 온다.
    순서가 뒤집히거나 크레딧에서 못 빠져나오면 판을 끝낸 사람이 갇힌다.
    ========================================================= */
+/* 건너뛰기 단추는 「한 번 본 사람」에게만 뜬다.
+   처음 보는 사람에게 내밀면 읽을 것이 아니라 넘겨도 되는 것으로 먼저 읽힌다. */
 const { chromium } = require('playwright');
 const GAME = require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href;
 let fails = 0;
@@ -113,6 +115,42 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   });
   check(!after.credits && after.resultUp, `크레딧이 끝나면 결과표가 온다 (${after.title})`);
   check(/불을 든 채로/.test(after.title), '고른 결말의 결과표가 맞다');
+
+  console.log('\n[ 건너뛰기는 한 번 본 사람에게만 ]');
+  const skip = await p.evaluate(async () => {
+    // 아직 아무것도 안 본 상태로 되돌린다
+    const save = loadData() || {};
+    delete save.sawStory; delete save.sawCredits; saveData(save);
+
+    const el = (id) => document.getElementById(id);
+    const shown = (id) => !el(id).classList.contains('hidden');
+
+    Story.show(() => {});
+    const storyFirst = shown('story-skip');
+    Story.finish();                       // 한 번 봤다
+
+    Story.show(() => {});
+    const storyAgain = shown('story-skip');
+    Story.finish();
+
+    UI.showCredits(() => {});
+    const creditsFirst = shown('credits-skip');
+    UI.endCredits(); UI.hideCredits();    // 한 번 봤다
+
+    UI.showCredits(() => {});
+    const creditsAgain = shown('credits-skip');
+    // 눌러 보면 실제로 끝난다
+    el('credits-skip').click();
+    await new Promise(r => setTimeout(r, 120));
+    const stopped = !UI.creditsRolling() && shown('credits-close');
+    UI.hideCredits();
+    return { storyFirst, storyAgain, creditsFirst, creditsAgain, stopped };
+  });
+  check(!skip.storyFirst, '처음 보는 사람에게는 되짚기 건너뛰기가 없다');
+  check(skip.storyAgain, '한 번 본 뒤에는 나타난다');
+  check(!skip.creditsFirst, '크레딧도 처음에는 없다');
+  check(skip.creditsAgain, '크레딧도 한 번 본 뒤에는 나타난다');
+  check(skip.stopped, '누르면 끝으로 감기고 「돌아간다」가 열린다');
 
   console.log('\n[ 끝낸 판은 로비로 나간다 ]');
   const btn = await p.evaluate(() => ({

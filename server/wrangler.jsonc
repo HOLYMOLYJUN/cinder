@@ -29,9 +29,13 @@
     // 게임이 올라간 주소를 쉼표로 적는다. 스킴과 포트까지 정확히 —
     // 여기 없는 곳에서 온 연결은 403 으로 끊는다.
     // localhost 와 127.0.0.1 은 언제나 허용되므로 개발 중에는 비워도 된다.
-    // 지금 들어 있는 것 — 앞은 이 브랜치의 버셀 프리뷰(확성기가 실제로 도는 곳),
-    // 뒤는 main 이 올라가는 운영 주소(브랜치를 머지하면 그때부터 켜진다).
+    // 지금 들어 있는 것 — 정식 주소(cindertower.com), www(정식으로 넘기지만
+    // 넘어가기 전에 요청이 한 번 나갈 수 있어 같이 열어 둔다),
+    // 그리고 버셀이 붙여 주는 주소들(운영 · 이 브랜치의 프리뷰).
+    //
+    // Origin 은 문자열 통째로 비교한다(originAllowed 참고). 그래서 www 와
+    // 벌거벗은 주소는 서로 다른 값이고, 하나만 넣으면 다른 쪽에서 403 이 난다.
     // 프리뷰 주소는 브랜치마다 다르므로 브랜치를 새로 파면 여기도 늘려야 한다.
-    "ALLOWED_ORIGINS": "https://cinder-git-claude-accessibility-ch-c98e09-holymolyjuns-projects.vercel.app,https://cinder-blush.vercel.app"
+    "ALLOWED_ORIGINS": "https://cindertower.com,https://www.cindertower.com,https://cinder-blush.vercel.app,https://cinder-git-claude-accessibility-ch-c98e09-holymolyjuns-projects.vercel.app"
   }
 }

@@ -87,8 +87,8 @@ const standByWall = (page, at) => page.evaluate((at) => {
       for (let x = 1; x < m.tiles[y].length - 1; x++) {
         if (!isWalkable(m, x, y)) continue;
         walk++;
-        p.x = x; p.y = y;
-        if (noteAction() === 'write') write++;
+        // 자판의 N 이 열리는 자리 — 버튼은 여기에 「두 번 밀기」를 더 요구한다
+        if (noteWall(x, y)) write++;
       }
     p.x = ox; p.y = oy;
     // 네 방향 벽에 다 긁을 수 있는가
@@ -109,9 +109,8 @@ const standByWall = (page, at) => page.evaluate((at) => {
     for (let y = 1; y < m.tiles.length - 1; y++)
       for (let x = 1; x < m.tiles[y].length - 1; x++) {
         if (!isWalkable(m, x, y)) continue;
-        p.x = x; p.y = y;
-        if (noteAction() !== 'write') continue;
         const w = noteWall(x, y);
+        if (!w) continue;
         // 쓴 자리에서 그 쪽지가 읽혀야 한다
         Marks.list.push({ id: 'probe', kind: 'note', x: w.x, y: w.y, a: 0, b: 0, nods: 0 });
         const readable = !!Marks.noteNear(x, y);
@@ -151,7 +150,7 @@ const standByWall = (page, at) => page.evaluate((at) => {
   await B.waitForTimeout(600);
   await standByWall(B);
   const seen = await B.evaluate((s) => {
-    const m = Marks.list.find(v => v.kind === 'note' && !v.guide && v.x === s.x && v.y === s.y - 1);
+    const m = Marks.noteNear(s.x, s.y);
     return m ? { text: Marks.text(m), mine: m.mine, nods: m.nods } : null;
   }, spot);
   check(seen && /함정/.test(seen.text), `남이 남긴 말이 보인다 — 「${seen && seen.text}」`);
@@ -214,28 +213,46 @@ const standByWall = (page, at) => page.evaluate((at) => {
   });
   check(away.hidden && away.act === null, '할 일이 없으면 버튼이 없다');
 
+  /* 벽 옆에 서기만 해도 버튼이 뜨면, 걷는 내내 켜졌다 꺼졌다 해서
+     「지금 할 수 있다」가 아니라 그냥 깜빡이는 것이 된다.
+     같은 벽을 두 번 미는 것은 우연히 일어나지 않는다. */
   await standByWall(D, { x: 20, y: 18 });     // A 가 붙여 둔 벽과 다른 벽으로
   const near = await D.evaluate(() => {
     paintTouch();
-    return { hidden: document.getElementById('t-mark').hidden,
-             label: document.getElementById('t-mark').textContent };
+    return document.getElementById('t-mark').hidden;
   });
-  check(!near.hidden && near.label === '남기기', `벽 앞에 서면 나타난다 (${near.label})`);
+  check(near, '벽 옆에 서 있기만 해서는 안 뜬다');
 
-  // 벽으로 걸어 들어가면 귀띔한다 — 창은 뜨지 않아야 한다
   const bump = await D.evaluate(() => {
-    const hints = () => [...document.querySelectorAll('#log div')]
-      .filter(d => /벽이 손에 닿습니다/.test(d.textContent)).length;
+    const hints = (re) => [...document.querySelectorAll('#log div')]
+      .filter(d => re.test(d.textContent)).length;
+    const el = document.getElementById('t-mark');
     const p = state.player;              // standByWall 이 이미 벽 아래에 세워 두었다
-    playerAction('up', 'move');          // 벽으로 걸어 들어간다
-    const first = hints();
-    playerAction('up', 'move');          // 한 번 더 — 또 말하면 잔소리다
-    return { first, second: hints(), modal: UI.campOpen(),
+
+    playerAction('up', 'move');          // 한 번 민다
+    const once = { hidden: el.hidden, hint: hints(/한 번 더 밀면/) };
+    playerAction('up', 'move');          // 두 번째
+    const twice = { hidden: el.hidden, label: el.textContent, ready: hints(/한 마디 남깁니다/) };
+    playerAction('up', 'move');          // 세 번째 — 또 말하면 잔소리다
+    return { once, twice, again: hints(/한 마디 남깁니다/), modal: UI.campOpen(),
              wall: tileAt(state.map, p.x, p.y - 1) === T.WALL };
   });
-  check(bump.wall && bump.first === 1, '벽으로 걸어 들어가면 남길 수 있다고 알려준다');
-  check(!bump.modal, '그렇다고 창이 뜨지는 않는다 — 길 찾다 부딪히는 일이 잦다');
-  check(bump.second === 1, `귀띔은 한 층에 한 번뿐 (${bump.second}번 적혔다)`);
+  check(bump.wall && bump.once.hidden && bump.once.hint === 1,
+        '한 번 밀면 「한 번 더」라고만 알려준다');
+  check(!bump.twice.hidden && bump.twice.label === '남기기',
+        `두 번 밀면 그때 뜬다 (${bump.twice.label})`);
+  check(!bump.modal, '그래도 창이 저절로 뜨지는 않는다 — 누를지는 사람이 정한다');
+  check(bump.again === 1, `귀띔은 한 층에 한 번뿐 (${bump.again}번 적혔다)`);
+
+  // 자리를 옮기면 셈이 처음으로 — 「두 번」은 잇달아 민 것이어야 뜻이 있다
+  const walked = await D.evaluate(() => {
+    playerAction('down', 'move');        // 벽에서 한 걸음 물러난다
+    playerAction('up', 'move');          // 다시 붙는다 (걸음이므로 밀기가 아니다)
+    playerAction('up', 'move');          // 여기서 겨우 한 번 민 것
+    paintTouch();
+    return document.getElementById('t-mark').hidden;
+  });
+  check(walked, '걸어서 자리를 옮기면 셈이 처음부터다');
 
   const tapped = await D.evaluate(async () => {
     document.querySelector('[data-act="mark"]').click();
@@ -261,13 +278,9 @@ const standByWall = (page, at) => page.evaluate((at) => {
     enterFloor(4); UI.closeIntro();
     await new Promise(r => setTimeout(r, 500));
     playerAction('right', 'move');
-    return { running: state.running,
-             fromServer: Marks.list.filter(m => !m.guide).length,
-             guide: Marks.list.filter(m => m.guide).length };
+    return { running: state.running, marks: Marks.list.length };
   });
-  check(alone.running && alone.fromServer === 0, '흔적을 못 받아도 그대로 논다');
-  // 길잡이는 서버를 안 탄다. 서버가 죽어도 층이 텅 비지는 않는다
-  check(alone.guide > 0, `서버가 끊겨도 탑이 남긴 길잡이는 있다 (${alone.guide}장)`);
+  check(alone.running && alone.marks === 0, '흔적을 못 받아도 그대로 논다');
   check(errs.length === 0, '에러도 안 난다' + (errs.length ? ': ' + errs[0] : ''));
   await off.close();
 

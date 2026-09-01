@@ -385,7 +385,12 @@ function originAllowed(request, env) {
   let host;
   try { host = new URL(origin).hostname; } catch (e) { return false; }
 
-  // 로컬 개발은 언제나 연다 (wrangler dev / 로컬 정적 서버)
+  /* 로컬 개발은 언제나 연다 (wrangler dev / 로컬 정적 서버).
+
+     ⚠️ 이 줄은 편의가 아니라 **안드로이드 앱이 붙는 유일한 길**이기도 하다.
+     Capacitor 웹뷰는 https://localhost 에서 뜨므로 앱에서 온 요청은 전부
+     여기로 들어온다. 조이려면 앱이 함께 죽는다는 것을 알고 조여야 한다.
+     (앱은 확성기가 꺼져 있어서 소켓은 안 열고 흔적만 이 길로 온다) */
   if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
 
   return allowList(env).indexOf(origin) !== -1;

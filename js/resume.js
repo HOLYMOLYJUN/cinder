@@ -52,6 +52,11 @@ function packRun() {
       pet: state.pet ? { id: state.pet.id, x: state.pet.x, y: state.pet.y } : null,
       regen: state.regen || 0,   // 걸음 눈금. 없으면 이어할 때마다 처음부터 센다
       campUses: state.campUses, revived: state.revived,
+      rerolls: state.shopRerolls || 0, rest: !!state.restFloor,
+      /* 「어떻게 올랐는가」를 세는 눈금들. 안 실으면 새로고침 한 번으로
+         모닥불을 쓴 적도 산 적도 없는 사람이 되어 업적이 거저 열린다. */
+      how: [state.usedCamp, state.traded, state.usedMelee,
+            state.usedRanged, state.couldRanged].map(v => v ? 1 : 0).join(''),
       hurt: state.hurtThisFloor, gotMemory: state.gotMemoryThisRun,
       seen: [...state.seenMonsters],
       tag: state.floorTag,
@@ -73,7 +78,7 @@ function packRun() {
         tiles: packGrid(m.tiles, t => String(t)),
         explored: packGrid(m.explored, e => (e ? '1' : '0')),
         rooms: m.rooms, start: m.start, stairs: m.stairs,
-        camp: m.camp || null, shop: m.shop || null,
+        camp: m.camp || null, shop: m.shop || null, forge: m.forge || null,
         vault: m.vault || null, doors: m.doors || null, torches: m.torches || null,
         props: m.props || null,
         items: m.items,
@@ -142,6 +147,14 @@ function loadRun(d, opts) {
   // 이어하기나 관전으로 11층에 들어갔을 때 1층 돌벽으로 그려진다.
   Render.setBiome(d.depth);
   state.campUses = d.campUses; state.revived = d.revived;
+  state.shopRerolls = d.rerolls || 0;
+  state.restFloor = !!d.rest;
+  const how = d.how || '';
+  state.usedCamp    = how[0] === '1';
+  state.traded      = how[1] === '1';
+  state.usedMelee   = how[2] === '1';
+  state.usedRanged  = how[3] === '1';
+  state.couldRanged = how[4] === '1';
   state.hurtThisFloor = d.hurt; state.gotMemoryThisRun = d.gotMemory;
   state.seenMonsters = new Set(d.seen || []);
   state.floorTag = d.tag || { id: null, hint: '', monsterMul: 1, fovAdd: 0 };
@@ -181,7 +194,7 @@ function loadRun(d, opts) {
     tiles: unpackGrid(M.tiles, c => Number(c)),
     explored: unpackGrid(M.explored, c => c === '1'),
     rooms: M.rooms, start: M.start, stairs: M.stairs, depth: d.depth,
-    camp: M.camp || undefined, shop: M.shop || undefined,
+    camp: M.camp || undefined, shop: M.shop || undefined, forge: M.forge || undefined,
     vault: M.vault || undefined, doors: M.doors || undefined,
     torches: M.torches || [],
     props: M.props || [],

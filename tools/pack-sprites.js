@@ -102,8 +102,9 @@ const CHARACTERS = {
   gate:        'chort',
   named:       'angel',
   keeper:      'knight_m',      // 당신의 얼굴을 하고 있다 — 같은 그림에 불빛을 입힌다
-  // 상인
+  // 상인과 대장장이 — 둘 다 안식처에 선다. 한눈에 갈려야 해서 그림을 멀리 잡았다
   merchant:    'dwarf_m',
+  smith:       'knight_f',
 };
 
 const MANIFEST = {};

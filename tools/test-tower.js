@@ -104,49 +104,6 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
         `쪽지 자리가 남의 지도에서도 전부 그대로다 (${stand.ok}/${stand.tot} = ` +
         `${(stand.ok / stand.tot * 100).toFixed(0)}%, 예전 14%)`);
 
-  console.log('\n[ 탑이 남긴 길잡이 ]');
-  const guide = await page.evaluate(() => {
-    const day = towerDay();
-    const per = [];
-    let bad = 0, wallOk = 0, tot = 0;
-    for (let d = 1; d <= 12; d++) {
-      const m = withSeed(floorSeed(d, day), () => makeFloor(d, false));
-      const g = Guide.forFloor(d, day, m);
-      per.push(g.length);
-      for (const n of g) {
-        tot++;
-        // 그림은 벽에, 사람은 그 아래 칸에 선다
-        if (m.tiles[n.y][n.x] === T.WALL && isWalkable(m, n.x, n.y + 1)) wallOk++;
-        if (!noteText(n.a, n.b)) bad++;
-      }
-      // 두 번 불러도 같아야 한다 — 안 그러면 사람마다 다른 길잡이를 본다
-      const g2 = Guide.forFloor(d, day, m);
-      if (JSON.stringify(g) !== JSON.stringify(g2)) bad++;
-    }
-    return { per, bad, wallOk, tot, min: Math.min(...per) };
-  });
-  check(guide.min >= 1, `층마다 하나 이상 있다 (층별 ${guide.per.join(',')})`);
-  check(guide.tot === guide.wallOk, `전부 벽에 붙어 있고 읽을 자리가 있다 (${guide.wallOk}/${guide.tot})`);
-  check(guide.bad === 0, '몇 번을 불러도 같은 자리에 같은 말이다');
-
-  const truth = await page.evaluate(() => {
-    const day = towerDay();
-    let checked = 0, right = 0;
-    for (let d = 1; d <= 12; d++) {
-      const m = withSeed(floorSeed(d, day), () => makeFloor(d, false));
-      for (const n of Guide.forFloor(d, day, m)) {
-        // 「계단이 있다」(틀1·낱말4) 는 정말 계단 근처여야 한다
-        if (n.a === 1 && n.b === 4 && m.stairs) {
-          checked++;
-          if (chebyshev(n.x, n.y, m.stairs.x, m.stairs.y) <= 10) right++;
-        }
-      }
-    }
-    return { checked, right };
-  });
-  check(truth.checked > 0 && truth.checked === truth.right,
-        `하는 말이 사실이다 — 「계단이 있다」가 정말 계단 옆이다 (${truth.right}/${truth.checked})`);
-
   console.log('\n[ 자정을 넘겨도 오르던 탑이 안 바뀐다 ]');
   const midnight = await page.evaluate(() => {
     startRun(); UI.closeIntro();

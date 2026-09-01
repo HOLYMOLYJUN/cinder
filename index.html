@@ -4,6 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>잿불</title>
+
+<!-- ===== 링크로 건넸을 때 보이는 것 =====
+     카톡·트위터·디스코드가 읽는 곳이다. 크롤러는 자바스크립트를 돌리지 않으므로
+     여기 적힌 것이 전부다 — 게임이 그려지기 전에 이미 판단이 끝난다.
+
+     og:image 는 반드시 절대 주소여야 한다. 상대 경로를 쓰면 카톡에서 그림이
+     통째로 안 뜬다(요청하는 쪽이 우리 페이지가 아니기 때문이다).
+
+     그림은 tools/make-og.js 가 실제 판을 찍어서 만든다. 손으로 그리지 않는다 —
+     미리보기는 「이게 무슨 게임인지」를 1초 안에 알리는 자리라
+     진짜 화면 한 장이 언제나 낫다. -->
+<meta name="description" content="불씨 하나 들고 열다섯 층을 오른다. 먼저 오른 사람이 벽에 남긴 말이 아직 거기 있다. 설치 없이 브라우저에서 바로.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="잿불">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://cindertower.com/">
+<meta property="og:title" content="잿불 · Cinder">
+<meta property="og:description" content="불씨 하나 들고 열다섯 층을 오른다. 먼저 오른 사람이 벽에 남긴 말이 아직 거기 있다. 설치 없이 브라우저에서 바로.">
+<meta property="og:image" content="https://cindertower.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="어두운 던전 한가운데 불씨를 든 사람. 잿불 · Cinder">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B0908">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;700&display=swap">
@@ -74,9 +99,11 @@
         <button data-act="potion">물약 <b id="t-potion">0</b></button>
         <button data-act="aim" id="t-aim">원거리</button>
         <button data-act="ember" id="t-ember">불씨</button>
-        <!-- 흔적은 할 수 있을 때만 나타난다. 늘 떠 있으면 좁은 화면에서 자리만 먹는다 -->
-        <button data-act="mark" id="t-mark" hidden>남기기</button>
         <button data-act="codex">도감</button>
+        <!-- 흔적은 할 수 있을 때만 나타난다. 늘 떠 있으면 좁은 화면에서 자리만 먹는다.
+             맨 끝에 두는 이유는 자리다 — 가운데 끼우면 2열 격자에 빈 칸이 생겨서
+             나머지 버튼이 어긋난다. 끝에서 두 칸을 다 쓰면 아무것도 안 밀린다. -->
+        <button data-act="mark" id="t-mark" hidden>남기기</button>
       </div>
       <div class="touch-pad" id="touch-pad">
         <button data-dir="up">↑</button>
@@ -185,6 +212,9 @@
       </div>
     </div>
     <div class="credits-foot">
+      <!-- 한 번 끝까지 본 사람에게만 나타난다. 처음 보는 사람에게 건너뛰기를
+           내밀면, 읽을 만한 것이 아니라 넘겨도 되는 것으로 먼저 읽힌다. -->
+      <button id="story-skip" class="btn-ghost hidden">건너뛴다</button>
       <span class="credits-hint">누르고 있으면 빨리 넘어갑니다</span>
     </div>
   </div>
@@ -197,6 +227,7 @@
     </div>
     <div class="credits-foot">
       <button id="credits-close" class="btn-ghost hidden">돌아간다</button>
+      <button id="credits-skip" class="btn-ghost hidden">건너뛴다</button>
       <span class="credits-hint" id="credits-hint">누르고 있으면 빨리 감깁니다</span>
     </div>
   </div>
@@ -222,8 +253,9 @@
             <tr><td><kbd>Z</kbd> + 방향 <span class="or">/</span> <kbd>J</kbd></td><td>원거리 — 「던지던 손」을 되찾아야 열립니다. <b>지팡이를 들면 불덩이</b>가 나가 주변까지 태웁니다. <b>활을 들면(엘프) 기억 없이도</b> 화살이 나갑니다. 기사는 쓰지 못하고, 한 번 쏘면 한 턴 쉬어야 합니다</td></tr>
             <tr><td><kbd>Space</kbd></td><td>한 턴 대기. 상인 앞에서는 다시 말을 겁니다</td></tr>
             <tr><td><kbd>1</kbd></td><td>물약 마시기 — 10개까지 들 수 있습니다</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>상인·대장장이 앞에서 다시 말을 겁니다</td></tr>
             <tr><td><kbd>F</kbd></td><td>불씨 밝기 — 「끄던 손」을 되찾아야 열립니다</td></tr>
-            <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>할 수 있는 자리에서만</b> 「남기기」 버튼이 나타납니다</td></tr>
+            <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>같은 벽을 두 번 밀면</b> 「남기기」 버튼이 나타납니다</td></tr>
             <tr><td><kbd>Z</kbd> <span class="or">/</span> <kbd>X</kbd></td><td>장비 비교창에서 교체 / 그대로 두기</td></tr>
             <tr><td><kbd>M</kbd></td><td>소리 켜고 끄기</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>이 창 열고 닫기</td></tr>
@@ -344,7 +376,6 @@
 <script src="js/pets.js"></script>
 <script src="js/story.js"></script>
 <script src="js/marks.js"></script>
-<script src="js/guide.js"></script>
 <script src="js/bosses.js"></script>
 <script src="js/achievements.js"></script>
 <script src="js/render.js"></script>
