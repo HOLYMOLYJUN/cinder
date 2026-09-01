@@ -45,12 +45,17 @@ WebSocket 은 CORS 프리플라이트를 타지 않는다. **브라우저가 막
 
 ```jsonc
 "vars": {
-  "ALLOWED_ORIGINS": "https://cinder.vercel.app,https://cinder-git-main-you.vercel.app"
+  "ALLOWED_ORIGINS": "https://cindertower.com,https://www.cindertower.com,https://cinder-blush.vercel.app"
 }
 ```
 
 `localhost` 와 `127.0.0.1` 은 언제나 허용되므로 개발 중에는 비워 둬도 된다.
 버셀은 미리보기 배포마다 주소가 달라지므로, 그쪽에서도 쓰려면 그 주소도 넣어야 한다.
+
+**`www` 와 벌거벗은 주소는 서로 다른 값이다.** `originAllowed` 가 Origin 을 문자열
+통째로 비교하기 때문이다. 정식 주소로 넘기더라도(308) 넘어가기 전에 요청이 한 번
+나갈 수 있으므로 둘 다 적어 둔다 — 한쪽만 적으면 그쪽에서만 403 이 나서
+「어떤 사람은 되고 어떤 사람은 안 되는」 제일 찾기 싫은 종류의 버그가 된다.
 
 ## 403 이 뜰 때
 

@@ -2,6 +2,8 @@
 
 불씨를 들고 탑을 오르는 브라우저 턴제 로그라이크. **프로토타입 단계.**
 
+**https://cindertower.com**
+
 기획서: https://claude.ai/code/artifact/d18677bd-0040-4c13-a04f-792a5b798ff6
 
 ---
