@@ -141,9 +141,45 @@ const UI_HEART_MAX = 12;      // js/ui.js 의 UI.HEART_MAX 와 같아야 한다
   const poor = await page.evaluate(() => {
     state.gold = 0;
     const opts = forgeOptions();
-    return opts.filter(o => o.disabled).length === opts.length;
+    const gearRows = opts.filter(o => o.id !== 'leave');
+    return gearRows.length > 0 && gearRows.every(o => o.disabled);
   });
-  check(poor, '골드가 없으면 전부 잠긴다');
+  check(poor, '골드가 없으면 두드릴 것이 전부 잠긴다');
+
+  /* 모닥불은 일부러 닫는 키가 없다 — 불 앞에서 그냥 지나갈 수는 없어야 하니까.
+     그런데 대장장이가 그 창을 빌려 쓰면서 같이 갇혔다. 골드가 없으면 고를 것이
+     하나도 없는데 나갈 길도 없어서 판이 멈췄다. 상인이지 관문이 아니다. */
+  const trapped = await page.evaluate(async () => {
+    state.gold = 0;
+    openForge();
+    const opened = UI.campOpen();
+    const canLeave = UI.campCanLeave();
+    const hasRow = forgeOptions().some(o => o.id === 'leave');
+
+    // 손가락 — 「그만둔다」 줄을 눌러서 나간다
+    const rows = [...document.querySelectorAll('#camp-choices button')];
+    rows[rows.length - 1].click();
+    const afterTap = UI.campOpen();
+
+    // 자판 — Esc 로도 나간다
+    openForge();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    await new Promise(r => setTimeout(r, 60));
+    const afterEsc = UI.campOpen();
+    UI.hideCamp();
+
+    // 모닥불은 여전히 못 나간다
+    state.campSpot = { x: state.player.x, y: state.player.y };
+    UI.showCamp(campOptions(), pickCamp);
+    const campLeave = UI.campCanLeave();
+    UI.hideCamp();
+    return { opened, canLeave, hasRow, afterTap, afterEsc, campLeave };
+  });
+  check(trapped.opened && trapped.hasRow, '골드가 없어도 「그만둔다」 줄은 있다');
+  check(!trapped.afterTap, '그 줄을 누르면 나가진다');
+  check(trapped.canLeave && !trapped.afterEsc, 'Esc 로도 나가진다');
+  check(!trapped.campLeave, '모닥불은 그대로 못 나간다 — 거기는 고르는 자리다');
 
   console.log('\n[ 매대를 다시 깐다 ]');
   const reroll = await page.evaluate(() => {

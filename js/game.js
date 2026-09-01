@@ -1258,6 +1258,9 @@ function forgeOptions() {
       disabled: state.gold < price,
     });
   }
+  /* 나갈 줄. 키보드는 Esc 로도 나가지만 손가락에는 그런 것이 없고,
+     골드가 없으면 나머지가 전부 잠기므로 이 줄이 없으면 창에 갇힌다. */
+  out.push({ id: 'leave', name: '그만둔다', desc: '다음에 다시 오지.' });
   return out;
 }
 
@@ -1278,10 +1281,11 @@ function forgeGainAmount(g, key) {
 function openForge() {
   UI.showCamp(forgeOptions(), forgeGear,
     '가진 걸 두드려 주지. 값은 손볼수록 오른다.  (' + state.gold + ' G)',
-    '대장장이');
+    '대장장이', true);          // 마지막 true — 아무것도 안 사고 나갈 수 있다
 }
 
 function forgeGear(slot) {
+  if (slot === 'leave') { UI.hideCamp(); return; }
   const p = state.player;
   const g = p.gear[slot];
   if (!g || g.unknown) return;
@@ -2026,10 +2030,18 @@ function onKeyDown(e) {
   }
 
   /* 모닥불은 숫자키로 고른다 — 상점과 같은 조작.
-     닫는 키는 없다. 불 앞에서 아무것도 안 하고 지나갈 수는 없어야
-     이게 선택이 되지, 무시해도 되는 창이 되지 않는다. */
+     모닥불과 동행에는 닫는 키가 없다. 불 앞에서 아무것도 안 하고 지나갈 수는
+     없어야 이게 선택이 되지, 무시해도 되는 창이 되지 않는다.
+
+     대장장이는 다르다. 거기는 상인이지 관문이라, 살 것이 없으면 나갈 수 있어야 한다 —
+     안 갈랐더니 골드가 없을 때 창에 갇혀서 판이 멈췄다. */
   if (UI.campOpen()) {
-    const n = code.match(/^Digit([1-3])$/) || code.match(/^Numpad([1-3])$/);
+    if (UI.campCanLeave() && (code === 'Escape' || code === 'Space')) {
+      UI.hideCamp();
+      e.preventDefault();
+      return;
+    }
+    const n = code.match(/^Digit([1-9])$/) || code.match(/^Numpad([1-9])$/);
     if (n) UI.campPickIndex(Number(n[1]) - 1);
     e.preventDefault();
     return;

@@ -299,8 +299,8 @@ function playRun() {
       /* 대장장이 — 무기부터 손본다. 상한(FORGE_MAX)까지만 돌고,
          물약 살 돈은 남긴다. 사람도 전 재산을 두드리는 데 붓지는 않는다. */
       if (title === '대장장이') {
-        const can = opts.find(o => !o.disabled);
-        if (can && s.gold > 80) pick(can.id);
+        const can = opts.find(o => !o.disabled && o.id !== 'leave');
+        pick(can && s.gold > 80 ? can.id : 'leave');
         continue;
       }
       pick(opts.some(o => o.id === 'warm') ? 'warm' : (opts[0] && opts[0].id));

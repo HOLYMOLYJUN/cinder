@@ -148,10 +148,14 @@ const UI = {
   /* ---------- 모닥불 선택 ----------
      안식처가 회복소이기만 하면 밟는 것 말고 할 일이 없다.
      같은 자리에서 무엇을 얻을지 고르게 하면 판마다 다른 길이 난다. */
-  showCamp(options, onPick, say, title) {
+  /* canLeave — 아무것도 안 고르고 나갈 수 있는가.
+     모닥불과 동행은 못 나간다(고르는 것이 그 자리의 전부다). 대장장이는 나갈 수 있다 —
+     상인이지 관문이 아니다. 이걸 안 갈랐더니 골드가 없을 때 창에 갇혔다. */
+  showCamp(options, onPick, say, title, canLeave) {
     const box = document.getElementById('camp-choices');
     // 쪽지도 이 창을 빌려 쓴다. 제목까지 빌리면 벽에 긁는 창에 「모닥불」이라고 뜬다
     document.getElementById('camp-title').textContent = title || '모닥불';
+    this._campLeave = !!canLeave;
     document.getElementById('camp-say').textContent =
       say || '불이 아직 살아 있습니다. 무엇에 쓰겠습니까.';
     box.innerHTML = '';
@@ -182,6 +186,7 @@ const UI = {
   },
   hideCamp() { document.getElementById('camp-modal').classList.add('hidden'); },
   campOpen() { return !document.getElementById('camp-modal').classList.contains('hidden'); },
+  campCanLeave() { return !!this._campLeave; },
   // 숫자키로도 고를 수 있게 — 상점과 같은 조작이다
   campPickIndex(i) {
     const o = this._campOptions && this._campOptions[i];
