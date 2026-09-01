@@ -155,16 +155,14 @@ const back = async p => { await p.evaluate(() => history.back()); await wait(250
   await app.evaluate(() => UI.hideCamp());
   await wait(200);
 
-  /* 대장장이는 같은 창을 빌려 쓰지만 상인이지 관문이 아니다.
-     폰에는 Esc 가 없으므로 뒤로가기가 유일한 나갈 길이다 —
-     여기서도 삼키면 골드가 없을 때 창에 갇혀 판이 멈춘다. */
-  await app.evaluate(() => UI.showCamp(
-    [{ name: '두드린다' }, { name: '그만둔다' }], () => {}, '', '대장장이', true));
+  /* 대장장이는 상인이지 관문이 아니다. 이제 제 창(#forge-modal)이 따로 있고
+     화면에 「그만둔다」 단추도 있지만, 뒤로가기로도 나가져야 한다 —
+     폰에서 몸에 밴 손이기 때문이다. 삼키면 갇힌 것처럼 느껴진다. */
+  await app.evaluate(() => openForge());
   await wait(200);
-  check('대장장이 창은 나갈 수 있는 창이다',
-    (await app.evaluate(() => UI.campCanLeave())) === true);
+  check('대장장이 창이 뜬다', await app.isVisible('#forge-modal'));
   await back(app);
-  check('대장장이는 뒤로가기로 나갈 수 있다', await app.isHidden('#camp-modal'));
+  check('대장장이는 뒤로가기로 나갈 수 있다', await app.isHidden('#forge-modal'));
   check('나가는 것이지 앱을 닫는 것은 아니다',
     (await app.evaluate(() => window.__exits)) === 1);
 

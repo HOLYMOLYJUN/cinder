@@ -72,7 +72,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
         recalcStats(p);
         const barehandMagic = isMagicAttack(p);
         // 지팡이만 본다. 「불씨 검」처럼 주문이 붙은 검은 물리로 남는 게 맞다.
-        for (const g of GEAR.filter(x => x.slot === 'weapon' && x.mod.sp && !x.mod.atk)) {
+        // only 가 붙은 것은 그 사람 손에만 들어간다 — 남에게는 애초에 안 나오므로
+        // (낡은 지팡이는 마법사 전용) 남의 손에 들려 보고 죽는다고 하면 안 된다.
+        for (const g of GEAR.filter(x => x.slot === 'weapon' && x.mod.sp && !x.mod.atk &&
+                                         (!x.only || x.only === h.id))) {
           p.gear.weapon = makeGear(g);
           recalcStats(p);
           if (!isMagicAttack(p)) out.push(`${h.name} ${lv}레벨 · ${g.name}`);

@@ -184,6 +184,55 @@ const UI = {
     this._campOptions = options;
     document.getElementById('camp-modal').classList.remove('hidden');
   },
+  /* ---------- 대장장이 ----------
+     상인과 같은 부류의 자리라 같은 틀을 쓴다. 자리 넷이 가로로 눕는다 —
+     목록이 아니라 몸이라, 몸은 한눈에 들어와야 한다. */
+  showForge(cards, gold, onPick) {
+    document.getElementById('forge-gold').textContent = gold;
+
+    // 머리글의 망치 — 쇠망치 도트를 그대로 빌린다. 대장간에 망치보다 맞는 그림이 없다.
+    const hammer = document.getElementById('forge-hammer');
+    const hs = typeof SPRITES !== 'undefined' && SPRITES['gear.쇠망치'];
+    if (hammer && hs) hammer.src = hs.f[0]; else if (hammer) hammer.hidden = true;
+
+    const grid = document.getElementById('forge-grid');
+    grid.innerHTML = '';
+    cards.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.className = 'forge-card' + (c.empty ? ' empty' : '');
+      b.disabled = !!c.disabled;
+
+      let ico = '<span class="ico"></span>';
+      if (c.gear) {
+        const src = this.gearIcon(c.gear);
+        if (src) ico = `<span class="ico"><img style="${this.iconStyle(c.gear, 30, 2)}" src="${src}" alt=""></span>`;
+        else ico = '<span class="ico">?</span>';
+      }
+      const name = c.gear && !c.gear.unknown
+        ? `<span class="nm r-${c.gear.rarity}">${gearFullName(c.gear)}</span>`
+        : `<span class="nm">${c.name || '비어 있음'}</span>`;
+
+      b.innerHTML =
+        ico +
+        `<span class="slot">${c.label}<span class="k">${i + 1}</span></span>` +
+        name +
+        `<span class="sub">${c.sub || ''}</span>` +
+        `<span class="price">${c.price != null ? c.price + ' G' : ''}</span>`;
+      if (!c.disabled) b.addEventListener('click', () => onPick(c.id));
+      grid.appendChild(b);
+    });
+
+    this._forgePick = onPick;
+    this._forgeCards = cards;
+    document.getElementById('forge-modal').classList.remove('hidden');
+  },
+  hideForge() { document.getElementById('forge-modal').classList.add('hidden'); },
+  forgeOpen() { return !document.getElementById('forge-modal').classList.contains('hidden'); },
+  forgePickIndex(i) {
+    const c = this._forgeCards && this._forgeCards[i];
+    if (c && !c.disabled && this._forgePick) this._forgePick(c.id);
+  },
+
   hideCamp() { document.getElementById('camp-modal').classList.add('hidden'); },
   campOpen() { return !document.getElementById('camp-modal').classList.contains('hidden'); },
   campCanLeave() { return !!this._campLeave; },

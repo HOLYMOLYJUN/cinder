@@ -88,8 +88,9 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
     await p.close();
   }
 
-  /* 대장장이는 자리 넷을 다 채운 상태가 제일 길다 — 무기·방어구·장신구 둘 +
-     「그만둔다」. 마지막 줄이 곧 나가는 길이라 잘리면 창에 갇힌다. */
+  /* 대장장이 — 이제 상인과 같은 틀에 자리 넷이 가로로 눕는다.
+     세로 목록이던 시절에는 다섯 줄이 폰 화면을 넘어 「그만둔다」가 잘렸다.
+     가로 한 줄이면 그럴 일이 없는데, 그래도 재 둔다 — 카드가 살찌면 돌아온다. */
   console.log('\n[ 대장장이 — 자리를 다 채운 상태 ]');
   for (const [w, h, name] of SIZES) {
     const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2,
@@ -108,17 +109,21 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       pl.gear.trinket2 = makeGear(GEAR.find(g => g.name === '가죽 장화'));
       recalcStats(pl);
       openForge();
-      const inner = document.querySelector('.camp-inner');
-      const list = document.getElementById('camp-choices');
-      const rows = [...list.children];
-      const leave = rows[rows.length - 1];
+      const inner = document.querySelector('.forge-inner');
+      const grid = document.getElementById('forge-grid');
+      const leave = document.getElementById('forge-close');
       const ib = inner.getBoundingClientRect(), lb = leave.getBoundingClientRect();
-      return { rows: rows.length, fits: ib.height <= window.innerHeight + 1,
-               leaveVisible: lb.bottom <= ib.bottom + 1 && lb.top >= ib.top - 1,
-               text: leave.textContent.slice(0, 6) };
+      const cards = [...grid.children];
+      // 넷이 같은 줄에 있는가 — 가로 배치가 이 창의 전부다
+      const tops = cards.map(c => Math.round(c.getBoundingClientRect().top));
+      return { cards: cards.length,
+               oneRow: tops.every(t => t === tops[0]),
+               fits: ib.height <= window.innerHeight + 1,
+               leaveVisible: lb.bottom <= ib.bottom + 1 && lb.top >= ib.top - 1 };
     });
-    check(r.rows === 5, `${w}x${h} ${name} — 다섯 줄이 나온다 (${r.rows})`);
-    check(r.leaveVisible, `${w}x${h} — 「${r.text.trim()}」가 구르지 않고 보인다`);
+    check(r.cards === 4, `${w}x${h} ${name} — 자리 넷이 나온다 (${r.cards})`);
+    check(r.oneRow, `${w}x${h} — 넷이 한 줄에 눕는다`);
+    check(r.fits && r.leaveVisible, `${w}x${h} — 창이 다 들어오고 「그만둔다」가 보인다`);
     await p.close();
   }
 

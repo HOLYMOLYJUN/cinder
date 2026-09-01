@@ -76,6 +76,11 @@ ctx.UI = {
     ctx.__campPick = pick; ctx.__campOpts = opts; ctx.__campTitle = title || '';
   },
   hideCamp: () => {},
+  // 대장장이는 이제 제 창이 따로 있다 (예전에는 모닥불 창을 빌려 썼다)
+  showForge: (cards, gold, pick) => { ctx.__forgePick = pick; ctx.__forgeCards = cards; },
+  hideForge: () => {},
+  forgeOpen: () => false,
+  forgePickIndex: () => {},
   intro: { active: false },
   setRecord: () => {},
   toast: (t) => { ctx.__lastToast = t; },
@@ -296,14 +301,16 @@ function playRun() {
       const title = ctx.__campTitle;
       ctx.__campPick = null; ctx.__campOpts = null; ctx.__campTitle = null;
 
-      /* 대장장이 — 무기부터 손본다. 상한(FORGE_MAX)까지만 돌고,
-         물약 살 돈은 남긴다. 사람도 전 재산을 두드리는 데 붓지는 않는다. */
-      if (title === '대장장이') {
-        const can = opts.find(o => !o.disabled && o.id !== 'leave');
-        pick(can && s.gold > 80 ? can.id : 'leave');
-        continue;
-      }
       pick(opts.some(o => o.id === 'warm') ? 'warm' : (opts[0] && opts[0].id));
+      continue;
+    }
+    /* 대장장이 — 무기부터 손본다. 상한까지만 돌고 물약 살 돈은 남긴다.
+       사람도 전 재산을 두드리는 데 붓지는 않는다. */
+    if (ctx.__forgePick) {
+      const pick = ctx.__forgePick, cards = ctx.__forgeCards || [];
+      ctx.__forgePick = null; ctx.__forgeCards = null;
+      const can = cards.find(c => !c.disabled);
+      if (can && s.gold > 80) pick(can.id);
       continue;
     }
     // 상점이 열렸으면 살 수 있는 것을 산다

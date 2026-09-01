@@ -386,7 +386,7 @@ function toggleEmber() {
 // 그 뒤 처리 로직은 의도에 따라 갈리기만 하고 나머지는 공유된다.
 function playerAction(dir, intent) {
   if (!state.running || !state.awaitingInput || !state.player.alive) return;
-  if (UI.gearOpen() || UI.shopOpen() || UI.campOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
+  if (UI.gearOpen() || UI.shopOpen() || UI.campOpen() || UI.forgeOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
 
   const p = state.player;
 
@@ -1236,40 +1236,30 @@ function forgePrice(kind, times) {
 // 이 장비를 몇 번 손봤는가. 장비에 직접 붙여 두므로 이어하기에 그냥 실려 간다.
 function forgeTimes(g) { return (g && g.forged) || 0; }
 
-function forgeOptions() {
+function forgeCards() {
   const p = state.player;
-  const out = [];
-  for (const slot of SLOTS) {
+  return SLOTS.map(slot => {
     const g = p.gear[slot];
     if (!g) {
-      out.push({ id: slot, name: SLOT_NAME[slot] + ' 없음', desc: '가져오면 손봐 주지.', disabled: true });
-      continue;
+      return { id: slot, label: SLOT_NAME[slot], empty: true, disabled: true,
+               name: '비어 있음', sub: '가져오면 손봐 주지.' };
     }
     if (g.unknown) {
-      out.push({ id: slot, name: gearFullName(g), desc: '무엇인지도 모르는 걸 두드릴 순 없어.', disabled: true });
-      continue;
+      return { id: slot, label: SLOT_NAME[slot], gear: g, disabled: true,
+               name: gearFullName(g), sub: '뭔지 모르는 건 못 두드려.' };
     }
     const times = forgeTimes(g);
     if (times >= forgeMax()) {
-      out.push({ id: slot, name: gearFullName(g),
-                 desc: `더는 못 두드린다. (${forgeMax()}번 다 썼다)`, disabled: true });
-      continue;
+      return { id: slot, label: SLOT_NAME[slot], gear: g, disabled: true,
+               sub: `다 두드렸다 (${forgeMax()}/${forgeMax()})` };
     }
     const price = priceFor(forgePrice(g.slot, times));
     // 무엇이 오르는가는 그 장비가 이미 하던 일을 따라간다 — 지팡이는 주문이 오른다
     const key = forgeGainKey(g);
-    const amount = forgeGainAmount(g, key);
-    out.push({
-      id: slot,
-      name: gearFullName(g) + '  ' + price + ' G',
-      desc: STAT_LABEL[key] + ' +' + amount + `  (${times}/${forgeMax()})`,
-      disabled: state.gold < price,
-    });
-  }
-  /* 나갈 줄. 키보드는 Esc 로도 나가지만 손가락에는 그런 것이 없고,
-     골드가 없으면 나머지가 전부 잠기므로 이 줄이 없으면 창에 갇힌다. */
-  out.push({ id: 'leave', name: '그만둔다', desc: '다음에 다시 오지.' });
-  return out;
+    return { id: slot, label: SLOT_NAME[slot], gear: g,
+             sub: `${STAT_LABEL[key]} +${forgeGainAmount(g, key)} · ${times}/${forgeMax()}`,
+             price: price, disabled: state.gold < price };
+  });
 }
 
 /* 무엇을 올릴지는 그 장비가 이미 무엇을 하는지가 정한다.
@@ -1287,13 +1277,11 @@ function forgeGainAmount(g, key) {
 }
 
 function openForge() {
-  UI.showCamp(forgeOptions(), forgeGear,
-    '가진 걸 두드려 주지. 값은 손볼수록 오른다.  (' + state.gold + ' G)',
-    '대장장이', true);          // 마지막 true — 아무것도 안 사고 나갈 수 있다
+  UI.showForge(forgeCards(), state.gold, forgeGear);
 }
 
 function forgeGear(slot) {
-  if (slot === 'leave') { UI.hideCamp(); return; }
+  if (slot === 'leave') { UI.hideForge(); return; }
   const p = state.player;
   const g = p.gear[slot];
   if (!g || g.unknown) return;
@@ -2162,6 +2150,14 @@ function onKeyDown(e) {
 
      대장장이는 다르다. 거기는 상인이지 관문이라, 살 것이 없으면 나갈 수 있어야 한다 —
      안 갈랐더니 골드가 없을 때 창에 갇혀서 판이 멈췄다. */
+  if (UI.forgeOpen()) {
+    if (code === 'Escape' || code === 'Space') { UI.hideForge(); e.preventDefault(); return; }
+    const n = code.match(/^Digit([1-4])$/) || code.match(/^Numpad([1-4])$/);
+    if (n) UI.forgePickIndex(Number(n[1]) - 1);
+    e.preventDefault();
+    return;
+  }
+
   if (UI.campOpen()) {
     if (UI.campCanLeave() && (code === 'Escape' || code === 'Space')) {
       UI.hideCamp();
@@ -2218,7 +2214,7 @@ function onKeyUp(e) {
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
   if (KEY_MOD[e.code] === 'ranged' && !modUsed.has(e.code) &&
-      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen() && !UI.campOpen()) {
+      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen() && !UI.campOpen() && !UI.forgeOpen()) {
     playerAction(null, 'ranged');
   }
   modUsed.delete(e.code);
@@ -2407,6 +2403,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gear-take').addEventListener('click', () => resolveGear(true));
   document.getElementById('gear-drop').addEventListener('click', () => resolveGear(false));
   document.getElementById('shop-close').addEventListener('click', () => UI.hideShop());
+  document.getElementById('forge-close').addEventListener('click', () => UI.hideForge());
   document.getElementById('btn-codex').addEventListener('click', () => UI.showCodex('monsters'));
   document.getElementById('codex-close').addEventListener('click', () => UI.hideCodex());
   document.getElementById('codex-tabs').addEventListener('click', e => {

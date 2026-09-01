@@ -741,6 +741,66 @@ canvas#view {
   .shop-row .sub { margin-top: 1px; }
 }
 
+/* ---------- 대장장이 ----------
+   상인의 틀(.shop-inner)을 그대로 쓴다. 여기만의 것은 격자뿐이다. */
+#forge-modal { background: rgba(7,5,4,.93); z-index: 45; }
+
+/* 자리 넷이 가로로 눕는다 — 무기 · 방어구 · 장신구 · 장신구.
+   목록이 아니라 몸이라서다. 세로로 쌓으면 폰에서 다섯 줄이 화면을 다 먹었다. */
+.forge-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-bottom: 20px;
+}
+.forge-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 6px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 0;
+  font: inherit; color: inherit; text-align: center;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.forge-card:hover:not(:disabled) { border-color: var(--ember-dim); }
+.forge-card:disabled { cursor: default; }
+.forge-card:disabled > * { opacity: .42; }
+/* 비어 있는 자리 — 잠긴 것과 다르다. 무엇을 가져오면 되는지의 자리 표시다 */
+.forge-card.empty { border-style: dashed; }
+
+.forge-card .ico {
+  height: 34px; display: flex; align-items: center; justify-content: center;
+}
+.forge-card .ico img { image-rendering: pixelated; }
+.forge-card .slot { font-size: 10.5px; color: var(--muted); letter-spacing: .05em; }
+.forge-card .slot .k {
+  font-family: "IBM Plex Mono", monospace; font-size: 9.5px;
+  border: 1px solid var(--line); padding: 0 3px; margin-left: 4px; color: var(--muted);
+}
+.forge-card .nm {
+  font-size: 12px; line-height: 1.35; word-break: keep-all;
+  min-height: 2.7em;                 /* 두 줄 자리 — 이름 길이로 카드 높이가 널뛰지 않게 */
+  display: flex; align-items: center;
+}
+.forge-card .nm.r-fine    { color: var(--cold); }
+.forge-card .nm.r-ancient { color: var(--ember); }
+.forge-card .sub { font-size: 10.5px; color: var(--muted); }
+.forge-card .price { font-size: 12px; color: #D9B04E; font-variant-numeric: tabular-nums; }
+
+.forge-hammer {
+  width: 22px; height: 22px;
+  image-rendering: pixelated; object-fit: contain;
+  vertical-align: -4px; margin-right: 7px;
+}
+
+@media (max-width: 560px) {
+  .forge-grid { gap: 5px; }
+  .forge-card { padding: 9px 4px 8px; }
+  .forge-card .nm { font-size: 11px; }
+}
+@media (max-height: 720px) {
+  .forge-inner { padding: 16px 18px; }
+  .forge-grid { margin-bottom: 12px; }
+}
+
 /* ---------- 결말 ---------- */
 
 /* 결말 화면은 완전히 덮지 않는다.
