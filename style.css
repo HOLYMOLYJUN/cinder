@@ -13,6 +13,14 @@
   --ember-dim: #A05F27;
   --blood:     #C0483A;
   --cold:      #7C90A6;
+
+  /* 모서리 — 가방 판(assets/ui/*.png)에서 그대로 례 온 색이다.
+     그 판은 도트라 위·왼쪽이 밝고 아래·오른쪽이 어두워 튀어나와 보이는데,
+     CSS 로 그린 네모들만 평평해서 한 창 안에서 두 재료가 섮였다.
+     값을 짐작하지 않고 판의 화소를 떠서 적어 둔다. */
+  --edge-hi:   #3A2F25;
+  --edge-lo:   #0C0A08;
+
   color-scheme: dark;
 }
 
@@ -201,13 +209,13 @@ html, body {
   font-size: 12.5px;
   color: var(--ink-soft);
   background: var(--panel-2);
-  border: 2px solid var(--line);
-  border-right-color: #100D0A;
-  border-bottom-color: #100D0A;
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
   padding: 7px 16px;
   cursor: pointer;
 }
-.btn-ghost:hover { border-color: var(--ember-dim); border-right-color: #100D0A; border-bottom-color: #100D0A; color: var(--ember); }
+.btn-ghost:hover { border-color: var(--ember-dim); border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo); color: var(--ember); }
 .btn-ghost:active { transform: translate(1px, 1px); }
 
 /* ---------- 캐릭터 선택 ---------- */
@@ -227,8 +235,8 @@ html, body {
   overflow: hidden;
   font-family: inherit;
   background: var(--panel);
-  border: 2px solid var(--line);
-  border-right-color: #100D0A; border-bottom-color: #100D0A;
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -521,8 +529,8 @@ canvas#view {
   font-family: inherit; font-size: 12px;
   color: var(--ink-soft);
   background: var(--panel-2);
-  border: 2px solid var(--line);
-  border-right-color: #100D0A; border-bottom-color: #100D0A;
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo);
   padding: 10px 4px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -538,7 +546,7 @@ canvas#view {
   grid-column: 1 / -1;
   padding: 8px 4px;
   color: #E8D9B8;
-  border-color: #5A4A32; border-right-color: #100D0A; border-bottom-color: #100D0A;
+  border-color: #5A4A32; border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo);
 }
 
 /* 터치 조작 */
@@ -622,7 +630,12 @@ canvas#view {
 .gear-inner {
   width: calc(100% - 40px); max-width: 400px;
   background: var(--panel);
-  border: 1px solid var(--line);
+  /* 판과 같은 재료로 보이게 — 위·왼쪽이 밝고 아래·오른쪽이 어둠이면
+     튀어나와 보이고, 밖을 검은 줄로 둘러야 도트 판처럼 닫힌다. */
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
+  box-shadow: 0 0 0 1px #000;
   border-radius: 0;
   padding: 24px 26px;
 }
@@ -708,9 +721,11 @@ canvas#view {
   display: grid; grid-template-columns: 20px 26px minmax(0,1fr) auto;
   gap: 12px; align-items: center;
   background: var(--panel-2);
-  border: 1px solid var(--line);
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
   border-radius: 0;
-  padding: 11px 14px;
+  padding: 10px 13px;
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -815,7 +830,13 @@ canvas#view {
 .bag-detail {
   position: relative;
   min-height: 92px;
-  background: var(--panel-2); border: 1px solid var(--line);
+  background: var(--panel-2);
+  /* 옆의 장착판과 같은 재료여야 한다 — 그 판은 그림이라
+     음영이 있는데 이쪽만 평평하면 한 창 안에서 둘이 갈라 보인다. */
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
+  box-shadow: 0 0 0 1px #000;
 }
 .bag-detail-in {
   position: absolute; inset: 0;
@@ -844,12 +865,20 @@ canvas#view {
 .bag-detail-in .gear-table td { padding: 4px 0; }
 .bag-acts { display: flex; gap: 7px; margin-top: 7px; }
 .bag-acts button {
-  padding: 5px 13px; font: inherit; font-size: 12.5px;
+  padding: 4px 12px; font: inherit; font-size: 12.5px;
   background: var(--ember-dim); color: #1A1109;
-  border: 1px solid var(--ember-dim); border-radius: 0; cursor: pointer;
+  border: 2px solid #C97C3A;
+  border-right-color: #6B3D14; border-bottom-color: #6B3D14;
+  border-radius: 0; cursor: pointer;
 }
-.bag-acts button.ghost { background: none; color: var(--muted); border-color: var(--line); }
-.bag-acts button.ghost:hover { color: var(--ink); border-color: var(--ember-dim); }
+.bag-acts button:active { transform: translate(1px, 1px); }
+.bag-acts button.ghost {
+  background: var(--panel-2); color: var(--ink-soft);
+  border-color: var(--edge-hi);
+  border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo);
+}
+.bag-acts button.ghost:hover { color: var(--ember); border-color: var(--ember-dim);
+  border-right-color: var(--edge-lo); border-bottom-color: var(--edge-lo); }
 
 @media (max-height: 720px) {
   .bag-detail { min-height: 80px; }
@@ -874,7 +903,10 @@ canvas#view {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 12px 6px 10px;
   background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 0;
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
+  border-radius: 0;
   font: inherit; color: inherit; text-align: center;
   cursor: pointer;
   transition: border-color .15s;
@@ -979,8 +1011,11 @@ canvas#view {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
 }
 .camp-inner .ending-pick {
-  padding: 12px 14px;
-  background: var(--panel-2); border: 1px solid var(--line);
+  padding: 11px 13px;
+  background: var(--panel-2);
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
 }
 .camp-inner .ending-pick:hover { border-color: var(--ember); background: var(--line); }
 .camp-inner .ending-pick b { font-size: 14.5px; margin-bottom: 4px; color: var(--ink-soft); }
