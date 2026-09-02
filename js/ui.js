@@ -18,12 +18,12 @@ const UI = {
       resultTitle: $('result-title'),
       resultLine:  $('result-line'),
       resultStats: $('result-stats'),
-      gearModal: $('gear-modal'),
-      gearSlot:  $('gear-slot'),
-      gearName:  $('gear-name'),
-      gearIconEl:$('gear-icon'),
-      gearRows:  $('gear-rows'),
-      gearOld:   $('gear-old'),
+      bagModal:  $('bag-modal'),
+      bagPanel:  $('bag-panel'),
+      bagSlots:  $('bag-slots'),
+      bagEquip:   $('bag-equip'),
+      equipSlots: $('equip-slots'),
+      bagDetail: $('bag-detail'),
       gearStrip: $('gear-strip'),
       shopModal: $('shop-modal'),
       shopList:  $('shop-list'),
@@ -441,87 +441,185 @@ const UI = {
     this.el.gearStrip.innerHTML = parts.join('');
   },
 
-  /* ---------- 장비 비교창 ---------- */
-  showGearCompare(gear, current) {
-    /* 무기는 자리 이름(「무기」) 대신 갈래와 그 갈래가 하는 일을 적는다.
-       셋 다 「무기」라고만 적혀 있으면 도끼와 창이 무엇이 다른지 화면에
-       한 번도 안 나온다 — 범위를 만들어 놓고 안 알려주는 셈이다. */
-    this.el.gearSlot.textContent = gear.slot === 'weapon'
-      ? kindName(gear) + (kindNote(gear) ? '  ·  ' + kindNote(gear) : '')
-      : SLOT_NAME[gear.slot];
-    this.el.gearName.textContent = gearFullName(gear);
-    const icon = this.gearIcon(gear);
-    this.el.gearIconEl.src = icon || '';
-    this.el.gearIconEl.hidden = !icon;
-    this.fitIcon(this.el.gearIconEl, gear, 40, 2.5);
-    this.el.gearName.className = 'gear-name r-' + gear.rarity;
+  /* ---------- 가방 ----------
 
-    this.el.gearRows.innerHTML = '';
-    if (gear.unknown) {
-      /* 값을 보여주면 도박이 아니다. 지금 낀 것만 보이고 새것 쪽은 물음표다 —
-         버릴 것이 무엇인지는 알면서 얻을 것은 모르는 상태가 이 물건의 전부다. */
-      for (const k of STAT_ORDER) {
-        const b = current ? (current.mod[k] || 0) : 0;
-        if (!b) continue;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${STAT_LABEL[k]}</td><td>${b}</td><td>?</td><td class="same">?</td>`;
-        this.el.gearRows.appendChild(tr);
-      }
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="4" class="cx-mod">열어 보기 전에는 알 수 없습니다. 좋은 것일 수도, 저주일 수도.</td>`;
-      this.el.gearRows.appendChild(tr);
-    } else {
-    for (const r of compareRows(gear, current)) {
-      const tr = document.createElement('tr');
-      const cls = r.diff > 0 ? 'up' : (r.diff < 0 ? 'down' : 'same');
-      const sign = r.diff > 0 ? '+' : '';
-      tr.innerHTML =
-        `<td>${r.label}</td>` +
-        `<td>${r.now || '—'}</td>` +
-        `<td>${r.next || '—'}</td>` +
-        `<td class="${cls}">${r.diff === 0 ? '' : sign + r.diff}</td>`;
-      this.el.gearRows.appendChild(tr);
-    }
-    }
+     주운 것은 여기로 들어오고, 낄지는 여기서 정한다.
 
-    /* 셋이 걸린 물건이면 그 줄을 따로 적는다.
-       숫자만으로는 지금 든 것이 더 세 보이는데도 이쪽을 집는 이유가
-       여기 있기 때문이다 — 비교창에 처음 생긴 「그렇지만」이다. */
-    const gaining = SET_OF[gear.name];
-    const losing = current && SET_OF[current.name];
-    if (gaining || losing) {
-      const worn = wornSets(state.player);
-      const lines = [];
-      if (gaining) {
-        const s = SETS[gaining];
-        // 지금 낀 것이 같은 셋이면 조각 수는 그대로다
-        const after = (worn[gaining] || 0) + (losing === gaining ? 0 : 1);
-        lines.push(`<b>${s.name}</b> 갖춤 ${after}/${s.pieces.length}` +
-                   (after >= 3 ? ' — 완성' : after >= 2 ? ' — 둘' : '') +
-                   ` · <span class="cx-mod">${s.line}</span>`);
-      }
-      if (losing && losing !== gaining && (worn[losing] || 0) >= 2) {
-        lines.push(`<b class="down">${SETS[losing].name}</b> 갖춤이 풀린다` +
-                   ` (${worn[losing]} → ${worn[losing] - 1})`);
-      }
-      if (lines.length) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="4" class="gear-set">${lines.join('<br>')}</td>`;
-        this.el.gearRows.appendChild(tr);
-      }
-    }
+     왼쪽에 몸(자리 다섯), 오른쪽에 가방. 몸이 먼저 읽혀야 가방의 물건을
+     견줄 수 있다 — 「지금 무엇을 끼고 있나」를 모르면 +3 이 좋은 건지 모른다.
 
-    // 활을 버리면 원거리가 같이 사라진다 — 스탯 표에는 안 보이는 값이라 말로 적어 준다
-    const losesBow = current && current.bow && !gear.bow && !MEM.has('throw');
-    this.el.gearOld.textContent = current
-      ? '지금 낀 것 — ' + gearFullName(current) +
-        (losesBow ? ' (교체하면 버려지고, 활이 없으면 쏠 수 없습니다)' : ' (교체하면 버려집니다)')
-      : '이 자리는 비어 있습니다.';
+     칸을 두드리면 아래에 그 물건의 값이 뜨고, 거기서 끼거나 버린다.
+     두 번 두드려 바로 끼게 할 수도 있었지만, 그러면 실수로 저주받은 것을
+     끼는 일이 생긴다 — 한 번 더 묻는 자리를 둔다. */
+  showBag(onEquip, onUnequip, onDrop) {
+    /* 판 그림. 다른 그림들과 같은 자리(sprites.js)에서 온다 — 앱 한 장에서도 뜬다.
+       크기도 그림이 정하게 둔다: aspect-ratio 를 여기서 박아야 CSS 와
+       tools/make-inventory.js 의 숫자가 갈라질 일이 없다. */
+    const put = (el, key, box) => {
+      const s = typeof SPRITES !== 'undefined' && SPRITES[key];
+      if (s) el.style.backgroundImage = 'url(' + s.f[0] + ')';
+      el.style.aspectRatio = box.w + ' / ' + box.h;
+    };
+    put(this.el.bagEquip, 'ui.equip', BAG_UI.equip);
+    put(this.el.bagPanel, 'ui.bag', BAG_UI.bag);
 
-    this.el.gearModal.classList.remove('hidden');
+    this._bagPick = null;
+    this._bagHandlers = { equip: onEquip, unequip: onUnequip, drop: onDrop };
+    this.paintBag();
+    this.el.bagModal.classList.remove('hidden');
   },
-  hideGearCompare() { this.el.gearModal.classList.add('hidden'); },
-  gearOpen() { return !this.el.gearModal.classList.contains('hidden'); },
+
+  paintBag() {
+    const p = state.player;
+    const bag = state.bag || [];
+    const eqBox = this.el.equipSlots, bagBox = this.el.bagSlots;
+    eqBox.innerHTML = ''; bagBox.innerHTML = '';
+
+    /* 판 그림 위에 칸을 얹는다. 자리는 tools/make-inventory.js 가 그림과 함께
+       내놓은 것(BAG_UI)이라, 그림을 고치면 좌표도 같이 바뀐다 — 둘이 갈라질
+       수가 없다. 판이 몇 배로 커지든 %로 놓으므로 그대로 따라간다. */
+    const place = (el, panel, x, y, w, h) => {
+      el.style.left   = (x / panel.w * 100) + '%';
+      el.style.top    = (y / panel.h * 100) + '%';
+      el.style.width  = ((w || BAG_UI.cell) / panel.w * 100) + '%';
+      el.style.height = ((h || BAG_UI.cell) / panel.h * 100) + '%';
+    };
+
+    /* ---- 서 있는 모습 ----
+       입은 칸과 든 칸 사이가 비어 있었다. 거기에 지금 모습을 세우면
+       「무기」가 글자가 아니라 손에 든 것으로 보인다 — 던전에서도
+       같은 자세로 그려지므로 갈아끼기 전에 미리 보는 셈이 된다. */
+    const body = BAG_UI.equip.body;
+    if (body) {
+      const cv = document.createElement('canvas');
+      cv.className = 'bag-body';
+      cv.width = body.w * 3; cv.height = body.h * 3;   // 판이 확대되어 뜨므로 넉넉히
+      place(cv, BAG_UI.equip, body.x, body.y, body.w, body.h);
+      eqBox.appendChild(cv);
+      this._bagBody = cv;
+      this.tickBagBody();
+    }
+
+    // ---- 입은 것 · 든 것 ----
+    BAG_UI.equip.worn.forEach(s => {
+      const g = p.gear[s.id];
+      const b = document.createElement('button');
+      b.className = 'bag-cell' +
+        (this._bagPick && this._bagPick.where === 'worn' && this._bagPick.slot === s.id ? ' on' : '');
+      b.title = SLOT_NAME[s.id];
+      b.dataset.slot = s.id;
+      const ic = g ? this.gearIcon(g) : null;
+      if (ic) b.innerHTML = `<img style="${this.iconStyle(g, BAG_UI.cell - 3, 1)}" src="${ic}" alt="">`;
+      place(b, BAG_UI.equip, s.x, s.y);
+      b.addEventListener('click', () => { this._bagPick = { where: 'worn', slot: s.id }; this.paintBag(); });
+      eqBox.appendChild(b);
+    });
+
+    // ---- 가방 ----
+    BAG_UI.bag.cells.forEach((s, i) => {
+      const g = bag[i];
+      const b = document.createElement('button');
+      b.className = 'bag-cell' +
+        (this._bagPick && this._bagPick.where === 'bag' && this._bagPick.i === i ? ' on' : '');
+      b.dataset.bag = i;
+      if (g) {
+        const ic = this.gearIcon(g);
+        b.innerHTML = ic ? `<img style="${this.iconStyle(g, BAG_UI.cell - 3, 1)}" src="${ic}" alt="">`
+                         : '<span class="q">?</span>';
+        b.addEventListener('click', () => { this._bagPick = { where: 'bag', i }; this.paintBag(); });
+      }
+      place(b, BAG_UI.bag, s.x, s.y);
+      bagBox.appendChild(b);
+    });
+
+    this.paintBagDetail();
+  },
+
+  /* 고른 것의 값과 할 수 있는 일. 여기가 예전 비교창이 하던 일을 대신한다 —
+     다만 「지금 낀 것과의 차이」는 그대로 보여준다. 그게 이 게임에서
+     제일 잘 만든 화면이었으므로 없앨 이유가 없다. */
+  paintBagDetail() {
+    const box = this.el.bagDetail;
+    const pick = this._bagPick;
+    const p = state.player;
+    if (!pick) {
+      box.innerHTML = '<span class="hint">칸을 두드리면 무엇인지 보입니다.</span>';
+      return;
+    }
+    const g = pick.where === 'worn' ? p.gear[pick.slot] : (state.bag || [])[pick.i];
+    if (!g) {
+      box.innerHTML = '<span class="hint">비어 있습니다.</span>';
+      return;
+    }
+
+    const slotLine = g.slot === 'weapon'
+      ? kindName(g) + (kindNote(g) ? '  ·  ' + kindNote(g) : '')
+      : SLOT_NAME[g.slot];
+
+    let rows = '';
+    if (g.unknown) {
+      rows = '<div class="cx-mod">열어 보기 전에는 알 수 없습니다. 좋은 것일 수도, 저주일 수도.</div>';
+    } else if (pick.where === 'bag') {
+      // 가방의 것은 지금 낀 것과 견준다
+      const cur = p.gear[equipSlotFor(g, p)];
+      rows = '<table class="gear-table"><thead><tr><th></th><th>지금</th><th>바꾸면</th><th></th></tr></thead><tbody>' +
+        compareRows(g, cur).map(r => {
+          const cls = r.diff > 0 ? 'up' : (r.diff < 0 ? 'down' : 'same');
+          const sign = r.diff > 0 ? '+' : '';
+          return `<tr><td>${r.label}</td><td>${r.now || '—'}</td><td>${r.next || '—'}</td>` +
+                 `<td class="${cls}">${r.diff === 0 ? '' : sign + r.diff}</td></tr>`;
+        }).join('') + '</tbody></table>';
+    } else {
+      // 몸에 낀 것은 그 값만
+      rows = '<div class="cx-mod">' +
+        STAT_ORDER.filter(k => g.mod[k]).map(k => `${STAT_LABEL[k]} ${g.mod[k] > 0 ? '+' : ''}${g.mod[k]}`).join(' · ') +
+        '</div>';
+    }
+
+    const acts = [];
+    if (pick.where === 'bag') {
+      if (!g.unknown) acts.push('<button data-act="equip">낀다</button>');
+      acts.push('<button data-act="drop" class="ghost">버린다</button>');
+    } else {
+      acts.push('<button data-act="unequip" class="ghost">벗는다</button>');
+    }
+
+    box.innerHTML =
+      `<div class="bag-name r-${g.rarity}">${gearFullName(g)}</div>` +
+      `<div class="bag-slotline">${slotLine}</div>` + rows +
+      `<div class="bag-acts">${acts.join('')}</div>`;
+
+    box.querySelectorAll('[data-act]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const h = this._bagHandlers || {};
+        const act = btn.dataset.act;
+        if (act === 'equip') h.equip && h.equip(pick.i);
+        else if (act === 'drop') h.drop && h.drop(pick.i);
+        else if (act === 'unequip') h.unequip && h.unequip(pick.slot);
+        this._bagPick = null;
+        this.paintBag();
+      });
+    });
+  },
+
+  /* 가만히 서 있는 그림도 숨을 쉬는다(프레임 네 장). 한 장으로 군히면
+     옆의 칸들과 같은 「정지한 아이콘」이 되어 사람으로 안 읽힌다. */
+  tickBagBody() {
+    cancelAnimationFrame(this._bagRaf || 0);
+    const step = () => {
+      if (!this.bagOpen() || !this._bagBody || !this._bagBody.isConnected) return;
+      Render.portrait(this._bagBody, state.player);
+      this._bagRaf = requestAnimationFrame(step);
+    };
+    this._bagRaf = requestAnimationFrame(step);
+  },
+
+  hideBag() {
+    cancelAnimationFrame(this._bagRaf || 0);
+    this._bagBody = null;
+    this.el.bagModal.classList.add('hidden');
+  },
+  bagOpen() { return !this.el.bagModal.classList.contains('hidden'); },
 
   /* ---------- 상점 ---------- */
   showShop(stock, gold, player, onBuy, reroll) {

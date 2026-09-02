@@ -67,8 +67,8 @@ ctx.UI = {
   updateGearStrip: () => {},
   updateBossBar: () => {},
   showGame: () => {}, showTitle: () => {},
-  hideResult: () => {}, hideGearCompare: () => {}, hideShop: () => {}, hideCodex: () => {},
-  gearOpen: () => false, shopOpen: () => false, codexOpen: () => false, campOpen: () => false,
+  hideResult: () => {}, hideBag: () => {}, hideShop: () => {}, hideCodex: () => {},
+  bagOpen: () => false, shopOpen: () => false, codexOpen: () => false, campOpen: () => false,
   /* 봇은 늘 몸을 녹인다 — 예전 모닥불과 같은 행동이라 이전 측정과 이어진다.
      대장장이도 같은 창을 쓰므로 제목으로 갈라 둔다. 안 가르면 봇이 모닥불인 줄 알고
      골드가 바닥날 때까지 두드려서, 재는 것이 난이도가 아니라 「골드로 산 스탯」이 된다. */
@@ -91,7 +91,6 @@ ctx.UI = {
   showCurtain: (t, l, h, done) => done && done(),
   closeIntro: () => {},
   // 장비 비교창 · 상점은 봇이 바로 결정한다
-  showGearCompare: () => { ctx.__gearPending = true; },
   showShop: () => { ctx.__shopOpen = true; },
   setShopSay: () => {},
   showCodex: () => {},
@@ -114,7 +113,8 @@ for (const f of FILES) {
 }
 // 최상위 const 는 컨텍스트 객체에 안 붙으므로, 필요한 것만 꺼내 온다
 const G = vm.runInContext(`({
-  state, startRun, enterFloor, playerAction, drinkPotion, resolveGear, buyFromShop,
+  state, startRun, enterFloor, playerAction, drinkPotion, buyFromShop,
+  bagEquip, bagDrop, bagFull, BAG_MAX,
   monsterAt, isWalkable, blocksSight, DIRS, T, MONSTERS, GEAR, SLOTS, CFG,
   MEMORIES, ACHIEVEMENTS, BOSSES, isMagicAttack, chebyshev, compareRows, potionMax, tileAt, LV,
   rangedTarget, canRanged, rangedReady, chooseHero, HEROES, isPoisonProp,
@@ -283,14 +283,24 @@ function playRun() {
       s.__shopped = false;
     }
 
-    // 장비 비교창이 떴으면 결정
-    if (ctx.__gearPending) {
-      ctx.__gearPending = false;
-      const g = s.pendingGear;
-      const take = g && gearScore(g) > gearScore(s.player.gear[g.slot]);
-      if (!take && g) declined.add(g);
-      G.resolveGear(!!take);
-      continue;
+    /* 가방을 정리한다. 예전에는 밟는 순간 비교창이 떠서 그 자리에서 정했는데,
+       이제는 가방에 쌓이므로 봇도 가방을 봐야 한다 —
+       더 좋은 것이 있으면 끼고, 가방이 차면 제일 값이 낮은 것을 버린다. */
+    if ((s.bag || []).length) {
+      let acted = false;
+      for (let i = s.bag.length - 1; i >= 0; i--) {
+        const g = s.bag[i];
+        if (g.unknown) continue;
+        if (gearScore(g) > gearScore(s.player.gear[g.slot])) { G.bagEquip(i); acted = true; break; }
+      }
+      if (!acted && G.bagFull()) {
+        let worst = 0;
+        s.bag.forEach((g, i) => { if (gearScore(g) < gearScore(s.bag[worst])) worst = i; });
+        s.bag.forEach(g => declined.add(g));
+        G.bagDrop(worst);
+        acted = true;
+      }
+      if (acted) continue;
     }
     /* 모닥불 앞이거나 동행을 고르는 자리. 같은 창을 쓰므로 여기서 함께 받는다.
        모닥불은 늘 몸을 녹이고(예전과 같은 행동이라 이전 측정과 이어진다),

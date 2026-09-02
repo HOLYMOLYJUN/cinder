@@ -1151,6 +1151,44 @@ const Render = {
     ctx.restore();
   },
 
+  /* ----- 가방 창에 서 있는 모습 -----
+     던전에서 그리는 것과 **같은 함수**를 불러 그린다.
+     미리보기를 따로 그리면 손에 든 각도나 키가 조금씩 어긋나고,
+     그러면 「이게 내가 든 것」이 아니라 「비슷하게 생긴 그림」이 된다.
+
+     sprite·heldWeapon 은 CFG.TILE 을 기준으로 크기를 잡으므로,
+     그리는 동안만 칸 크기를 바꿔 끼워 놓고 되돌린다. */
+  portrait(cv, p) {
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = false;      // 도트는 보간하면 물러진다
+    if (!this.ready) return;
+    const key = heroSprite();
+    if (!this.img[key + '.idle']) return;
+
+    /* 칸 하나에 가득 차게. 무기를 드는 손이 칸 밖으로 조금 나가므로
+       좌우로 여유를 두고, 발은 아래에 놨다. */
+    /* 그림은 칸(TS)보다 위로 더 솔아 있다 — sprite() 는 발을 칸 밑에
+       맞추고 머리를 칸 밖으로 내보낸다. 그 생김새를 쌀서 놓아야
+       사람이 빈 자리 한가운데 선다. */
+    const artH = (this.img[key + '.idle'].f[0].height || 28) / 16;
+    /* 크기는 **칸을 기준으로** 잡는다. 빈 자리에 맞추어 채우면
+       자리가 넓을 때 도트가 너무 굵어져 사람이 아니라 색 덩어리가 된다.
+       옆에 칸들이 나란히 서 있으므로 그것과의 비율만 맞으면 제 크기로 읽힌다. */
+    const cellPx = BAG_UI.cell * (cv.width / BAG_UI.equip.body.w);
+    const TS = Math.min(cellPx * 1.05, cv.width * 0.66, cv.height / (artH + 0.5));
+    const old = CFG.TILE;
+    CFG.TILE = TS;
+    const px = (cv.width - TS) / 2;
+    const py = cv.height / 2 + TS * (artH / 2 - 1) - 2;
+    const f = Math.floor(performance.now() / 160) % this.img[key + '.idle'].f.length;
+    this.sprite(ctx, key + '.idle', px, py, 1, 1, null, 1, f);
+    if (p && p.gear && p.gear.weapon) {
+      this.heldWeapon(ctx, { gear: p.gear, face: 1 }, px, py, key + '.idle');
+    }
+    CFG.TILE = old;
+  },
+
   glyph(ctx, ch, px, py, color, lit, big) {
     const TS = CFG.TILE;
     ctx.globalAlpha = lit ? 1 : 0.32;

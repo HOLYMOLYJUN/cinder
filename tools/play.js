@@ -120,23 +120,21 @@ const KEY = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'Arrow
       depth: state.depth, hp: state.player.hp, alive: state.player.alive,
       potions: state.potions, kills: state.kills, turns: state.turns,
       introActive: UI.intro.active,
-      gearOpen: UI.gearOpen(), shopOpen: UI.shopOpen(),
+      bagOpen: UI.bagOpen(), shopOpen: UI.shopOpen(),
       gold: state.gold,
     }));
 
     if (!st.alive) { console.log('  → 사망 (', st.depth, '층 )'); break; }
 
-    // 장비 비교창
-    if (st.gearOpen) {
+    // 가방 — 비교창이 없어지고 여기가 그 자리를 대신한다
+    if (st.bagOpen) {
       if (!shotGear) {
         await page.waitForTimeout(250);
         await page.screenshot({ path: SHOT + '/9-gear.png' });
-        const nm = await page.textContent('#gear-name');
-        console.log('  [장비] 비교창:', nm.trim());
+        console.log('  [가방] 열림');
         shotGear = true;
       }
-      await page.keyboard.press('KeyZ');       // 항상 교체해본다
-      await page.waitForTimeout(140);
+      await page.evaluate(() => UI.hideBag());
       continue;
     }
 

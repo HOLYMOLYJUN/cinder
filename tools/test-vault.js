@@ -122,7 +122,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     // 좌표를 손으로 옮겼으니 판이 돌고 있다고 다시 알려준다
     state.running = true; state.awaitingInput = true;
     const guard = { running: state.running, awaiting: state.awaitingInput,
-                    alive: state.player.alive, gearOpen: UI.gearOpen(), shopOpen: UI.shopOpen(),
+                    alive: state.player.alive, bagOpen: UI.bagOpen(), shopOpen: UI.shopOpen(),
                     pendingGear: !!state.pendingGear, standingOn: m.tiles[side.y][side.x] };
     playerAction(side.dir, 'move');
     return { dropped, got, tile: m.tiles[d.y][d.x], keyLeft: state.hasKey, calls, guard };

@@ -112,24 +112,30 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(unk.before !== unk.after && !unk.after.startsWith('정체불명'),
         `열면 드러난다: ${unk.before} → ${unk.after}`);
 
-  // 비교창이 값을 감추는가
+  /* 정체불명은 열기 전까지 값을 감춘다. 예전에는 비교창이 그 일을 했는데,
+     가방이 생기면서 그 자리를 가방의 상세 칸이 대신한다. */
   const cmp = await p.evaluate(() => {
     state.player.gear.weapon = makeGear(GEAR.find(g => g.name === '짧은 검'));
     recalcStats(state.player);
     let g = null, t = 0;
     do { g = rollUnknown(8, 0); } while (g && g.slot !== 'weapon' && t++ < 200);
     if (!g || g.slot !== 'weapon') return { skip: true };
-    UI.showGearCompare(g, state.player.gear.weapon);
-    const rows = document.getElementById('gear-rows').textContent;
-    const name = document.getElementById('gear-name').textContent;
-    const open = UI.gearOpen();
-    UI.hideGearCompare();
-    return { rows, name, open };
+    state.bag = [g];
+    openBag();
+    const open = UI.bagOpen();
+    document.querySelector('#bag-slots [data-bag="0"]').click();
+    const box = document.getElementById('bag-detail');
+    const text = box.textContent;
+    const canEquip = !!box.querySelector('[data-act="equip"]');
+    UI.hideBag();
+    return { text, open, canEquip };
   });
   if (cmp.skip) console.log('  무기 정체불명이 안 나옴 — 건너뜀');
   else {
-    check(cmp.rows.includes('?'), '비교창이 값을 물음표로 가린다');
-    check(cmp.name.startsWith('정체불명'), '비교창 이름도 가려진다');
+    check(cmp.open, '가방이 열린다');
+    check(cmp.text.includes('정체불명'), '정체불명은 이름부터 가려진다');
+    check(/알 수 없습니다/.test(cmp.text), '값 대신 「알 수 없습니다」가 뜬다');
+    check(!cmp.canEquip, '열어 보기 전에는 낄 수 없다');
   }
 
   console.log('\n[ 모닥불 선택 ]');

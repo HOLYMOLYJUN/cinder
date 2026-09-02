@@ -35,7 +35,7 @@ function packRun() {
 
   const m = state.map, p = state.player;
   return {
-      v: 2,
+      v: 3,
       hero: currentHero().id,
       /* 기억을 함께 싣는다. 예전에는 복원할 때 그 브라우저 주인의 저장값에서 읽었는데,
          남의 판을 그렇게 복원하면 관전자의 기억으로 스탯을 세워 수치가 딴판이 된다. */
@@ -47,6 +47,7 @@ function packRun() {
       kills: state.kills, turns: state.turns, ember: state.ember,
       level: state.level, xp: state.xp,
       pouches: state.pouches || 0,   // 산 주머니 — 물약 소지 한도가 여기서 나온다
+      bag: state.bag || [],          // 주운 장비. 안 실으면 새로고침 한 번에 가방이 빈다
       hasKey: state.hasKey, chill: state.chill, burn: state.burn,
       ashHp: state.ashHp || 0,   // 스탯을 다시 세우므로 이게 없으면 최대 체력이 되돌아간다
       // 곁에 있는 것. 스탯과 불씨 반경이 여기 달려 있어서 빠뜨리면 조용히 약해진다
@@ -102,7 +103,12 @@ function savedRun() {
     if (!raw) return null;
     const d = JSON.parse(raw);
     // v1 도 받는다. 기억이 빠져 있을 뿐이고, 그건 아래에서 내 저장값으로 메운다.
-    return d && (d.v === 1 || d.v === 2) ? d : null;
+    /* v3 부터 가방이 생겼다. 그 전 판은 이어할 수 없다 — 장비 자리가 넷에서
+       다섯으로 갈렸고(장신구가 신발·장신구로) 줍는 방식도 바뀌어서,
+       옛 판을 억지로 되살리면 없는 자리에 장비가 들어가 있거나 가방이 없다.
+       기억·기록은 다른 칸(CFG.SAVE_KEY)이라 그대로 남는다 — 버리는 것은
+       「하던 판」 하나뿐이다. */
+    return d && d.v === 3 ? d : null;
   } catch (e) { return null; }
 }
 
@@ -141,6 +147,7 @@ function loadRun(d, opts) {
   // 레벨은 스탯을 다시 세우기 전에 넣어야 recalcStats 가 제대로 계산한다
   state.level = d.level || 1; state.xp = d.xp || 0;
   state.pouches = d.pouches || 0;
+  state.bag = Array.isArray(d.bag) ? d.bag : [];
   state.hasKey = d.hasKey; state.chill = d.chill || 0; state.burn = d.burn || 0;
   state.rangedCd = 0;   // 한 턴짜리 상태라 저장하지 않는다 — 켜자마자 쏠 수 있으면 된다
   // 배경은 층에서 정해지므로 따로 저장하지 않는다. 다만 다시 세워 주지 않으면
@@ -231,7 +238,7 @@ function loadRun(d, opts) {
 
   if (!opts.quiet) {
     UI.clearLog();
-    UI.hideGearCompare(); UI.hideShop(); UI.hideCamp(); UI.hideResult();
+    UI.hideBag(); UI.hideShop(); UI.hideCamp(); UI.hideResult();
     UI.showGame();
   }
   UI.updateHud(state);

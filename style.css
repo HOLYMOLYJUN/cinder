@@ -754,6 +754,89 @@ canvas#view {
   .shop-row .sub { margin-top: 1px; }
 }
 
+/* ---------- 가방 ----------
+
+   판이 도트 그림 한 장이다 (assets/ui/bag.png). CSS 로 격자를 그리면
+   상인·대장간과 같은 네모가 되는데, 가방은 「물건을 담는 것」이라 도트 판이
+   훨씬 그럴듯하다. 칸은 그림 위에 %로 얹으므로 판이 몇 배가 되든 따라간다. */
+#bag-modal { background: rgba(7,5,4,.93); z-index: 46; }
+/* 위줄은 두 칸(장착판 · 설명), 아랫줄은 가방 한 줄.
+   장착판을 좁게 잡는다 — 칸이 다섯뿐이고, 설명 쪽에는 값이
+   세 줄 들어가야 해서 그쪽이 더 목마르다. */
+.bag-wrap {
+  width: calc(100% - 32px); max-width: 480px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  grid-template-areas:
+    "equip detail"
+    "bag   bag"
+    "close close";
+  gap: 10px;
+}
+.bag-equip  { grid-area: equip; }
+.bag-detail { grid-area: detail; }
+.bag-panel  { grid-area: bag; }
+#bag-close  { grid-area: close; }
+
+/* 판 둘. 정수배로만 키우는 것이 좋지만 폭이 화면을 타므로
+   %로 두고 image-rendering 으로 보간만 끈다.
+   그림은 js/ui.js 가 넣는다 — 앱 빌드는 HTML 한 장이라 CSS 의 url() 이
+   안 먹으므로, 다른 그림들처럼 sprites.js 의 데이터 URI 를 쓴다. */
+.bag-equip, .bag-panel {
+  position: relative;
+  width: 100%;
+  background: center/100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.bag-slots { position: absolute; inset: 0; }
+
+.bag-cell {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; margin: 0;
+  background: none; border: 1px solid transparent; border-radius: 0;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.bag-cell img { image-rendering: pixelated; }
+.bag-cell:hover { border-color: var(--ember-dim); }
+/* 고른 칸은 불씨로 테두리를 두른다 — 판이 어두워서 이것만으로 충분히 읽힌다 */
+.bag-cell.on { border-color: var(--ember); background: rgba(233,149,74,.10); }
+.bag-cell .q { color: var(--muted); font-size: 13px; }
+
+/* 고른 것의 값. 예전 비교창이 하던 일을 여기가 대신한다. */
+/* 서 있는 모습. 칸이 아니라 그림이므로 누르는 것을 받지 않는다 —
+   그와 거기에 손이 닿으면 아무 일도 안 일어나는 것이 맞다. */
+.bag-body {
+  position: absolute;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.bag-detail {
+  min-height: 92px;
+  padding: 10px 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.bag-detail .hint { font-size: 12px; color: var(--muted); }
+.bag-name { font-size: 14px; margin-bottom: 2px; }
+.bag-name.r-fine { color: var(--cold); }
+.bag-name.r-ancient { color: var(--ember); }
+.bag-name.r-cursed { color: #8E6BB0; }
+.bag-slotline { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
+.bag-detail .gear-table { width: 100%; font-size: 12px; }
+.bag-acts { display: flex; gap: 7px; margin-top: 9px; }
+.bag-acts button {
+  padding: 6px 14px; font: inherit; font-size: 12.5px;
+  background: var(--ember-dim); color: #1A1109;
+  border: 1px solid var(--ember-dim); border-radius: 0; cursor: pointer;
+}
+.bag-acts button.ghost { background: none; color: var(--muted); border-color: var(--line); }
+.bag-acts button.ghost:hover { color: var(--ink); border-color: var(--ember-dim); }
+
+@media (max-height: 720px) {
+  .bag-detail { min-height: 80px; padding: 8px 10px; }
+}
+
 /* ---------- 대장장이 ----------
    상인의 틀(.shop-inner)을 그대로 쓴다. 여기만의 것은 격자뿐이다. */
 #forge-modal { background: rgba(7,5,4,.93); z-index: 45; }

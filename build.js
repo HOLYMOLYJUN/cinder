@@ -28,6 +28,7 @@ const OUT = path.join(OUT_DIR, APP ? 'index.html' : 'jaetbul.html');
 const JS_FILES = [
   'js/config.js',
   'js/sprites.js',
+  'js/bagslots.js',
   'js/util.js',
   'js/sound.js',
   'js/map.js',

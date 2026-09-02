@@ -37,10 +37,13 @@ const FRAMES_NPC = path.join(ROOT, 'assets', 'npc', 'cut');
 /* 아이템 시트에서 뗀 것 (tools/slice-itemset.js). 갑옷·신발·장신구·투구가
    여기서 온다 — 예전에는 make-icons.js 가 직접 그렸는데 종류가 모자랐다. */
 const FRAMES_ITEMS = path.join(ROOT, 'assets', 'items');
+/* 창 그림 (tools/make-inventory.js). 앱 빌드는 HTML 한 장이라 CSS 의
+   url() 이 안 먹는다 — 판도 데이터 URI 로 실어야 어디서나 뜬다. */
+const FRAMES_UI = path.join(ROOT, 'assets', 'ui');
 
 // 같은 이름이면 원본(v1.7)이 이긴다 — 확장 팩 쪽이 구버전이라 몇 픽셀 다르다.
 function findFrame(file) {
-  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS, FRAMES_NPC, FRAMES_ITEMS]) {
+  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS, FRAMES_NPC, FRAMES_ITEMS, FRAMES_UI]) {
     const p = path.join(dir, file);
     if (fs.existsSync(p)) return p;
   }
@@ -164,6 +167,9 @@ Object.assign(MANIFEST, {
   'potion':     one('flask_big_red'),
   // 물약 주머니 — 팩에 자루 그림이 없어 make-icons.js 가 같은 격자로 그린 것을 쓴다
   'pouch':      one('icon_pouch'),
+  // 가방 창의 판 둘. 그림이라 데이터 URI 로 실어야 앱 한 장에서도 뜬다
+  'ui.equip':   one('equip'),
+  'ui.bag':     one('bag'),
   'potionIcon': one('flask_big_red'),
 
   /* 화살 — 활이 쏘는 투사체. 그림은 위를 보고 있고, 그리는 쪽에서 돌린다 */

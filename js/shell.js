@@ -99,7 +99,7 @@ const Shell = {
     if (UI.codexOpen()) { UI.hideCodex(); return false; }
 
     // 장비 비교창은 그냥 닫으면 안 된다. Esc 와 같이 「그대로 두기」로 끝낸다.
-    if (UI.gearOpen()) { resolveGear(false); return false; }
+    if (UI.bagOpen && UI.bagOpen()) { UI.hideBag(); return false; }
 
     if (UI.shopOpen()) { UI.hideShop(); return false; }
 

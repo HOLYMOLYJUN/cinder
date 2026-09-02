@@ -165,6 +165,7 @@
         <button data-act="potion">물약 <b id="t-potion">0</b></button>
         <button data-act="aim" id="t-aim">원거리</button>
         <button data-act="ember" id="t-ember">불씨</button>
+        <button data-act="bag">가방 <b id="t-bag">0</b></button>
         <button data-act="codex">도감</button>
         <!-- 흔적은 할 수 있을 때만 나타난다. 늘 떠 있으면 좁은 화면에서 자리만 먹는다.
              맨 끝에 두는 이유는 자리다 — 가운데 끼우면 2열 격자에 빈 칸이 생겨서
@@ -190,27 +191,31 @@
     </div>
   </div>
 
-  <!-- ===== 장비 비교 ===== -->
-  <div id="gear-modal" class="overlay hidden">
-    <div class="gear-inner">
-      <div class="gear-head">
-        <img id="gear-icon" class="gear-icon" alt="">
-        <span id="gear-slot" class="gear-slot">무기</span>
-        <span id="gear-name" class="gear-name">짧은 검</span>
+  <!-- ===== 가방 =====
+       판은 도트 그림이다 (assets/ui/equip.png · bag.png — tools/make-inventory.js 가
+       원본을 우리 색으로 갈아입혀 굽는다). 칸 자리는 같은 도구가 내놓은
+       bag-slots.json 을 ui.js 가 읽어서 그 위에 아이콘을 얹는다 —
+       그림과 좌표를 한 곳에서 만들어야 둘이 안 어긋난다.
+
+       CSS 로 격자를 그리지 않는 이유: 그러면 상인·대장간과 같은 네모가 되는데,
+       가방은 「물건을 담는 것」이라 도트 판이 훨씬 그럴듯하다. -->
+  <!-- 위줄은 두 칸 — 왼쪽은 입고 든 것(그 사이에 지금 모습이 선다),
+       오른쪽은 고른 물건의 설명. 아랫줄은 가방 한 줄로 넓게.
+       설명을 옆에 두면 「지금 낌 것 ↔ 고른 것」이 한 눈에 들어온다. -->
+  <div id="bag-modal" class="overlay hidden">
+    <div class="bag-wrap">
+      <div class="bag-equip" id="bag-equip">
+        <div class="bag-slots" id="equip-slots"></div>
       </div>
-      <table class="gear-table">
-        <thead>
-          <tr><th></th><th>지금</th><th>바꾸면</th><th></th></tr>
-        </thead>
-        <tbody id="gear-rows"></tbody>
-      </table>
-      <div id="gear-old" class="gear-old"></div>
-      <div class="gear-actions">
-        <button id="gear-take" class="btn-main">교체 <span class="k">Z</span></button>
-        <button id="gear-drop" class="btn-ghost">그대로 둔다 <span class="k">X</span></button>
+      <div class="bag-detail" id="bag-detail"></div>
+      <div class="bag-panel" id="bag-panel">
+        <div class="bag-slots" id="bag-slots"></div>
       </div>
+      <button id="bag-close" class="btn-ghost">닫는다 <span class="k">Esc</span></button>
     </div>
   </div>
+
+
 
   <!-- ===== 상점 ===== -->
   <div id="shop-modal" class="overlay hidden">
@@ -448,6 +453,7 @@
 
 <script src="js/config.js"></script>
 <script src="js/sprites.js"></script>
+<script src="js/bagslots.js"></script>
 <script src="js/util.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/map.js"></script>

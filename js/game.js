@@ -25,7 +25,7 @@ const state = {
   turns: 0,
   awaitingInput: false,
   floorTag: null,
-  pendingGear: null,      // 밟았지만 아직 비교창을 못 띄운 장비
+  bag: [],                // 주운 장비 (BAG_MAX 칸)
   shopStock: [],
 
   memories: new Set(),    // 되찾은 기억 — 죽어도 남는다
@@ -97,7 +97,6 @@ function startRun() {
   state.pouches = 0;
   state.kills = 0;
   state.turns = 0;
-  state.pendingGear = null;
   state.pendingMemory = null;
   state.gotMemoryThisRun = false;
   state.revived = false;
@@ -123,6 +122,7 @@ function startRun() {
      저장된 runs 로 따로 보므로, 여기 남겨 두면 같은 창에서 새 판을 시작한
      사람에게만 안내가 빠지는 이상한 차이가 생긴다. */
   state.guided = null;
+  state.bag = [];         // 가방은 판을 넘어 남지 않는다 — 기억이 그 자리다
   Render.dawnAt = 0;      // 다시 밤부터
 
   // 되찾은 기억은 판을 넘어 남는다
@@ -142,7 +142,7 @@ function startRun() {
   UI.clearLog();
   // 첫 판이면 무엇을 해야 하는지부터. 빈 로그로 시작하면 목표가 안 보인다.
   guide('goal');
-  UI.hideGearCompare();
+  UI.hideBag();
   UI.hideShop();
   UI.showGame();
   UI.hideResult();
@@ -450,6 +450,37 @@ function guideLook() {
   if (p && p.alive && p.hp < p.maxHp * 0.6) guide('hurt');
 }
 
+/* ---------- 가방 ---------- */
+function openBag() {
+  if (!state.running) return;
+  UI.showBag(
+    i => {
+      const r = bagEquip(i);
+      if (!r) return;
+      Sound.play('gear' + r.gear.rarity[0].toUpperCase() + r.gear.rarity.slice(1));
+      UI.log(josa(gearFullName(r.gear), '을', '를') + ' 꼈습니다' +
+             (r.old ? ' (' + gearFullName(r.old) + ' 은 가방으로).' : '.'), 'good');
+      if (isMagicAttack(state.player)) UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
+      UI.updateHud(state);
+      saveRun();
+    },
+    slot => {
+      const g = bagUnequip(slot);
+      if (!g) { UI.log('가방이 가득 차서 벗을 수 없습니다.', 'sys'); return; }
+      Sound.play('ui');
+      UI.log(josa(gearFullName(g), '을', '를') + ' 벗어 가방에 넣었습니다.', 'sys');
+      UI.updateHud(state);
+      saveRun();
+    },
+    i => {
+      const g = bagDrop(i);
+      if (!g) return;
+      Sound.play('ui');
+      UI.log(josa(gearFullName(g), '을', '를') + ' 발밑에 두었습니다.', 'sys');
+      saveRun();
+    });
+}
+
 /* =========================================================
    플레이어 행동
    ========================================================= */
@@ -458,7 +489,7 @@ function guideLook() {
 // 그 뒤 처리 로직은 의도에 따라 갈리기만 하고 나머지는 공유된다.
 function playerAction(dir, intent) {
   if (!state.running || !state.awaitingInput || !state.player.alive) return;
-  if (UI.gearOpen() || UI.shopOpen() || UI.campOpen() || UI.forgeOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
+  if (UI.bagOpen() || UI.shopOpen() || UI.campOpen() || UI.forgeOpen()) return;   // 창이 떠 있는 동안은 움직이지 않는다
 
   const p = state.player;
 
@@ -579,11 +610,18 @@ function onPlayerEnter(x, y) {
       Sound.play('key');
       UI.log('열쇠를 주웠습니다. 잠긴 문을 열 수 있습니다.', 'good');
     } else if (it.type === 'gear') {
-      // 비교창은 몬스터가 움직인 뒤, 다시 내 차례가 왔을 때 띄운다.
-      // 창을 읽는 동안 맞아 죽는 일이 없도록.
-      if (state.pendingGear) continue;      // 한 번에 하나만
-      state.pendingGear = it.gear;
+      /* 가방으로 들어간다. 예전에는 여기서 비교창을 띄우고 그 자리에서
+         「교체할까 말까」를 물었는데, 가방이 생긴 지금 둘 다 두면 결정이
+         두 번이 된다 — 주울 때 한 번, 가방에서 또 한 번.
+         줍는 것은 그냥 줍는 것이고, 낄지는 가방을 열어서 정한다. */
+      if (bagFull()) {
+        UI.log('가방이 가득 찼습니다. 「가방」에서 무엇이든 비우십시오.', 'sys');
+        continue;                            // 바닥에 그대로 둔다
+      }
+      bagAdd(it.gear);
       rememberGear(it.gear);
+      Sound.play('gearCommon');
+      UI.log(josa(gearFullName(it.gear), '을', '를') + ' 가방에 넣었습니다.', 'good');
       if (it.gear.rarity === 'ancient') tryRecallMemory();
     }
     map.items.splice(map.items.indexOf(it), 1);
@@ -659,7 +697,7 @@ function drinkPotion() {
 function jumpToEnding() {
   if (!state.player || !state.player.alive) { startRun(); return; }
   if (state.depth !== CFG.TOP_FLOOR) {
-    UI.hideResult(); UI.hideEnding(); UI.hideGearCompare(); UI.hideShop();
+    UI.hideResult(); UI.hideEnding(); UI.hideBag(); UI.hideShop();
     enterFloor(CFG.TOP_FLOOR);
     return;
   }
@@ -919,58 +957,6 @@ function hurtMonster(m, amount, color) {
   if (m.hp <= 0) kill(m);
 }
 
-/* =========================================================
-   장비
-   ========================================================= */
-
-function resolveGear(take) {
-  const g = state.pendingGear;
-  state.pendingGear = null;
-  UI.hideGearCompare();
-  if (!g) return;
-
-  const p = state.player;
-
-  if (!take) {
-    /* 바닥에 그대로 남긴다. 마음이 바뀌면 다시 밟으면 된다.
-       (지금 서 있는 칸이므로 한 번 벗어났다 돌아와야 다시 뜬다 — 나가라고 조르지 않는다)
-
-       seen 을 달아 둔다. 한 번 열어 본 것은 무엇인지 이미 아는 물건이라
-       바닥에 상자로 두면 "저게 아까 그건가"를 다시 밟아서 확인해야 한다.
-       열어 보지 않은 것은 그대로 상자다 — 처음부터 아이콘을 깔면
-       던전 바닥이 진열장처럼 보여서 어디가 길인지 헷갈린다. */
-    state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: true });
-    UI.log(josa(gearFullName(g), '을', '를') + ' 그대로 두었습니다.', 'sys');
-    return;
-  }
-  const into = equipSlotFor(g, p);      // 장신구는 둘 중 어디로 갈지 여기서 정해진다
-  const old = p.gear[into];
-
-  /* 정체불명은 손에 쥔 순간 드러난다. 열고 나서 무를 수 없다는 것이
-     이 물건의 값어치이자 값이다 — 여기서 되돌릴 수 있게 하면 도박이 아니라 감정이 된다. */
-  const wasUnknown = !!g.unknown;
-  if (wasUnknown) {
-    revealGear(g);
-    rememberGear(g);
-    const cursed = g.rarity === 'cursed';
-    Sound.play(cursed ? 'gearCursed' : 'gearAncient');
-    UI.log(cursed
-      ? josa(gearFullName(g), '이', '가') + ' 드러납니다. 손이 시립니다.'
-      : josa(gearFullName(g), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
-  }
-
-  p.gear[into] = g;
-  recalcStats(p);
-
-  UI.log(josa(gearFullName(g), '을', '를') + ' 착용했습니다' +
-         (old ? ' (' + gearFullName(old) + ' 버림).' : '.'), 'good');
-
-  // 노선이 바뀌는 순간은 알려준다 — 이 게임 전투의 핵심 규칙이라
-  if (isMagicAttack(p)) {
-    UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
-  }
-  UI.updateHud(state);
-}
 
 /* =========================================================
    벽의 쪽지 — 읽고, 끄덕이고, 남긴다
@@ -1809,25 +1795,14 @@ function advanceTurns() {
     if (actor === state.player) {
       state.awaitingInput = true;
 
-      // 되찾은 기억이 있으면 그것부터. 장비보다 큰 사건이다.
+      /* 되찾은 기억이 있으면 그것부터. 장비를 줍는 것은 이제 로그 한 줄이라
+         멈출 일이 없고, 기억은 판을 멈춰 세울 만한 사건이다. */
       if (state.pendingMemory) {
         const mem = state.pendingMemory;
         state.pendingMemory = null;
         Sound.play('memory');
-        UI.showCurtain(mem.name, mem.line, mem.effect, () => {
-          if (state.pendingGear) {
-            const g = state.pendingGear;
-            UI.showGearCompare(g, state.player.gear[equipSlotFor(g, state.player)]);
-          }
-        });
+        UI.showCurtain(mem.name, mem.line, mem.effect, () => {});
         return;
-      }
-
-      // 이번 턴에 주운 장비가 있으면 지금 비교창을 띄운다
-      if (state.pendingGear) {
-        const g = state.pendingGear;
-        Sound.play('gear' + g.rarity[0].toUpperCase() + g.rarity.slice(1));
-        UI.showGearCompare(g, state.player.gear[equipSlotFor(g, state.player)]);
       }
       return;
     }
@@ -2212,9 +2187,8 @@ function onKeyDown(e) {
   }
 
   // 장비 비교창 — 조작 체계와 같은 키를 쓴다
-  if (UI.gearOpen()) {
-    if (code === 'KeyZ' || code === 'KeyJ' || code === 'Enter') resolveGear(true);
-    if (code === 'KeyX' || code === 'KeyK' || code === 'Escape') resolveGear(false);
+  if (UI.bagOpen()) {
+    if (code === 'Escape' || code === 'KeyI' || code === 'KeyB') UI.hideBag();
     e.preventDefault();
     return;
   }
@@ -2277,6 +2251,7 @@ function onKeyDown(e) {
   if (code === 'Escape') { UI.showCodex(); e.preventDefault(); return; }
   if (code === 'KeyF') { toggleEmber(); e.preventDefault(); return; }
   if (code === 'KeyN') { noteKey(); e.preventDefault(); return; }
+  if (code === 'KeyI' || code === 'KeyB') { openBag(); e.preventDefault(); return; }
   if (code === 'Digit1' || code === 'Numpad1') { drinkPotion(); e.preventDefault(); return; }
   if (code === 'Space') { playerAction(null, 'wait'); e.preventDefault(); return; }
 
@@ -2297,7 +2272,7 @@ function onKeyUp(e) {
   // 겨눌 것을 스스로 고르므로 방향을 받을 이유가 없어졌다 —
   // 그래도 Z + 방향은 남겨 둔다. 여럿이 몰렸을 때 쪽을 정하고 싶을 때가 있다.
   if (KEY_MOD[e.code] === 'ranged' && !modUsed.has(e.code) &&
-      state.running && state.awaitingInput && !UI.gearOpen() && !UI.shopOpen() && !UI.campOpen() && !UI.forgeOpen()) {
+      state.running && state.awaitingInput && !UI.bagOpen() && !UI.shopOpen() && !UI.campOpen() && !UI.forgeOpen()) {
     playerAction(null, 'ranged');
   }
   modUsed.delete(e.code);
@@ -2319,6 +2294,8 @@ function paintTouch() {
   const ember = document.getElementById('t-ember');
   const pot = document.getElementById('t-potion');
   if (pot) pot.textContent = state.potions;
+  const bagN = document.getElementById('t-bag');
+  if (bagN) bagN.textContent = (state.bag || []).length;
   if (aim) {
     // 기사에겐 원거리가 아예 없는 조작이다 — 잠긴 버튼이 아니라 없는 버튼
     aim.hidden = !!currentHero().melee;
@@ -2357,6 +2334,7 @@ function setupTouch() {
       case 'aim': playerAction(null, 'ranged'); break;
       case 'ember': toggleEmber(); break;
       case 'mark': noteKey(); break;
+      case 'bag': openBag(); break;
       case 'codex': UI.showCodex('keys'); break;
     }
     paintTouch();
@@ -2483,8 +2461,7 @@ window.addEventListener('DOMContentLoaded', () => {
     b.addEventListener('click', () => UI.showCodex('keys')));
 
   document.getElementById('floor-intro').addEventListener('click', () => UI.skipIntro());
-  document.getElementById('gear-take').addEventListener('click', () => resolveGear(true));
-  document.getElementById('gear-drop').addEventListener('click', () => resolveGear(false));
+  document.getElementById('bag-close').addEventListener('click', () => UI.hideBag());
   document.getElementById('shop-close').addEventListener('click', () => UI.hideShop());
   document.getElementById('forge-close').addEventListener('click', () => UI.hideForge());
 

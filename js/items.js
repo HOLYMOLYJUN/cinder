@@ -34,6 +34,77 @@ function slotsFor(kind) {
   return [kind];
 }
 
+/* ---------- 가방 ----------
+
+   예전에는 가방이 없었다. 밟으면 비교창이 뜨고 「교체할까 말까」만 정했다.
+   그 설계에는 이유가 있었다 — 가방 관리가 없으면 턴제 리듬이 안 끊긴다.
+
+   그런데 실제로 해 보니 아픈 자리가 하나 있었다. **셋(SETS)을 모을 수가 없다.**
+   세 조각을 동시에 낄 수 없으니 「지금은 약하지만 나중에 맞출 것」을 들고
+   갈 방법이 없고, 그래서 셋은 우연히 맞춰지는 것 말고는 노릴 수가 없었다.
+   상황에 따라 바꿔 끼는 것(마방 높은 층에서 로브로)도 마찬가지다.
+
+   그래서 가방을 둔다. 대신 **비교창을 없앤다** — 둘 다 두면 주울 때마다
+   창이 뜨고 가방에서 또 고르게 되어 결정이 두 번이 된다.
+   주우면 가방에 들어가고, 낄지는 가방을 열어서 정한다. */
+const BAG_MAX = 12;
+
+/* 가방이 꽉 찼는가. 12칸을 넘겨 담지 않는다 — 무제한이면 「무엇을 버릴까」가
+   사라지고, 그러면 가방은 결정이 아니라 창고가 된다. */
+function bagFull() {
+  return (state.bag || []).length >= BAG_MAX;
+}
+
+function bagAdd(gear) {
+  if (!gear || bagFull()) return false;
+  state.bag = state.bag || [];
+  state.bag.push(gear);
+  return true;
+}
+
+function bagRemove(i) {
+  if (!state.bag || i < 0 || i >= state.bag.length) return null;
+  return state.bag.splice(i, 1)[0];
+}
+
+/* 가방의 것을 몸에 낀다. 끼고 있던 것은 가방으로 돌아간다 —
+   버리지 않는다. 바꿔 끼는 것과 버리는 것은 다른 결정이라 따로 물어야 한다.
+
+   가방이 꽉 차 있으면 자리를 바꿔 치기만 한다(빼낸 자리에 벗은 것이 들어간다).
+   그래야 「가방이 꽉 차서 장비를 못 바꾼다」는 막다른 길이 안 생긴다. */
+function bagEquip(i) {
+  const p = state.player;
+  const g = state.bag && state.bag[i];
+  if (!g || g.unknown) return null;
+  const slot = equipSlotFor(g, p);
+  const old = p.gear[slot] || null;
+  state.bag.splice(i, 1, ...(old ? [old] : []));
+  p.gear[slot] = g;
+  recalcStats(p);
+  return { gear: g, old, slot };
+}
+
+// 몸에서 벗어 가방으로. 가방이 꽉 찼으면 못 벗는다 — 갈 곳이 없으므로.
+function bagUnequip(slot) {
+  const p = state.player;
+  const g = p.gear[slot];
+  if (!g || bagFull()) return null;
+  p.gear[slot] = null;
+  state.bag.push(g);
+  recalcStats(p);
+  return g;
+}
+
+/* 발밑에 버린다. 되돌릴 수 있어야 하므로 없애지 않고 바닥에 놓는다 —
+   「봤다」 표시를 달아 두면 무엇이었는지 바닥에서도 보인다 (resolveGear 와 같은 규칙). */
+function bagDrop(i) {
+  const g = bagRemove(i);
+  if (!g) return null;
+  const p = state.player;
+  state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: true });
+  return g;
+}
+
 /* 이 장비를 끼면 어느 자리에 들어가는가.
    자리마다 한 칸씩이라 고를 것이 없다 — 예전에는 장신구가 두 칸이라
    「어느 쪽을 밀어낼까」를 여기서 정해야 했다. */

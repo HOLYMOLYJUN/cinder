@@ -312,16 +312,20 @@ const UI_HEART_MAX = 12;      // js/ui.js 의 UI.HEART_MAX 와 같아야 한다
         `줄이 두 줄을 안 넘는다 (${hearts.out.map(o => o.rows).join(',')})`);
   check(hearts.notFull > 0, '한 점이라도 깎이면 그건 티가 난다');
 
-  console.log('\n[ 두고 간 장비는 무엇인지 보인다 ]');
+  /* 예전에는 비교창에서 「두고 간다」를 골랐다. 가방이 생긴 뒤로는
+     일단 다 주워 담고, 버릴 때 가방에서 내려놓는다 — 바닥에 놓이는
+     자리는 그대로라 여기서 재는 것도 그대로다. */
+  console.log('\n[ 내려놓은 장비는 무엇인지 보인다 ]');
   const left = await page.evaluate(() => {
     startRun(); UI.closeIntro(); state.running = true;
     const p = state.player;
-    state.pendingGear = makeGear(GEAR.find(g => g.name === '짧은 검'));
-    resolveGear(false);                     // 두고 간다
+    state.bag = [makeGear(GEAR.find(g => g.name === '짧은 검'))];
+    bagDrop(0);                             // 가방에서 내려놓는다
     const it = state.map.items.find(i => i.type === 'gear' && i.x === p.x && i.y === p.y);
-    return { seen: !!(it && it.seen), icon: !!SPRITES['gear.짧은 검'] };
+    return { seen: !!(it && it.seen), bag: state.bag.length, icon: !!SPRITES['gear.짧은 검'] };
   });
-  check(left.seen, '두고 간 것에 「봤다」 표시가 붙는다');
+  check(left.bag === 0, '내려놓으면 가방에서 빠진다');
+  check(left.seen, '내려놓은 것에 「봤다」 표시가 붙는다');
   check(left.icon, '그 장비의 그림이 있다 — 상자 대신 이걸 깐다');
 
   console.log(fails ? `\n실패 ${fails}건` : '\n전부 통과');
