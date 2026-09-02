@@ -3773,13 +3773,19 @@ function bagRemove(i) {
 function bagEquip(i) {
   const p = state.player;
   const g = state.bag && state.bag[i];
-  if (!g || g.unknown) return null;
+  if (!g) return null;
+  /* 정체불명은 **여기서** 드러난다. 예전에는 비교창이 열어 주고 이 함수는
+     아예 거절했는데(`if (g.unknown) return null`), 비교창이 사라지면서 여는
+     길이 통째로 없어졌다 — 주우면 가방에서 ? 로 앉아 버리는 수밖에 없었다.
+     끼는 것과 여는 것을 갈라 두면 또 한쪽만 남으므로 한 함수 안에 둔다. */
+  const wasUnknown = !!g.unknown;
+  if (wasUnknown) revealGear(g);
   const slot = equipSlotFor(g, p);
   const old = p.gear[slot] || null;
   state.bag.splice(i, 1, ...(old ? [old] : []));
   p.gear[slot] = g;
   recalcStats(p);
-  return { gear: g, old, slot };
+  return { gear: g, old, slot, revealed: wasUnknown };
 }
 
 // 몸에서 벗어 가방으로. 가방이 꽉 찼으면 못 벗는다 — 갈 곳이 없으므로.
@@ -3794,12 +3800,16 @@ function bagUnequip(slot) {
 }
 
 /* 발밑에 버린다. 되돌릴 수 있어야 하므로 없애지 않고 바닥에 놓는다 —
-   「봤다」 표시를 달아 두면 무엇이었는지 바닥에서도 보인다 (resolveGear 와 같은 규칙). */
+   「봤다」 표시를 달아 두면 무엇이었는지 바닥에서도 보인다.
+
+   **정체불명은 예외다.** 아직 안 열어 본 것이라 나도 모르는 물건인데,
+   seen 을 달면 바닥에 제 그림이 깔려서 버리는 것만으로 정체가 드러났다.
+   그러면 「버렸다 줍는다」가 공짜 감정이 되어 도박이 통째로 사라진다. */
 function bagDrop(i) {
   const g = bagRemove(i);
   if (!g) return null;
   const p = state.player;
-  state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: true });
+  state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: !g.unknown });
   return g;
 }
 
@@ -5827,7 +5837,10 @@ const Render = {
              한 번 열어 보고 두고 간 것(seen)은 무엇인지 이미 아는 물건이라
              그림을 보여준다 — 안 그러면 "아까 그거였나"를 확인하러
              다시 밟아야 하고, 그건 판단이 아니라 심부름이다. */
-          const icon = it.seen && SPRITES['gear.' + it.gear.name];
+          /* 정체불명은 seen 이 붙어 있어도 상자로 둔다 — 그림이 곧 정체다.
+             (bagDrop 이 이미 seen 을 안 달지만, 정체를 흘리는 자리는
+             한 곳에서만 막으면 다음에 또 새므로 그리는 쪽에서도 막는다) */
+          const icon = it.seen && !it.gear.unknown && SPRITES['gear.' + it.gear.name];
           if (icon) this.tile(ctx, 'gear.' + it.gear.name, 0, px, py, lit);
           else this.tile(ctx, 'chest', 0, px, py, lit);
         }
@@ -7270,7 +7283,9 @@ const UI = {
 
     const acts = [];
     if (pick.where === 'bag') {
-      if (!g.unknown) acts.push('<button data-act="equip">낀다</button>');
+      /* 정체불명에도 끼는 버튼을 준다 — 다만 글자를 달리해서 무슨 일이
+         벌어지는지 먼저 말한다. 안 주었더니 가방에서 ? 로 앉아 버렸다. */
+      acts.push('<button data-act="equip">' + (g.unknown ? '열어 본다' : '낀다') + '</button>');
       acts.push('<button data-act="drop" class="ghost">버린다</button>');
     } else {
       acts.push('<button data-act="unequip" class="ghost">벗는다</button>');
@@ -9701,9 +9716,23 @@ function openBag() {
   if (!state.running) return;
   UI.showBag(
     i => {
+      /* 정체불명은 **끼는 순간 드러난다.** 예전 비교창이 하던 일인데 가방으로
+         옮길 때 같이 안 올라왔다 — 그래서 정체불명을 주우면 가방에서 ? 로 앉아
+         버리는 것 말고는 할 수 있는 일이 없었다.
+         여는 것과 끼는 것은 한 번에 일어난다. 갈라 놓으면 그저 감정이 된다. */
       const r = bagEquip(i);
       if (!r) return;
-      Sound.play('gear' + r.gear.rarity[0].toUpperCase() + r.gear.rarity.slice(1));
+      if (r.revealed) {
+        rememberGear(r.gear);
+        recalcStats(state.player);          // 값이 숨겨져 있었으므로 다시 센다
+        const cursed = r.gear.rarity === 'cursed';
+        Sound.play(cursed ? 'gearCursed' : 'gearAncient');
+        UI.log(cursed
+          ? josa(gearFullName(r.gear), '이', '가') + ' 드러납니다. 손이 시립니다.'
+          : josa(gearFullName(r.gear), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
+      } else {
+        Sound.play('gear' + r.gear.rarity[0].toUpperCase() + r.gear.rarity.slice(1));
+      }
       UI.log(josa(gearFullName(r.gear), '을', '를') + ' 꼈습니다' +
              (r.old ? ' (' + gearFullName(r.old) + ' 은 가방으로).' : '.'), 'good');
       if (isMagicAttack(state.player)) UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
@@ -10632,6 +10661,13 @@ function buyFromShop(i) {
     return;
   }
   if (entry.kind === 'pouch' && (state.pouches || 0) >= POUCH_MAX) return;
+  /* 산 장비는 가방으로 간다 — 그러니 자리가 없으면 **돈을 받기 전에** 막는다.
+     예전에는 산 것을 그 자리에서 입히고 끼고 있던 것을 버렸는데, 가방이 생긴
+     뒤로는 그게 「돈 내고 내 장비를 버리는 일」이 된다. */
+  if (entry.gear && bagFull()) {
+    UI.log('가방이 가득 찼습니다. 「가방」에서 무엇이든 비우십시오.', 'sys');
+    return;
+  }
 
   state.gold -= entry.price;
   Sound.play('buy');
@@ -10650,15 +10686,11 @@ function buyFromShop(i) {
     state.pouches = (state.pouches || 0) + 1;
     UI.log('주머니를 샀습니다. 물약을 ' + potionMax() + '개까지 들 수 있습니다.', 'good');
   } else {
-    const p = state.player;
-    const into = equipSlotFor(entry.gear, p);
-    const old = p.gear[into];
-    p.gear[into] = entry.gear;
+    // 바닥에서 줍는 것과 같은 자리로 간다 — 낄지는 가방에서 정한다
+    bagAdd(entry.gear);
     rememberGear(entry.gear);
-    recalcStats(p);
-    UI.log(josa(gearFullName(entry.gear), '을', '를') + ' 샀습니다' +
-           (old ? ' (' + gearFullName(old) + ' 버림).' : '.'), 'good');
-    if (isMagicAttack(p)) UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
+    UI.log(josa(gearFullName(entry.gear), '을', '를') + ' 사서 가방에 넣었습니다.', 'good');
+    paintTouch();
   }
 
   UI.updateHud(state);

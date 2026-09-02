@@ -126,16 +126,20 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     document.querySelector('#bag-slots [data-bag="0"]').click();
     const box = document.getElementById('bag-detail');
     const text = box.textContent;
-    const canEquip = !!box.querySelector('[data-act="equip"]');
+    const equip = box.querySelector('[data-act="equip"]');
     UI.hideBag();
-    return { text, open, canEquip };
+    return { text, open, label: equip && equip.textContent };
   });
   if (cmp.skip) console.log('  무기 정체불명이 안 나옴 — 건너뜀');
   else {
     check(cmp.open, '가방이 열린다');
     check(cmp.text.includes('정체불명'), '정체불명은 이름부터 가려진다');
     check(/알 수 없습니다/.test(cmp.text), '값 대신 「알 수 없습니다」가 뜬다');
-    check(!cmp.canEquip, '열어 보기 전에는 낄 수 없다');
+    /* 예전에는 여기서 「낄 수 없다」를 쟀다. 그건 버그를 규칙으로 굳혀 둔
+       것이었다 — 여는 길이 통째로 없어서 정체불명이 가방에서 썩었다.
+       끼는 것이 곧 여는 것이므로, 재야 할 것은 그 버튼이 무슨 일인지
+       먼저 말하느냐다. */
+    check(cmp.label === '열어 본다', `버튼이 무슨 일인지 먼저 말한다 — 「${cmp.label}」`);
   }
 
   console.log('\n[ 모닥불 선택 ]');

@@ -337,7 +337,10 @@ const Render = {
              한 번 열어 보고 두고 간 것(seen)은 무엇인지 이미 아는 물건이라
              그림을 보여준다 — 안 그러면 "아까 그거였나"를 확인하러
              다시 밟아야 하고, 그건 판단이 아니라 심부름이다. */
-          const icon = it.seen && SPRITES['gear.' + it.gear.name];
+          /* 정체불명은 seen 이 붙어 있어도 상자로 둔다 — 그림이 곧 정체다.
+             (bagDrop 이 이미 seen 을 안 달지만, 정체를 흘리는 자리는
+             한 곳에서만 막으면 다음에 또 새므로 그리는 쪽에서도 막는다) */
+          const icon = it.seen && !it.gear.unknown && SPRITES['gear.' + it.gear.name];
           if (icon) this.tile(ctx, 'gear.' + it.gear.name, 0, px, py, lit);
           else this.tile(ctx, 'chest', 0, px, py, lit);
         }

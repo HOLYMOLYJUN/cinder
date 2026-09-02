@@ -75,13 +75,19 @@ function bagRemove(i) {
 function bagEquip(i) {
   const p = state.player;
   const g = state.bag && state.bag[i];
-  if (!g || g.unknown) return null;
+  if (!g) return null;
+  /* 정체불명은 **여기서** 드러난다. 예전에는 비교창이 열어 주고 이 함수는
+     아예 거절했는데(`if (g.unknown) return null`), 비교창이 사라지면서 여는
+     길이 통째로 없어졌다 — 주우면 가방에서 ? 로 앉아 버리는 수밖에 없었다.
+     끼는 것과 여는 것을 갈라 두면 또 한쪽만 남으므로 한 함수 안에 둔다. */
+  const wasUnknown = !!g.unknown;
+  if (wasUnknown) revealGear(g);
   const slot = equipSlotFor(g, p);
   const old = p.gear[slot] || null;
   state.bag.splice(i, 1, ...(old ? [old] : []));
   p.gear[slot] = g;
   recalcStats(p);
-  return { gear: g, old, slot };
+  return { gear: g, old, slot, revealed: wasUnknown };
 }
 
 // 몸에서 벗어 가방으로. 가방이 꽉 찼으면 못 벗는다 — 갈 곳이 없으므로.
@@ -96,12 +102,16 @@ function bagUnequip(slot) {
 }
 
 /* 발밑에 버린다. 되돌릴 수 있어야 하므로 없애지 않고 바닥에 놓는다 —
-   「봤다」 표시를 달아 두면 무엇이었는지 바닥에서도 보인다 (resolveGear 와 같은 규칙). */
+   「봤다」 표시를 달아 두면 무엇이었는지 바닥에서도 보인다.
+
+   **정체불명은 예외다.** 아직 안 열어 본 것이라 나도 모르는 물건인데,
+   seen 을 달면 바닥에 제 그림이 깔려서 버리는 것만으로 정체가 드러났다.
+   그러면 「버렸다 줍는다」가 공짜 감정이 되어 도박이 통째로 사라진다. */
 function bagDrop(i) {
   const g = bagRemove(i);
   if (!g) return null;
   const p = state.player;
-  state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: true });
+  state.map.items.push({ x: p.x, y: p.y, type: 'gear', gear: g, seen: !g.unknown });
   return g;
 }
 

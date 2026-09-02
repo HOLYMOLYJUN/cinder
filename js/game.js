@@ -455,9 +455,23 @@ function openBag() {
   if (!state.running) return;
   UI.showBag(
     i => {
+      /* 정체불명은 **끼는 순간 드러난다.** 예전 비교창이 하던 일인데 가방으로
+         옮길 때 같이 안 올라왔다 — 그래서 정체불명을 주우면 가방에서 ? 로 앉아
+         버리는 것 말고는 할 수 있는 일이 없었다.
+         여는 것과 끼는 것은 한 번에 일어난다. 갈라 놓으면 그저 감정이 된다. */
       const r = bagEquip(i);
       if (!r) return;
-      Sound.play('gear' + r.gear.rarity[0].toUpperCase() + r.gear.rarity.slice(1));
+      if (r.revealed) {
+        rememberGear(r.gear);
+        recalcStats(state.player);          // 값이 숨겨져 있었으므로 다시 센다
+        const cursed = r.gear.rarity === 'cursed';
+        Sound.play(cursed ? 'gearCursed' : 'gearAncient');
+        UI.log(cursed
+          ? josa(gearFullName(r.gear), '이', '가') + ' 드러납니다. 손이 시립니다.'
+          : josa(gearFullName(r.gear), '이', '가') + ' 드러납니다.', cursed ? 'hurt' : 'good');
+      } else {
+        Sound.play('gear' + r.gear.rarity[0].toUpperCase() + r.gear.rarity.slice(1));
+      }
       UI.log(josa(gearFullName(r.gear), '을', '를') + ' 꼈습니다' +
              (r.old ? ' (' + gearFullName(r.old) + ' 은 가방으로).' : '.'), 'good');
       if (isMagicAttack(state.player)) UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
@@ -1386,6 +1400,13 @@ function buyFromShop(i) {
     return;
   }
   if (entry.kind === 'pouch' && (state.pouches || 0) >= POUCH_MAX) return;
+  /* 산 장비는 가방으로 간다 — 그러니 자리가 없으면 **돈을 받기 전에** 막는다.
+     예전에는 산 것을 그 자리에서 입히고 끼고 있던 것을 버렸는데, 가방이 생긴
+     뒤로는 그게 「돈 내고 내 장비를 버리는 일」이 된다. */
+  if (entry.gear && bagFull()) {
+    UI.log('가방이 가득 찼습니다. 「가방」에서 무엇이든 비우십시오.', 'sys');
+    return;
+  }
 
   state.gold -= entry.price;
   Sound.play('buy');
@@ -1404,15 +1425,11 @@ function buyFromShop(i) {
     state.pouches = (state.pouches || 0) + 1;
     UI.log('주머니를 샀습니다. 물약을 ' + potionMax() + '개까지 들 수 있습니다.', 'good');
   } else {
-    const p = state.player;
-    const into = equipSlotFor(entry.gear, p);
-    const old = p.gear[into];
-    p.gear[into] = entry.gear;
+    // 바닥에서 줍는 것과 같은 자리로 간다 — 낄지는 가방에서 정한다
+    bagAdd(entry.gear);
     rememberGear(entry.gear);
-    recalcStats(p);
-    UI.log(josa(gearFullName(entry.gear), '을', '를') + ' 샀습니다' +
-           (old ? ' (' + gearFullName(old) + ' 버림).' : '.'), 'good');
-    if (isMagicAttack(p)) UI.log('주문이 공격보다 높습니다. 이제 마법으로 싸웁니다.', 'hit');
+    UI.log(josa(gearFullName(entry.gear), '을', '를') + ' 사서 가방에 넣었습니다.', 'good');
+    paintTouch();
   }
 
   UI.updateHud(state);

@@ -577,7 +577,9 @@ const UI = {
 
     const acts = [];
     if (pick.where === 'bag') {
-      if (!g.unknown) acts.push('<button data-act="equip">낀다</button>');
+      /* 정체불명에도 끼는 버튼을 준다 — 다만 글자를 달리해서 무슨 일이
+         벌어지는지 먼저 말한다. 안 주었더니 가방에서 ? 로 앉아 버렸다. */
+      acts.push('<button data-act="equip">' + (g.unknown ? '열어 본다' : '낀다') + '</button>');
       acts.push('<button data-act="drop" class="ghost">버린다</button>');
     } else {
       acts.push('<button data-act="unequip" class="ghost">벗는다</button>');
