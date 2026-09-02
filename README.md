@@ -121,6 +121,7 @@ node tools/cut-npc.js          # → assets/npc/cut/ (NPC 팩의 여백을 잘�
 node tools/slice-itemset.js    # → assets/items/ (아이템 시트에서 쓸 칸만 뗀다)
 node tools/make-splash.js      # → assets/splash/ (홈 화면에서 열 때 뜨는 그림 36장)
 node tools/make-inventory.js   # → assets/ui/equip.png · bag.png + js/bagslots.js (가방 판을 갈색으로 바꾸고 칸 좌표를 적어 둔다)
+node tools/make-feature.js     # → docs/store/ (스토어 그래픽 이미지 1024x500)
 node tools/pack-sprites.js     # → js/sprites.js (162KB, 378장)
 ```
 

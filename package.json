@@ -9,6 +9,7 @@
     "app:aab": "node tools/aab.js",
     "app:icons": "node tools/make-app-icon.js && capacitor-assets generate --android --assetPath assets/app",
     "app:shots": "node tools/make-store-shots.js",
+    "app:feature": "node tools/make-feature.js",
     "app:splash": "node tools/make-splash.js"
   },
   "devDependencies": {
