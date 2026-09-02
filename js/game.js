@@ -2473,6 +2473,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!t || !t.id || !state.running) return;
     UI.log(FLOOR_TAG_SAY[t.id] || t.hint || '', 'sys');
   });
+  // 던전 화면의 「가방」 — 웹에는 I · B 밖에 없어서 그것만으로는 있는 줄을 모른다
+  const bagBtn = document.getElementById('btn-bag');
+  if (bagBtn) bagBtn.addEventListener('click', () => openBag());
   document.getElementById('btn-codex').addEventListener('click', () => UI.showCodex('monsters'));
   document.getElementById('codex-close').addEventListener('click', () => UI.hideCodex());
   document.getElementById('codex-tabs').addEventListener('click', e => {

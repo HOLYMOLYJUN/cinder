@@ -149,7 +149,13 @@
       <div class="boss-track"><div id="boss-fill"></div></div>
     </div>
 
-    <div class="gear-strip" id="gear-strip"></div>
+    <!-- 예전에는 여기에 낌 장비 다섯과 능력치를 한 줄로 깔았다.
+         가방 창이 생기면서 그 전부가 그 안에 있으므로, 줄은 없애고
+         여는 버튼만 남긴다 — 같은 것을 두 자리에 두면 한 자리는 늘 낡는다.
+         터치 기기에는 아래 행동 버튼에 이미 「가방」이 있어 이쪽은 감춘다. -->
+    <div class="gear-bar">
+      <button id="btn-bag" class="gear-bag">가방 <b id="w-bag">0</b><span class="k">I</span></button>
+    </div>
 
     <canvas id="view" width="792" height="504"></canvas>
 
@@ -207,7 +213,10 @@
       <div class="bag-equip" id="bag-equip">
         <div class="bag-slots" id="equip-slots"></div>
       </div>
-      <div class="bag-detail" id="bag-detail"></div>
+      <!-- 안칸을 따로 둔다. 바깥칸은 높이를 장착판에서 받고,
+           글은 그 안에서 구른다 — 설명 길이가 줄높이를 밀지 않아야
+           두 판의 아랫줄이 항상 맞는다. -->
+      <div class="bag-detail"><div class="bag-detail-in" id="bag-detail"></div></div>
       <div class="bag-panel" id="bag-panel">
         <div class="bag-slots" id="bag-slots"></div>
       </div>
@@ -249,10 +258,16 @@
   </div>
 
   <!-- ===== 모닥불 앞 선택 ===== -->
+  <!-- 예전에는 결말 화면의 틀을 빌렸다. 결말은 판을 끝내는 한 번뿐인 화면이라
+       제목이 크고 가운데 정렬인데, 모닥불·동행·쪽지는 판마다 여러 번 뜨는
+       **고르는 창**이다. 그쪽은 상인·대장장이와 같은 부류라 틀을 그리로 옮긴다.
+       배경의 불빛만 모닥불의 것으로 남긴다 — 그건 자리의 표시지 틀이 아니다. -->
   <div id="camp-modal" class="overlay hidden">
-    <div class="ending-inner camp-inner">
-      <div class="ending-title" id="camp-title">모닥불</div>
-      <p class="ending-body" id="camp-say">불이 아직 살아 있습니다. 무엇에 쓰겠습니까.</p>
+    <div class="shop-inner camp-inner">
+      <div class="shop-head">
+        <h2 id="camp-title">모닥불</h2>
+      </div>
+      <p class="shop-say" id="camp-say">불이 아직 살아 있습니다. 무엇에 쓰겠습니까.</p>
       <div class="ending-choices" id="camp-choices"></div>
     </div>
   </div>

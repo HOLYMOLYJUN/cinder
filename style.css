@@ -251,14 +251,8 @@ html, body {
   white-space: nowrap;
 }
 .hero.on .hero-name { color: var(--ember); font-weight: 700; }
-.hero-stat {
-  font-family: "IBM Plex Mono", monospace; font-size: 9.5px;
-  color: var(--muted); letter-spacing: -.02em;
-}
-.hero-stat em { font-style: normal; color: var(--cold); }
-
 .hero-say {
-  min-height: 58px; margin-bottom: 24px;
+  min-height: 62px; margin-bottom: 24px;
   font-family: "Gowun Batang", serif;
 }
 .hero-say b {
@@ -266,22 +260,15 @@ html, body {
   color: var(--ink-soft); margin-bottom: 4px;
 }
 .hero-say span { font-size: 12px; color: var(--muted); }
-.hero-say .hero-nums {
-  display: none;
-  font-family: "IBM Plex Mono", monospace; font-size: 11px;
-  margin-top: 6px; color: var(--muted);
-}
-.hero-say .hero-nums em { font-style: normal; color: var(--cold); }
 
 /* 좁은 화면에서는 다섯 장이 한 줄에 안 들어간다.
-   카드에서 수치를 빼 아래로 내리고 폭을 줄여 한 줄을 지킨다 —
-   두 줄로 접히면 무엇을 고르는 화면인지 한눈에 안 읽힌다. */
+   폭을 줄여 한 줄을 지킨다 — 두 줄로 접히면 무엇을 고르는 화면인지
+   한눈에 안 읽힌다. */
 @media (max-width: 560px) {
   .hero { padding: 8px 1px 6px; gap: 2px; }
   .hero-img { width: 26px; height: 42px; }
-  .hero-stat { display: none; }
-  .hero-say .hero-nums { display: block; }
 }
+
 
 .record {
   margin-top: 26px;
@@ -421,30 +408,34 @@ html, body {
 }
 
 /* 장착 중인 장비 — 캔버스 바로 위 한 줄 */
-.gear-strip {
-  width: 100%;
-  max-width: var(--game-w);
-  display: flex;
-  gap: 14px;
-  font-size: 11.5px;
-  color: var(--muted);
+/* 가방을 여는 줄. 예전에는 이 자리가 낌 장비와 능력치를
+   길게 늘어놓는 줄이었는데, 같은 것을 가방 창이 더 잘 보여 준다.
+   터치 기기에서는 아래 행동 버튼과 겹치므로 감춘다. */
+.gear-bar {
+  width: 100%; max-width: var(--game-w);
+  display: flex; justify-content: flex-end;
   min-height: 16px;
-  flex-wrap: wrap;
 }
-.gear-strip .g-slot { display: inline-flex; align-items: baseline; gap: 5px; }
-.gear-strip .g-slot i { font-style: normal; opacity: .65; }
-.gear-strip .g-slot b { font-weight: 500; }
-.gear-strip .g-empty { color: #4E463D; }
+.gear-bag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.gear-bag:hover { border-color: var(--ember-dim); color: var(--ink); }
+.gear-bag b { color: var(--ink); font-weight: 600; }
+.gear-bag .k {
+  font-family: "IBM Plex Mono", monospace; font-size: 10px;
+  color: var(--muted); border: 1px solid var(--line); padding: 0 4px;
+}
+@media (hover: none) and (pointer: coarse) {
+  .gear-bar { display: none; }
+}
 
-/* 좁은 화면에서는 이 줄이 넘쳐 능력치가 혼자 다음 줄로 밀린다.
-   폰(가용 폭 약 382px)에서 재보면 장비 357 + 간격 14 + 능력치 110 = 481 이다.
-   아이콘 셋은 52px 뿐이라 그것만 줄여선 모자라고, 슬롯 이름 셋이 92px 로 더 크다.
-   그림이 붙은 슬롯은 이름을 지워도 무엇인지 읽히므로 그쪽을 접는다.
-   (등급 접두가 붙은 긴 이름이 셋 다 겹치면 그래도 넘칠 수 있다 — 그때는 접힌다) */
-@media (max-width: 560px) {
-  .gear-strip { gap: 8px; }
-  .gear-strip .g-lab { display: none; }
-}
 
 canvas#view {
   display: block;
@@ -766,12 +757,15 @@ canvas#view {
 .bag-wrap {
   width: calc(100% - 32px); max-width: 480px;
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   grid-template-areas:
     "equip detail"
     "bag   bag"
     "close close";
-  gap: 10px;
+  gap: 8px;
+  /* 줄 높이는 장착판이 정한다 — 그림이라 비율이 고정이고,
+     설명은 안칸이 띄워 있어 길이가 줄을 밀지 않는다.
+     그래야 두 판의 아랫줄이 맞는다 (기본값 stretch 그대로 둔다). */
 }
 .bag-equip  { grid-area: equip; }
 .bag-detail { grid-area: detail; }
@@ -785,6 +779,9 @@ canvas#view {
 .bag-equip, .bag-panel {
   position: relative;
   width: 100%;
+  /* 가방은 줄을 다 차지하지만 끝까지 늘리지는 않는다 —
+     놓을 수 있는 만큼 넓히면 칸 하나가 장착판 칸보다 배로 커져
+     같은 물건이 두 곳에서 다른 크기로 보인다. */
   background: center/100% 100% no-repeat;
   image-rendering: pixelated;
 }
@@ -812,21 +809,42 @@ canvas#view {
   image-rendering: pixelated;
 }
 
+/* 설명칸. 높이를 **장착판이 정하게** 둔다 — 안칸을 띄워 놓으면
+   글 길이가 줄높이를 밀지 않으므로 두 판의 아랫줄이 항상 맞는다.
+   예전에는 설명이 더 길어서 장착판 밑이 통째로 비었다. */
 .bag-detail {
+  position: relative;
   min-height: 92px;
-  padding: 10px 12px;
   background: var(--panel-2); border: 1px solid var(--line);
 }
-.bag-detail .hint { font-size: 12px; color: var(--muted); }
+.bag-detail-in {
+  position: absolute; inset: 0;
+  padding: 9px 11px;
+  overflow-y: auto;
+}
+.bag-detail-in .hint { font-size: 12px; color: var(--muted); }
+/* 가방을 열었을 때의 첫 화면 — 예전 장비 줄이 하던 일 */
+.bag-sum-nums {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  color: var(--ink-soft); margin-bottom: 6px;
+}
+.bag-sum-line { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.bag-sum-line b { color: var(--ember); font-weight: 500; }
+.bag-detail-in .bag-sum-nums + .hint,
+.bag-detail-in .bag-sum-line + .hint { display: block; margin-top: 8px; }
 .bag-name { font-size: 14px; margin-bottom: 2px; }
 .bag-name.r-fine { color: var(--cold); }
 .bag-name.r-ancient { color: var(--ember); }
 .bag-name.r-cursed { color: #8E6BB0; }
 .bag-slotline { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
-.bag-detail .gear-table { width: 100%; font-size: 12px; }
-.bag-acts { display: flex; gap: 7px; margin-top: 9px; }
+/* 가방의 표는 비교창보다 백백하게 쓴다 — 창 전체가 던전 화면보다
+   키가 커지면 「게임 위에 뜼 창」이 아니라 「다른 화면」으로 보인다. */
+.bag-detail-in .gear-table { width: 100%; font-size: 12px; margin-bottom: 8px; }
+.bag-detail-in .gear-table th { padding-bottom: 5px; }
+.bag-detail-in .gear-table td { padding: 4px 0; }
+.bag-acts { display: flex; gap: 7px; margin-top: 7px; }
 .bag-acts button {
-  padding: 6px 14px; font: inherit; font-size: 12.5px;
+  padding: 5px 13px; font: inherit; font-size: 12.5px;
   background: var(--ember-dim); color: #1A1109;
   border: 1px solid var(--ember-dim); border-radius: 0; cursor: pointer;
 }
@@ -834,7 +852,8 @@ canvas#view {
 .bag-acts button.ghost:hover { color: var(--ink); border-color: var(--ember-dim); }
 
 @media (max-height: 720px) {
-  .bag-detail { min-height: 80px; padding: 8px 10px; }
+  .bag-detail { min-height: 80px; }
+  .bag-detail-in { padding: 8px 10px; }
 }
 
 /* ---------- 대장장이 ----------
@@ -943,48 +962,55 @@ canvas#view {
 .ending-pick.locked { opacity: .42; cursor: default; }
 .ending-pick.locked:hover { border-color: var(--line); background: var(--panel); }
 
-/* 모닥불 — 결말과 같은 틀을 쓰되 불빛이 더 가깝다 */
+/* 모닥불 — 틀은 상인·대장장이와 같고(.shop-inner), 불빛만 여기 것이다.
+
+   예전에는 결말 화면을 빌렸다. 결말은 판을 끝내는 한 번뿐인 화면이라 제목이
+   34px 에 가운데 정렬이었는데, 모닥불·동행·쪽지는 판마다 여러 번 뜨는
+   「고르는 창」이다. 그 무게가 매번 과했고, 같은 자리에서 밟는 상점과
+   나란히 놓고 보면 두 창이 다른 게임에서 온 것처럼 보였다. */
 #camp-modal {
   background: radial-gradient(ellipse at 50% 55%, rgba(48,28,12,.86) 0%, rgba(6,5,4,.94) 70%);
   z-index: 54;
 }
-.camp-inner .ending-title { margin-bottom: 14px; }
-.camp-inner .ending-body { margin-bottom: 22px; }
+/* 고르는 줄 — 상점의 줄(.shop-row)과 같은 몸집이다.
+   넘치면 창 안에서 구른다 (min-height:0 이 없으면 안 줄어든다). */
+.camp-inner .ending-choices {
+  gap: 8px; margin-bottom: 4px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+.camp-inner .ending-pick {
+  padding: 12px 14px;
+  background: var(--panel-2); border: 1px solid var(--line);
+}
+.camp-inner .ending-pick:hover { border-color: var(--ember); background: var(--line); }
+.camp-inner .ending-pick b { font-size: 14.5px; margin-bottom: 4px; color: var(--ink-soft); }
+.camp-inner .ending-pick span { font-size: 12px; line-height: 1.65; }
+.camp-inner .ending-pick.locked:hover { border-color: var(--line); background: var(--panel-2); }
 
 /* 짧은 것이 여럿일 때 — 쪽지 낱말 열둘, 틀 여섯.
    세로로 쌓으면 화면 밖으로 넘쳐 아래가 잘린다. 고르는 창은 한눈에 다 보여야 한다. */
-.ending-choices.camp-grid {
-  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
-  gap: 8px;
+.camp-inner .ending-choices.camp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 7px;
 }
-.camp-grid .ending-pick { padding: 13px 10px; text-align: center; }
-.camp-grid .ending-pick b {
-  margin-bottom: 0; font-size: 15px; white-space: nowrap;
-}
+.camp-inner .camp-grid .ending-pick { padding: 11px 8px; text-align: center; }
+.camp-inner .camp-grid .ending-pick b { margin-bottom: 0; font-size: 13.5px; white-space: nowrap; }
 /* 문장이 들어오는 격자 — 칸을 넓히고, 그래도 모자라면 줄을 바꾼다.
    잘린 문장은 무엇을 고르는지 알 수 없으므로 잘리는 것만은 막는다. */
-.ending-choices.camp-grid.wide { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
-.camp-grid.wide .ending-pick b { white-space: normal; line-height: 1.5; }
-/* 아무리 좁은 화면이라도 창이 화면을 넘지 않게 — 넘치면 창 안에서 구른다 */
-.camp-inner { max-height: 88vh; overflow-y: auto; }
+.camp-inner .ending-choices.camp-grid.wide { grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); }
+.camp-inner .camp-grid.wide .ending-pick b { white-space: normal; line-height: 1.5; }
+/* 아무리 좁은 화면이라도 창이 화면을 넘지 않게 */
+.camp-inner { max-height: 88vh; }
 
-/* 낮은 화면에서는 줄을 좁힌다.
-
-   대장장이는 자리 넷에 「그만둔다」까지 다섯 줄인데, 결말 화면과 같은 틀을 쓰다 보니
-   한 줄이 100px 을 넘었다. 360x640 에서 다섯 번째 줄이 화면 밖으로 나갔고,
-   그 줄이 바로 **나가는 길**이다 — 손가락에는 Esc 가 없으므로 구르는 줄 모르면
-   창에 갇힌다. 결말 화면은 줄이 둘뿐이라 넉넉하므로 모닥불 쪽만 좁힌다.
-
-   상점과 같은 이유의 같은 처방이다 (위의 .shop-inner 참고). */
+/* 낮은 화면에서는 줄을 좁힌다. 상점(.shop-inner)과 같은 이유의 같은 처방이다 —
+   고르는 줄이 화면 밖으로 밀리면 손가락에는 Esc 가 없으므로 창에 갇힌다. */
 @media (max-height: 720px) {
-  .camp-inner { padding: 16px 18px; max-height: 94vh; }
-  .camp-inner .ending-title { font-size: clamp(21px, 5vw, 26px); margin-bottom: 8px; }
-  .camp-inner .ending-body { font-size: 13px; line-height: 1.7; margin-bottom: 12px; }
-  .camp-inner .ending-choices { gap: 7px; }
-  .camp-inner .ending-pick { padding: 11px 14px; }
-  .camp-inner .ending-pick b { font-size: 15px; margin-bottom: 3px; }
+  .camp-inner .ending-choices { gap: 6px; }
+  .camp-inner .ending-pick { padding: 10px 12px; }
+  .camp-inner .ending-pick b { font-size: 13.5px; margin-bottom: 3px; }
   .camp-inner .ending-pick span { font-size: 11.5px; line-height: 1.55; }
-  .camp-inner .camp-grid .ending-pick { padding: 9px 8px; }
+  .camp-inner .camp-grid .ending-pick { padding: 9px 7px; }
 }
 
 /* 내가 남긴 말이 읽힌 횟수. 기록 줄 아래에 조용히 붙는다 —

@@ -410,35 +410,35 @@ const UI = {
   hideEnding() { document.getElementById('ending-screen').classList.add('hidden'); },
   endingOpen() { return !document.getElementById('ending-screen').classList.contains('hidden'); },
 
-  /* ---------- 장착 중인 장비 ---------- */
+  /* ---------- 가방을 여는 줄 ----------
+     예전에는 이 자리에 낌 장비 다섯과 능력치를 한 줄로 깔았다.
+     가방 창이 그 전부를 더 잘 보여 주므로 줄은 없애고 여는 버튼만 남겼다.
+     그 줄이 혼자 말하던 것(능력치 · 갖춰 입기 · 동행)은 가방을 열고
+     아무것도 안 골랐을 때 설명 칸이 대신 말한다 — paintBagDetail 참고. */
   updateGearStrip(player) {
-    const parts = SLOTS.map(slot => {
-      const g = player.gear[slot];
-      if (!g) return `<span class="g-slot"><i>${SLOT_NAME[slot]}</i><b class="g-empty">없음</b></span>`;
-      const c = RARITY[g.rarity].color;
-      const ic = this.gearIcon(g);
-      // 그림이 있을 때만 라벨에 g-lab 을 단다. 좁은 화면에서 이것만 숨겨
-      // 자리를 벌기 위해서다 — 빈 슬롯과 능력치는 라벨이 사라지면 안 읽힌다.
-      return `<span class="g-slot"><i${ic ? ' class="g-lab"' : ''}>${SLOT_NAME[slot]}</i>` +
-             (ic ? `<img class="g-ico" src="${ic}" alt="">` : '') +
-             `<b style="color:${c}">${gearFullName(g)}</b></span>`;
-    });
+    const n = document.getElementById('w-bag');
+    if (n) n.textContent = (state.bag || []).length;
+  },
+
+  /* 가방을 열었는데 아무것도 안 골랐을 때. 빈 칸으로 두면 아깝다 —
+     예전 장비 줄이 하던 일을 여기서 받는다. */
+  bagSummary(p) {
+    const s = p.stats;
+    const rows = [
+      `<div class="bag-sum-nums">공 ${s.atk} · 주 ${s.sp} · 방 ${s.def} · 마 ${s.md} · 속 ${s.spd}</div>`,
+    ];
     /* 갖춰 입은 것 — 몇 조각인지 보여야 「하나만 더」가 생긴다.
        한 조각뿐이면 안 적는다. 그건 아직 셋이 아니라 그냥 장비다. */
-    for (const [k, n] of Object.entries(wornSets(player))) {
+    for (const [k, n] of Object.entries(wornSets(p))) {
       if (n < 2) continue;
-      const s = SETS[k];
-      parts.push(`<span class="g-slot g-set"><i>${s.name}</i>` +
-                 `<b>${n}/${s.pieces.length}</b></span>`);
+      const set = SETS[k];
+      rows.push(`<div class="bag-sum-line">갖춰 입기 · <b>${set.name}</b> ${n}/${set.pieces.length}</div>`);
     }
-    // 곁에 있는 것 — 스탯이 왜 그런지 설명하는 자리라 능력치 옆에 둔다
     if (typeof PET !== 'undefined' && PET.has()) {
-      const d = PET.current();
-      parts.push(`<span class="g-slot"><i>동행</i><b style="color:var(--ember)">${d.name}</b></span>`);
+      rows.push(`<div class="bag-sum-line">동행 · <b>${PET.current().name}</b></div>`);
     }
-    const s = player.stats;
-    parts.push(`<span class="g-slot"><i>공${s.atk} 주${s.sp} 방${s.def} 마${s.md} 속${s.spd}</i></span>`);
-    this.el.gearStrip.innerHTML = parts.join('');
+    rows.push('<div class="hint">칸을 두드리면 무엇인지 보입니다.</div>');
+    return rows.join('');
   },
 
   /* ---------- 가방 ----------
@@ -509,7 +509,7 @@ const UI = {
       b.title = SLOT_NAME[s.id];
       b.dataset.slot = s.id;
       const ic = g ? this.gearIcon(g) : null;
-      if (ic) b.innerHTML = `<img style="${this.iconStyle(g, BAG_UI.cell - 3, 1)}" src="${ic}" alt="">`;
+      if (ic) b.innerHTML = `<img style="${this.iconStylePct(g, BAG_UI.cell, 1)}" src="${ic}" alt="">`;
       place(b, BAG_UI.equip, s.x, s.y);
       b.addEventListener('click', () => { this._bagPick = { where: 'worn', slot: s.id }; this.paintBag(); });
       eqBox.appendChild(b);
@@ -524,7 +524,9 @@ const UI = {
       b.dataset.bag = i;
       if (g) {
         const ic = this.gearIcon(g);
-        b.innerHTML = ic ? `<img style="${this.iconStyle(g, BAG_UI.cell - 3, 1)}" src="${ic}" alt="">`
+        /* 가방 칸은 화면에서 장착판 칸보다 크게 그려진다(한 줄로 넓게 깔아서다).
+           같은 비율로 채우면 같은 물건이 가방에서만 커 보이므로 여백을 더 준다. */
+        b.innerHTML = ic ? `<img style="${this.iconStylePct(g, BAG_UI.cell, 1, 6)}" src="${ic}" alt="">`
                          : '<span class="q">?</span>';
         b.addEventListener('click', () => { this._bagPick = { where: 'bag', i }; this.paintBag(); });
       }
@@ -542,10 +544,7 @@ const UI = {
     const box = this.el.bagDetail;
     const pick = this._bagPick;
     const p = state.player;
-    if (!pick) {
-      box.innerHTML = '<span class="hint">칸을 두드리면 무엇인지 보입니다.</span>';
-      return;
-    }
+    if (!pick) { box.innerHTML = this.bagSummary(p); return; }
     const g = pick.where === 'worn' ? p.gear[pick.slot] : (state.bag || [])[pick.i];
     if (!g) {
       box.innerHTML = '<span class="hint">비어 있습니다.</span>';
@@ -812,8 +811,11 @@ const UI = {
     this.el.game.classList.remove('hidden');
   },
   /* ---------- 캐릭터 선택 ----------
-     그림과 한 줄 설명, 그리고 여섯 스탯을 그대로 보여준다.
-     "빠름·강함" 같은 별점보다 숫자가 정직하고, 이 게임은 숫자로 굴러간다. */
+     그림과 한 줄 설명만 보여준다. 예전에는 여섯 숫자를 그대로
+     깔았는데, 고르는 자리에서 그 숫자로 할 수 있는 일이 없었다 —
+     첫 판에는 비교할 기준이 없고, 여러 번 올라 본 뒤에는 이미 안다.
+     그 사이에서 숫자는 「이 게임은 표를 읽는 게임」이라고 먼저 말해 버렸다.
+     무엇을 들고 어떻게 싸우는가는 아래 한 줄이 말한다. */
   renderHeroPick() {
     const box = document.getElementById('hero-pick');
     if (!box) return;
@@ -824,27 +826,16 @@ const UI = {
       const b = document.createElement('button');
       b.className = 'hero' + (h.id === cur.id ? ' on' : '');
       b.dataset.hero = h.id;
-      const s = h.base;
       // 그림은 대기 애니메이션의 첫 장을 쓴다 (열쇠가 hero.<id>.idle 이다)
       const sp = typeof SPRITES !== 'undefined' && SPRITES['hero.' + h.id + '.idle'];
       b.innerHTML =
         (sp ? `<img class="hero-img" src="${sp.f[0]}" alt="">` : '<span class="hero-img"></span>') +
-        `<span class="hero-name">${h.name}</span>` +
-        `<span class="hero-stat">체${s.maxHp} 공${s.atk}` +
-        (s.sp ? ` <em>주${s.sp}</em>` : '') +
-        ` 방${s.def} 속${s.spd}</span>`;
+        `<span class="hero-name">${h.name}</span>`;
       b.addEventListener('click', () => { chooseHero(h.id); this.renderHeroPick(); });
       box.appendChild(b);
     }
-    // 고른 사람의 수치는 아래에서 한 번 더 보여준다.
-    // 좁은 화면에서는 카드 안의 수치를 감추고 이쪽만 남긴다.
-    const s = cur.base;
     const say = document.getElementById('hero-say');
-    if (say) say.innerHTML =
-      `<b>${cur.line}</b><span>${cur.note}</span>` +
-      `<span class="hero-nums">체력 ${s.maxHp} · 공격 ${s.atk}` +
-      (s.sp ? ` · <em>주문 ${s.sp}</em>` : '') +
-      ` · 방어 ${s.def} · 마방 ${s.md} · 속도 ${s.spd}</span>`;
+    if (say) say.innerHTML = `<b>${cur.line}</b><span>${cur.note}</span>`;
   },
 
   /* ---------- 도감 ----------
@@ -900,6 +891,20 @@ const UI = {
     if (!s || !s.w || !s.h) return '';
     const k = Math.min(cap, box / s.w, box / s.h);
     return `width:${Math.round(s.w * k)}px;height:${Math.round(s.h * k)}px`;
+  },
+  /* 가방 판의 칸은 화면 크기를 따라 커진다(%로 놓으므로).
+     그래서 아이콘을 px 로 잡으면 50px 칸 안에 7px 짜리 그림이 놓인다 —
+     실제로 그랬고, 칸만 크고 안은 텔 빈 창이 됐다.
+
+     칸을 기준으로 **%로** 돌려준다. 넣을 상자(cell-3)에 맞추는 계산은
+     fitIcon 과 같으므로, 아이콘끼리의 크기 관계는 그대로 유지된다 —
+     작은 그림이 작게 보이는 것은 맞고, 칸보다 턱없이 작은 것이 틀렸다. */
+  iconStylePct(gear, cell, cap, inset) {
+    const s = !gear.unknown && typeof SPRITES !== 'undefined' && SPRITES['gear.' + gear.name];
+    if (!s || !s.w || !s.h) return '';
+    const box = cell - (inset == null ? 3 : inset);
+    const k = Math.min(cap, box / s.w, box / s.h);
+    return `width:${(s.w * k / cell * 100).toFixed(1)}%;height:${(s.h * k / cell * 100).toFixed(1)}%`;
   },
   gearThumb(gear) {
     const src = this.gearIcon(gear);

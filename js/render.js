@@ -1176,7 +1176,7 @@ const Render = {
        자리가 넓을 때 도트가 너무 굵어져 사람이 아니라 색 덩어리가 된다.
        옆에 칸들이 나란히 서 있으므로 그것과의 비율만 맞으면 제 크기로 읽힌다. */
     const cellPx = BAG_UI.cell * (cv.width / BAG_UI.equip.body.w);
-    const TS = Math.min(cellPx * 1.05, cv.width * 0.66, cv.height / (artH + 0.5));
+    const TS = Math.min(cellPx * 1.3, cv.width * 0.9, cv.height / (artH + 0.2));
     const old = CFG.TILE;
     CFG.TILE = TS;
     const px = (cv.width - TS) / 2;
