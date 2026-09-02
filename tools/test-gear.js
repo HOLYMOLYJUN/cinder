@@ -28,46 +28,42 @@ const UI_HEART_MAX = 12;      // js/ui.js 의 UI.HEART_MAX 와 같아야 한다
   await page.waitForTimeout(500);
 
   console.log('\n[ 장신구는 두 칸이다 ]');
+  /* 자리가 다섯으로 갈렸다 — 투구·방어구·신발·장신구·무기.
+     예전에는 장신구가 두 칸이라 「어느 쪽을 밀어낼까」를 물어야 했는데,
+     자리마다 하나씩이면 그 물음 자체가 없어진다. */
   const slots = await page.evaluate(() => {
     const p = state.player;
     for (const s of SLOTS) p.gear[s] = null;
-    const a = GEAR.find(g => g.name === '가죽 장화');
-    const c = GEAR.find(g => g.name === '부적');
-    const first = equipSlotFor(a, p);
-    p.gear[first] = makeGear(a);
-    const second = equipSlotFor(c, p);
-    p.gear[second] = makeGear(c);
     recalcStats(p);
-    // 둘 다 찼을 때 또 하나를 들면 값이 낮은 쪽이 밀린다
-    const third = equipSlotFor(GEAR.find(g => g.name === '날랜 장화'), p);
-    return {
-      count: SLOTS.filter(s => s.startsWith('trinket')).length,
-      first, second, third,
-      spd: p.stats.spd, md: p.stats.md,
-      cheaper: gearPrice(p.gear.trinket) < gearPrice(p.gear.trinket2) ? 'trinket' : 'trinket2',
-    };
-  });
-  check(slots.count === 2, `장신구 자리가 둘이다 (${slots.count})`);
-  check(slots.first !== slots.second, `둘을 같이 낀다 (${slots.first} + ${slots.second})`);
-  check(slots.third === slots.cheaper,
-        `둘 다 찼으면 값이 낮은 쪽이 밀린다 (${slots.third})`);
+    const bare = { spd: p.stats.spd, md: p.stats.md, def: p.stats.def };
 
-  const both = await page.evaluate(() => {
-    const p = state.player;
-    for (const s of SLOTS) p.gear[s] = null;
-    recalcStats(p);
-    const bare = { spd: p.stats.spd, md: p.stats.md };
-    // 값은 데이터에서 읽는다 — 숫자를 적어 두면 밸런스를 만질 때마다 검사가 깨진다
     const boot = GEAR.find(g => g.name === '가죽 장화');
     const amul = GEAR.find(g => g.name === '부적');
-    p.gear.trinket = makeGear(boot);
-    p.gear.trinket2 = makeGear(amul);
+    const helm = GEAR.find(g => g.name === '가죽 두건');
+    const where = {
+      boots: equipSlotFor(boot, p),
+      trinket: equipSlotFor(amul, p),
+      helm: equipSlotFor(helm, p),
+    };
+    p.gear[where.boots] = makeGear(boot);
+    p.gear[where.trinket] = makeGear(amul);
+    p.gear[where.helm] = makeGear(helm);
     recalcStats(p);
-    return { bare, spd: p.stats.spd, md: p.stats.md,
-             wantSpd: boot.mod.spd, wantMd: amul.mod.md };
+    return {
+      names: SLOTS.slice(),
+      where, bare,
+      spd: p.stats.spd, md: p.stats.md, def: p.stats.def,
+      wantSpd: boot.mod.spd, wantMd: amul.mod.md, wantDef: helm.mod.def,
+    };
   });
-  check(both.spd === both.bare.spd + both.wantSpd && both.md === both.bare.md + both.wantMd,
-        `두 칸이 모두 스탯에 얹힌다 (속도 +${both.wantSpd}, 마방 +${both.wantMd})`);
+  check(slots.names.length === 5, `자리가 다섯이다 — ${slots.names.join(' · ')}`);
+  check(slots.where.boots === 'boots', `장화는 신발 자리로 간다 (${slots.where.boots})`);
+  check(slots.where.trinket === 'trinket', `부적은 장신구 자리로 간다 (${slots.where.trinket})`);
+  check(slots.where.helm === 'helm', `두건은 투구 자리로 간다 (${slots.where.helm})`);
+  check(slots.spd === slots.bare.spd + slots.wantSpd &&
+        slots.md === slots.bare.md + slots.wantMd &&
+        slots.def === slots.bare.def + slots.wantDef,
+        `셋이 모두 스탯에 얹힌다 (속도 +${slots.wantSpd}, 마방 +${slots.wantMd}, 방어 +${slots.wantDef})`);
 
   console.log('\n[ 갖춰 입기 ]');
   const sets = await page.evaluate(() => {
@@ -140,46 +136,44 @@ const UI_HEART_MAX = 12;      // js/ui.js 의 UI.HEART_MAX 와 같아야 한다
 
   const poor = await page.evaluate(() => {
     state.gold = 0;
-    const opts = forgeOptions();
-    const gearRows = opts.filter(o => o.id !== 'leave');
-    return gearRows.length > 0 && gearRows.every(o => o.disabled);
+    // 대장장이가 제 창을 갖게 되면서 forgeOptions 가 forgeCards 로 바뀌었다.
+    // 「그만둔다」는 이제 목록이 아니라 창 아래 단추라 걸러 낼 것도 없다.
+    const cards = forgeCards();
+    return cards.length > 0 && cards.every(c => c.disabled);
   });
   check(poor, '골드가 없으면 두드릴 것이 전부 잠긴다');
 
   /* 모닥불은 일부러 닫는 키가 없다 — 불 앞에서 그냥 지나갈 수는 없어야 하니까.
-     그런데 대장장이가 그 창을 빌려 쓰면서 같이 갇혔다. 골드가 없으면 고를 것이
-     하나도 없는데 나갈 길도 없어서 판이 멈췄다. 상인이지 관문이 아니다. */
+     대장장이는 상인이지 관문이 아니라 나갈 수 있어야 한다. 예전에는 모닥불 창을
+     빌려 써서 같이 갇혔고, 골드가 없으면 판이 멈췄다. 지금은 제 창이 따로 있다. */
   const trapped = await page.evaluate(async () => {
     state.gold = 0;
     openForge();
-    const opened = UI.campOpen();
-    const canLeave = UI.campCanLeave();
-    const hasRow = forgeOptions().some(o => o.id === 'leave');
+    const opened = UI.forgeOpen();
 
-    // 손가락 — 「그만둔다」 줄을 눌러서 나간다
-    const rows = [...document.querySelectorAll('#camp-choices button')];
-    rows[rows.length - 1].click();
-    const afterTap = UI.campOpen();
+    // 손가락 — 「그만둔다」 단추로 나간다
+    document.getElementById('forge-close').click();
+    const afterTap = UI.forgeOpen();
 
     // 자판 — Esc 로도 나간다
     openForge();
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
     document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
     await new Promise(r => setTimeout(r, 60));
-    const afterEsc = UI.campOpen();
-    UI.hideCamp();
+    const afterEsc = UI.forgeOpen();
+    UI.hideForge();
 
-    // 모닥불은 여전히 못 나간다
+    // 모닥불은 여전히 못 나간다 — 그건 관문이 맞다
     state.campSpot = { x: state.player.x, y: state.player.y };
     UI.showCamp(campOptions(), pickCamp);
     const campLeave = UI.campCanLeave();
     UI.hideCamp();
-    return { opened, canLeave, hasRow, afterTap, afterEsc, campLeave };
+    return { opened, afterTap, afterEsc, campLeave };
   });
-  check(trapped.opened && trapped.hasRow, '골드가 없어도 「그만둔다」 줄은 있다');
-  check(!trapped.afterTap, '그 줄을 누르면 나가진다');
-  check(trapped.canLeave && !trapped.afterEsc, 'Esc 로도 나가진다');
-  check(!trapped.campLeave, '모닥불은 그대로 못 나간다 — 거기는 고르는 자리다');
+  check(trapped.opened, '대장장이 창이 뜬다');
+  check(!trapped.afterTap, '「그만둔다」로 나가진다 — 손가락에는 Esc 가 없다');
+  check(!trapped.afterEsc, 'Esc 로도 나가진다');
+  check(!trapped.campLeave, '모닥불은 여전히 못 나간다 (그건 관문이 맞다)');
 
   console.log('\n[ 매대를 다시 깐다 ]');
   const reroll = await page.evaluate(() => {

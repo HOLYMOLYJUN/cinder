@@ -9,31 +9,36 @@
    이게 물리/마법 노선이 갈리는 유일한 장치다.
    ========================================================= */
 
-/* 몸에 걸치는 자리. 장신구는 둘이다 —
-   장신구는 원래 성격을 정하는 물건인데 한 칸뿐일 때는 「제일 센 것 하나」로
-   끝나서 고를 일이 없었다. 둘이면 속도와 마방을 같이 갈지, 한쪽에 몰지가 갈린다.
+/* 몸에 걸치는 자리 다섯. 투구 · 방어구 · 신발 · 장신구 · 무기.
 
-   장비의 `slot` 은 「어떤 종류인가」이고, 여기 이름은 「몸의 어느 자리인가」다.
-   장신구 하나가 trinket 과 trinket2 중 어디로 가는지는 equipSlotFor 가 정한다. */
-const SLOTS = ['weapon', 'armor', 'trinket', 'trinket2'];
+   예전에는 넷이었고 그중 둘이 똑같은 「장신구」였다. 같은 칸이 둘이면 각 칸에
+   성격이 없어서 「둘 다 제일 센 것」으로 끝난다 — 화면에도 「장신구 없음」이
+   두 번 떴다. 신발과 장신구로 가르고 투구를 새로 두면 다섯 자리가 다 다른
+   물음을 던진다: 머리를 지킬까 · 몸을 지킬까 · 빨라질까 · 무엇을 더할까 · 무엇을 들까.
 
-const SLOT_NAME = { weapon: '무기', armor: '방어구', trinket: '장신구', trinket2: '장신구' };
-const SLOT_GLYPH = { weapon: ')', armor: ']', trinket: '=', trinket2: '=' };
+   장비의 `slot` 이 곧 몸의 자리다 (예전에는 장신구만 둘로 갈라져서 달랐다). */
+const SLOTS = ['helm', 'armor', 'boots', 'trinket', 'weapon'];
 
-// 이 장비가 들어갈 수 있는 몸의 자리들
+const SLOT_NAME = { helm: '투구', armor: '방어구', boots: '신발', trinket: '장신구', weapon: '무기' };
+const SLOT_GLYPH = { helm: '^', armor: ']', boots: 'u', trinket: '=', weapon: ')' };
+
+/* 장신구 두 칸(trinket·trinket2)을 신발과 장신구로 갈랐다.
+
+   같은 칸이 둘일 때는 각 칸에 성격이 없었다 — 화면에 「장신구 없음 장신구 없음」이
+   두 번 뜨고, 무엇을 낄지가 「둘 다 제일 센 것」으로 끝났다. 자리로 가르면
+   「속도를 챙길까 마방을 챙길까」가 칸으로 갈린다.
+
+   투구는 새로 생긴 자리다. 방어구 하나로 몸 전체를 덮던 것을 머리와 몸으로
+   나눈 셈인데, 그만큼 방어구 하나하나의 값은 낮게 잡는다 (아래 GEAR 참고). */
 function slotsFor(kind) {
-  return kind === 'trinket' ? ['trinket', 'trinket2'] : [kind];
+  return [kind];
 }
 
 /* 이 장비를 끼면 어느 자리에 들어가는가.
-   빈 자리가 있으면 거기로, 둘 다 찼으면 **값이 낮은 쪽**을 밀어낸다 —
-   어느 쪽을 뺄지 또 묻는 창을 띄우면, 인벤토리를 없앤 이유가 사라진다. */
+   자리마다 한 칸씩이라 고를 것이 없다 — 예전에는 장신구가 두 칸이라
+   「어느 쪽을 밀어낼까」를 여기서 정해야 했다. */
 function equipSlotFor(gear, player) {
-  const cand = slotsFor(gear.slot);
-  if (cand.length === 1) return cand[0];
-  for (const s of cand) if (!player.gear[s]) return s;
-  return cand.reduce((a, b) =>
-    gearPrice(player.gear[b]) < gearPrice(player.gear[a]) ? b : a);
+  return slotsFor(gear.slot)[0];
 }
 
 // 등급 — '고대의' 가 희귀 등급이고, 나중에 기억을 되찾는 계기가 된다
@@ -100,24 +105,43 @@ const GEAR = [
   { slot:'weapon', kind:'staff', name:'주술 지팡이', min:5,  rarity:'fine',    mod:{ sp:12, md:1 } },
   { slot:'weapon', kind:'staff', name:'재의 지팡이', min:9,  rarity:'ancient', mod:{ sp:18, md:3 } },
 
-  // ---- 방어구 ----
+  /* ---- 투구 ----
+     새로 생긴 자리다. 몸 하나로 덮던 것을 머리와 몸으로 나눈 셈이므로
+     **방어구 쪽 값을 그만큼 낮춘다** — 안 낮추면 방어가 통째로 한 단계 오른다.
+     투구는 방어구보다 얇게, 대신 마방을 조금 얹는다. 머리를 지키는 것이
+     물리보다 「알아채는 것」에 가깝다는 쪽이 이 게임의 결에 맞는다. */
+  { slot:'helm',   name:'가죽 두건',   min:1,  rarity:'common',  mod:{ def:1 } },
+  { slot:'helm',   name:'쇠 투구',     min:4,  rarity:'common',  mod:{ def:2, spd:-1 } },
+  { slot:'helm',   name:'마법사 후드', min:3,  rarity:'common',  mod:{ md:3 } },
+  { slot:'helm',   name:'뿔 투구',     min:7,  rarity:'fine',    mod:{ def:4, spd:-1 } },
+  { slot:'helm',   name:'어둠의 후드', min:7,  rarity:'fine',    mod:{ md:5, sp:1 } },
+  { slot:'helm',   name:'재의 투구',   min:9,  rarity:'ancient', mod:{ def:3, md:4 } },
+
+  /* ---- 방어구 ----
+     투구가 생기면서 값을 한 단계씩 낮췄다. 머리와 몸을 합친 값이
+     예전 방어구 하나쯤 되게 맞춘 것이다. */
   { slot:'armor',  name:'가죽 갑옷',   min:1,  rarity:'common',  mod:{ def:2 } },
-  { slot:'armor',  name:'사슬 갑옷',   min:3,  rarity:'common',  mod:{ def:4, spd:-1 } },
-  { slot:'armor',  name:'마법사 로브', min:3,  rarity:'common',  mod:{ md:4, sp:1 } },
-  { slot:'armor',  name:'판금 갑옷',   min:7,  rarity:'fine',    mod:{ def:7, spd:-2 } },
-  { slot:'armor',  name:'수호의 로브', min:7,  rarity:'fine',    mod:{ md:7, sp:2 } },
-  { slot:'armor',  name:'그을린 갑옷', min:6,  rarity:'ancient', mod:{ def:5, md:3 } },
-  { slot:'armor',  name:'재의 외투',   min:10, rarity:'ancient', mod:{ def:6, md:6 } },
+  { slot:'armor',  name:'사슬 갑옷',   min:3,  rarity:'common',  mod:{ def:3, spd:-1 } },
+  { slot:'armor',  name:'마법사 로브', min:3,  rarity:'common',  mod:{ md:3, sp:1 } },
+  { slot:'armor',  name:'판금 갑옷',   min:7,  rarity:'fine',    mod:{ def:5, spd:-2 } },
+  { slot:'armor',  name:'수호의 로브', min:7,  rarity:'fine',    mod:{ md:5, sp:2 } },
+  { slot:'armor',  name:'그을린 갑옷', min:6,  rarity:'ancient', mod:{ def:4, md:2 } },
+  { slot:'armor',  name:'재의 외투',   min:10, rarity:'ancient', mod:{ def:5, md:5 } },
+
+  /* ---- 신발 ----
+     장신구에서 갈라져 나온 자리. 여기는 **속도가 사는 곳**이다 —
+     속도는 이 게임에서 곧 생존이라(chill 이 체력보다 아픈 이유가 그것이다)
+     한 자리를 통째로 주면 「빨라질까 버틸까」가 장비 고르는 축이 된다. */
+  { slot:'boots',  name:'가죽 장화',   min:1,  rarity:'common',  mod:{ spd:2 } },
+  { slot:'boots',  name:'무거운 장화', min:4,  rarity:'common',  mod:{ def:2, spd:-1 } },
+  { slot:'boots',  name:'날랜 장화',   min:6,  rarity:'fine',    mod:{ spd:3 } },
+  { slot:'boots',  name:'재의 장화',   min:9,  rarity:'ancient', mod:{ spd:4, md:2 } },
 
   /* ---- 장신구 ----
-     자리가 둘로 늘면서 값을 낮췄다. 두 칸을 준 것은 **고를 것을 늘리려는 것**이지
-     세지게 하려는 것이 아니다 — 그대로 두었더니 클리어율이 기사 57→73%,
-     드워프 50→88%, 마법사 79→98% 가 됐다. 판이 쉬워진 게 아니라 없어졌다.
-     둘을 합쳐서 예전 한 칸쯤 되게 맞췄다. */
-  { slot:'trinket', name:'가죽 장화',  min:1,  rarity:'common',  mod:{ spd:2 } },
+     신발이 빠져나가면서 여기는 마방·체력·주문만 남았다. 성격이 하나로
+     모이니 「무엇을 더할까」가 또렷해진다. */
   { slot:'trinket', name:'부적',       min:2,  rarity:'common',  mod:{ md:2 } },
   { slot:'trinket', name:'생명의 반지',min:4,  rarity:'common',  mod:{ maxHp:6 } },
-  { slot:'trinket', name:'날랜 장화',  min:6,  rarity:'fine',    mod:{ spd:3 } },
   { slot:'trinket', name:'수정 목걸이',min:6,  rarity:'fine',    mod:{ md:3, sp:2 } },
   { slot:'trinket', name:'등불지기의 반지', min:10, rarity:'ancient', mod:{ maxHp:8, md:2, sp:2 } },
 

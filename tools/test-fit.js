@@ -104,9 +104,10 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       enterFloor(3); UI.closeIntro();
       state.gold = 400;
       const pl = state.player;
+      pl.gear.helm = makeGear(GEAR.find(g => g.name === '가죽 두건'));
       pl.gear.armor = makeGear(GEAR.find(g => g.name === '사슬 갑옷'));
+      pl.gear.boots = makeGear(GEAR.find(g => g.name === '가죽 장화'));
       pl.gear.trinket = makeGear(GEAR.find(g => g.name === '부적'));
-      pl.gear.trinket2 = makeGear(GEAR.find(g => g.name === '가죽 장화'));
       recalcStats(pl);
       openForge();
       const inner = document.querySelector('.forge-inner');
@@ -114,15 +115,18 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
       const leave = document.getElementById('forge-close');
       const ib = inner.getBoundingClientRect(), lb = leave.getBoundingClientRect();
       const cards = [...grid.children];
-      // 넷이 같은 줄에 있는가 — 가로 배치가 이 창의 전부다
+      /* 넓은 화면에서는 다섯이 한 줄, 좁은 화면(560px 밑)에서는 두 줄로 접힌다 —
+         한 줄을 지키자고 글자를 못 읽게 만드는 것은 거꾸로다. 어느 쪽이든
+         **줄 수가 둘을 넘으면 안 된다**. */
       const tops = cards.map(c => Math.round(c.getBoundingClientRect().top));
-      return { cards: cards.length,
-               oneRow: tops.every(t => t === tops[0]),
+      const rowN = new Set(tops).size;
+      return { cards: cards.length, rowN,
+               oneRow: rowN <= (window.innerWidth <= 560 ? 2 : 1),
                fits: ib.height <= window.innerHeight + 1,
                leaveVisible: lb.bottom <= ib.bottom + 1 && lb.top >= ib.top - 1 };
     });
-    check(r.cards === 4, `${w}x${h} ${name} — 자리 넷이 나온다 (${r.cards})`);
-    check(r.oneRow, `${w}x${h} — 넷이 한 줄에 눕는다`);
+    check(r.cards === 5, `${w}x${h} ${name} — 자리 다섯이 나온다 (${r.cards})`);
+    check(r.oneRow, `${w}x${h} — ${r.rowN}줄로 눕는다 (좁으면 둘까지 허용)`);
     check(r.fits && r.leaveVisible, `${w}x${h} — 창이 다 들어오고 「그만둔다」가 보인다`);
     await p.close();
   }

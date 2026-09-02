@@ -105,6 +105,7 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 | `assets/tileset-sewers/` | 11층부터의 하수도 배경 | [0x72 Sewers v0.3](https://0x72.itch.io/16x16-dungeontileset-ii-sewers) · CC0 (**유료 $2**) |
 | `assets/animals/` | 따라오는 것들 | Basic Asset Pack |
 | `assets/npc/` | 대장장이 · 되짚기의 아이 (NPC 26종 중) | Fantasy RPG NPCs · **무료 · 상업적 이용 가능 · 출처 표기 불필요** |
+| `assets/items/` | 투구·갑옷·신발·장신구 | 아이템 시트 176칸 중 22칸 · **상업 이용·수정 가능 · 출처 표기 불필요** |
 
 > NPC 팩은 원본이 `.rar` 한 덩이다. 풀어 놓은 `assets/npc/frames/` 는 저장소에 안 남긴다
 > (`.gitignore`) — rar 에서 언제든 다시 나오고, 371장 중 쓰는 것은 여덟 장뿐이다.
@@ -116,6 +117,7 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 node tools/make-icons.js       # → assets/icons/ (팩에 없는 갑옷·장신구 18장)
 node tools/slice-atlas.js      # → assets/tileset-sewers/frames/ (아틀라스에서 쓸 칸만)
 node tools/cut-npc.js          # → assets/npc/cut/ (NPC 팩의 여백을 잘라 격자에 맞춘다)
+node tools/slice-itemset.js    # → assets/items/ (아이템 시트에서 쓸 칸만 뗀다)
 node tools/make-splash.js      # → assets/splash/ (홈 화면에서 열 때 뜨는 그림 36장)
 node tools/pack-sprites.js     # → js/sprites.js (162KB, 378장)
 ```

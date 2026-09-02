@@ -758,10 +758,14 @@ canvas#view {
    상인의 틀(.shop-inner)을 그대로 쓴다. 여기만의 것은 격자뿐이다. */
 #forge-modal { background: rgba(7,5,4,.93); z-index: 45; }
 
-/* 자리 넷이 가로로 눕는다 — 무기 · 방어구 · 장신구 · 장신구.
-   목록이 아니라 몸이라서다. 세로로 쌓으면 폰에서 다섯 줄이 화면을 다 먹었다. */
+/* 자리 다섯이 가로로 눕는다 — 투구 · 방어구 · 신발 · 장신구 · 무기.
+   목록이 아니라 몸이라서다. 세로로 쌓으면 폰에서 화면을 다 먹었다.
+
+   폰에서 다섯 칸은 한 칸이 60px 남짓이라 이름이 석 줄로 접힌다. 그래서
+   좁은 화면에서는 두 줄(3+2)로 접는다 — 한 줄을 지키자고 글자를 못 읽게
+   만드는 것은 거꾸로다. */
 .forge-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   gap: 8px; margin-bottom: 20px;
 }
 .forge-card {
@@ -805,7 +809,7 @@ canvas#view {
 }
 
 @media (max-width: 560px) {
-  .forge-grid { gap: 5px; }
+  .forge-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
   .forge-card { padding: 9px 4px 8px; }
   .forge-card .nm { font-size: 11px; }
 }

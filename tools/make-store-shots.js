@@ -84,7 +84,7 @@ const stage = (depth, opts) => `(() => {
   /* 자리마다 하나씩 확실히 채운다. 굴린 것을 그대로 두면 같은 자리가 거듭 나와
      방어구 칸이 빈 채로 찍히는데, 그건 「아직 아무것도 없는 게임」으로 읽힌다. */
   for (const slot of SLOTS) {
-    const want = slot === 'trinket2' ? 'trinket' : slot;
+    const want = slot;
     for (let i = 0; i < 300; i++) {
       const g = rollGear(${depth} + 2, 4);
       if (!g || g.slot !== want) continue;

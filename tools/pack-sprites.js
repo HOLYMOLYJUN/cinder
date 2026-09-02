@@ -34,10 +34,13 @@ const FRAMES_PETS = path.join(ROOT, 'assets', 'animals', 'frames');
 /* NPC 팩 (Fantasy RPG NPCs). 32x32 캔버스 가운데 몸이 서 있는 그림이라
    tools/cut-npc.js 가 여백을 잘라 여기 둔다 — 자동 생성이고 고칠 곳은 그쪽이다. */
 const FRAMES_NPC = path.join(ROOT, 'assets', 'npc', 'cut');
+/* 아이템 시트에서 뗀 것 (tools/slice-itemset.js). 갑옷·신발·장신구·투구가
+   여기서 온다 — 예전에는 make-icons.js 가 직접 그렸는데 종류가 모자랐다. */
+const FRAMES_ITEMS = path.join(ROOT, 'assets', 'items');
 
 // 같은 이름이면 원본(v1.7)이 이긴다 — 확장 팩 쪽이 구버전이라 몇 픽셀 다르다.
 function findFrame(file) {
-  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS, FRAMES_NPC]) {
+  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS, FRAMES_NPC, FRAMES_ITEMS]) {
     const p = path.join(dir, file);
     if (fs.existsSync(p)) return p;
   }
@@ -224,21 +227,33 @@ const GEAR_ICONS = {
   '나무 지팡이': 'weapon_baton_with_spikes',
   '주술 지팡이': 'weapon_red_magic_staff',
   '재의 지팡이': 'icon_staff_ash',
-  '가죽 갑옷':   'icon_armor_leather',
-  '사슬 갑옷':   'icon_armor_chain',
+  // ---- 투구 (새 자리) ----
+  '가죽 두건':   'item_helm_leather',
+  '쇠 투구':     'item_helm_plate',
+  '마법사 후드': 'item_hood_cloth',
+  '뿔 투구':     'item_helm_horned',
+  '어둠의 후드': 'item_hood_dark',
+  '재의 투구':   'item_helm_ash',
+  // ---- 방어구 ----
+  '가죽 갑옷':   'item_armor_leather',
+  '사슬 갑옷':   'item_armor_chain',
   '마법사 로브': 'icon_robe_blue',
-  '판금 갑옷':   'icon_armor_plate',
+  '판금 갑옷':   'item_armor_plate',
   '수호의 로브': 'icon_robe_teal',
-  '그을린 갑옷': 'icon_armor_burnt',
+  '그을린 갑옷': 'item_armor_red',
   '재의 외투':   'icon_robe_ash',
-  '가죽 장화':   'icon_boots_leather',
-  '부적':        'icon_amulet',
-  '생명의 반지': 'icon_ring_red',
-  '날랜 장화':   'icon_boots_swift',
-  '수정 목걸이': 'icon_amulet_crystal',
-  '등불지기의 반지': 'icon_ring_ember',
-  '재의 부적':   'icon_amulet_ash',
   '재의 조끼':   'icon_armor_ash',
+  // ---- 신발 ----
+  '가죽 장화':   'item_boots_brown',
+  '무거운 장화': 'item_boots_grey',
+  '날랜 장화':   'item_boots_blue',
+  '재의 장화':   'item_boots_red',
+  // ---- 장신구 ----
+  '부적':        'item_amulet_gold',
+  '생명의 반지': 'item_ring_gem',
+  '수정 목걸이': 'item_amulet_teal',
+  '등불지기의 반지': 'item_ring_gold',
+  '재의 부적':   'item_amulet_red',
 };
 for (const [name, file] of Object.entries(GEAR_ICONS)) {
   MANIFEST['gear.' + name] = [file + '.png'];
