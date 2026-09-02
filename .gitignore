@@ -17,3 +17,7 @@ keystore.properties
 
 .DS_Store
 Thumbs.db
+
+# NPC 팩 압축을 푼 것 — rar 에서 다시 나온다. 쓰는 것만 tools/cut-npc.js 가
+# assets/npc/cut/ 에 잘라 두고, 그쪽은 저장소에 남는다 (하수도 팩과 같은 규칙).
+assets/npc/frames/

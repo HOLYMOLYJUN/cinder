@@ -31,10 +31,13 @@ const FRAMES_CUSTOM = path.join(ROOT, 'assets', 'custom', 'frames');
 const FRAMES_SEWERS = path.join(ROOT, 'assets', 'tileset-sewers', 'frames');
 // 따라오는 것들 (Basic Asset Pack). 가로 한 줄 시트라 slice-atlas.js 가 네 장으로 뗀다.
 const FRAMES_PETS = path.join(ROOT, 'assets', 'animals', 'frames');
+/* NPC 팩 (Fantasy RPG NPCs). 32x32 캔버스 가운데 몸이 서 있는 그림이라
+   tools/cut-npc.js 가 여백을 잘라 여기 둔다 — 자동 생성이고 고칠 곳은 그쪽이다. */
+const FRAMES_NPC = path.join(ROOT, 'assets', 'npc', 'cut');
 
 // 같은 이름이면 원본(v1.7)이 이긴다 — 확장 팩 쪽이 구버전이라 몇 픽셀 다르다.
 function findFrame(file) {
-  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS]) {
+  for (const dir of [FRAMES, FRAMES_EXT, ICONS, FRAMES_CUSTOM, FRAMES_SEWERS, FRAMES_PETS, FRAMES_NPC]) {
     const p = path.join(dir, file);
     if (fs.existsSync(p)) return p;
   }
@@ -104,7 +107,9 @@ const CHARACTERS = {
   keeper:      'knight_m',      // 당신의 얼굴을 하고 있다 — 같은 그림에 불빛을 입힌다
   // 상인과 대장장이 — 둘 다 안식처에 선다. 한눈에 갈려야 해서 그림을 멀리 잡았다
   merchant:    'dwarf_m',
-  smith:       'knight_f',
+  /* 오래 여기사(knight_f)가 서 있었다 — 팩에 대장장이가 없어서였다.
+     NPC 팩이 생기면서 진짜 대장장이로 갈았다 (tools/cut-npc.js 가 잘라 둔 것). */
+  smith:       'blacksmith',
 };
 
 const MANIFEST = {};
