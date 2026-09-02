@@ -93,8 +93,8 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 
 ## 에셋
 
-세 곳에서 온다. **출처가 다르므로 폴더를 섞지 않는다** — `tools/pack-sprites.js` 의 `findFrame` 이
-네 폴더를 차례로 뒤지므로, 새 그림을 넣을 때 CC0 원본 자리에 끼워 넣을 이유가 없다.
+여러 곳에서 온다. **출처가 다르므로 폴더를 섞지 않는다** — `tools/pack-sprites.js` 의 `findFrame` 이
+폴더를 차례로 뒤지므로, 새 그림을 넣을 때 CC0 원본 자리에 끼워 넣을 이유가 없다.
 
 | 폴더 | 무엇 | 출처 |
 |---|---|---|
@@ -103,14 +103,26 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 | `assets/icons/` | 갑옷·로브·장화·목걸이·반지·재의 지팡이·재의 활 | `tools/make-icons.js` 로 우리가 그림 |
 | `assets/custom/frames/` | 용 | 우리가 따로 만든 것 |
 | `assets/tileset-sewers/` | 11층부터의 하수도 배경 | [0x72 Sewers v0.3](https://0x72.itch.io/16x16-dungeontileset-ii-sewers) · CC0 (**유료 $2**) |
+| `assets/animals/` | 따라오는 것들 | Basic Asset Pack |
+| `assets/npc/` | 대장장이 (NPC 26종 중) | Fantasy RPG NPCs · **무료 · 상업적 이용 가능 · 출처 표기 불필요** |
+
+> NPC 팩은 원본이 `.rar` 한 덩이다. 풀어 놓은 `assets/npc/frames/` 는 저장소에 안 남긴다
+> (`.gitignore`) — rar 에서 언제든 다시 나오고, 371장 중 쓰는 것은 여덟 장뿐이다.
+> 쓰는 것만 `tools/cut-npc.js` 가 잘라 `assets/npc/cut/` 에 둔다. 하수도 팩과 같은 규칙이다.
 
 원본은 건드리지 않고, 쓰는 것만 골라 `js/sprites.js` 로 굽는다.
 
 ```bash
-node tools/make-icons.js       # → assets/icons/ (팩에 없는 갑옷·장신구 17장)
+node tools/make-icons.js       # → assets/icons/ (팩에 없는 갑옷·장신구 18장)
 node tools/slice-atlas.js      # → assets/tileset-sewers/frames/ (아틀라스에서 쓸 칸만)
-node tools/pack-sprites.js     # → js/sprites.js (143KB, 337장)
+node tools/cut-npc.js          # → assets/npc/cut/ (NPC 팩의 여백을 잘라 격자에 맞춘다)
+node tools/pack-sprites.js     # → js/sprites.js (162KB, 378장)
 ```
+
+**NPC 팩에도 한 단계가 붙는다.** 이쪽은 32x32 캔버스 가운데에 몸이 서 있는데
+실제 몸은 14x21 이라, 그대로 넣으면 투명 여백만큼 떠 보이고 두 칸을 먹는다.
+`tools/cut-npc.js` 가 여백을 잘라 낸다 — **네 프레임의 합집합 상자로 자르는 것이 요령이다.**
+프레임마다 따로 자르면 팔이 흔들릴 때 상자가 변해서 애니메이션이 덜덜 떨린다.
 
 **하수도 팩만 한 단계가 더 붙는다.** 이쪽은 바닥·벽이 낱장이 아니라 아틀라스 한 장에
 붙어 있어서, `pack-sprites.js` 의 `findFrame` 이 찾을 수 있는 모양으로 먼저 잘라야 한다.
