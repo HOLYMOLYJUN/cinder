@@ -1707,9 +1707,26 @@ npm run app:aab      # build:app → cap sync → gradlew bundleRelease
 ```
 
 나온 자리: `android/app/build/outputs/bundle/release/app-release.aab`
+끝에 **서명이 붙었는지**를 알려준다 — 미서명 AAB 는 스토어가 안 받는데,
+그걸 업로드해 보고 알면 매번 한 바퀴 돈다.
 
-> `gradlew` 를 그대로 부르므로 이 스크립트는 윈도우 기준이다.
-> 다른 데서는 `cd android && ./gradlew bundleRelease` 로 부른다.
+#### 왜 `gradlew` 를 그냥 안 부르는가
+
+`tools/aab.js` 가 가운데 끼어 있다. 세 가지를 대신한다.
+
+**자바 버전.** Capacitor 8 의 `capacitor-android` 는 자바 21로 컴파일된다.
+이 기계의 `JAVA_HOME` 은 17이라 그냥 부르면 `error: invalid source release: 21` 로
+죽는다. **안드로이드 스튜디오는 자기가 품은 JBR 로 빌드하므로 멀쩡하다** —
+그래서 명령줄에서만, 하필 올리기 직전에 터진다.
+저장소에 경로를 박을 만한 자리가 없어서(그 경로는 이 기계에만 있다)
+**부를 때 찾아 이 명령에만 씌운다.**
+
+**윈도우의 함정 둘.** 둘 다 실제로 밟았다:
+- `cwd` 를 줘도 셸은 거기서 명령을 안 찾는다(PATH 에서 찾는다) → 전체 경로로 부른다
+- 노드는 보안 때문에 `.bat` 을 셸 없이 안 돌린다 → `shell` 을 켜야 한다
+
+그런데 셸을 켜면 인자를 따옴표로 안 감싸서 **빈칸 든 경로가 쪼개진다**
+(`C:\Program Files\...`). 그래서 경로를 직접 따옴표로 씌워 넘긴다.
 
 **올릴 때마다 `versionCode` 를 올려야 한다** (`android/app/build.gradle`). 같은 번호는
 콘솔이 거부한다. `versionName` 은 사람이 읽는 것이라 아무 때나 바꿔도 된다.
