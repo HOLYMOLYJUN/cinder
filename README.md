@@ -1682,6 +1682,38 @@ non-ASCII characters`). `C:\Users\...\Desktop\개인\game\cinder` 같은 자리�
 `android/` 는 `npx cap add android` 가 만든 것이고 저장소에 들어 있다.
 Capacitor 가 자기 `.gitignore` 를 함께 깔아서 복사된 웹 자산과 생성 설정은 빠져 있다.
 
+### 서명과 AAB
+
+키는 저장소에 안 들어간다. `android/keystore.properties` 에 적고, 그 파일과 `*.jks`
+`*.keystore` 는 `.gitignore` 가 막는다. 생김새는 `android/keystore.properties.example` 에 있다.
+
+```properties
+storeFile=C:/keys/cinder.jks     # android/ 기준 상대경로도 되고 절대경로도 된다
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+**파일이 없으면 서명 설정 자체를 안 만든다.** 키 없이 받은 사람도 디버그 빌드와
+검사를 그대로 돌릴 수 있어야 해서다 — 키를 못 찾아 빌드가 통째로 죽으면 키와
+상관없는 일까지 막힌다. 붙었는지는 이걸로 본다:
+
+```bash
+cd android && ./gradlew :app:signingReport     # release 의 Config 가 null 이 아니면 붙은 것
+```
+
+```bash
+npm run app:aab      # build:app → cap sync → gradlew bundleRelease
+```
+
+나온 자리: `android/app/build/outputs/bundle/release/app-release.aab`
+
+> `gradlew` 를 그대로 부르므로 이 스크립트는 윈도우 기준이다.
+> 다른 데서는 `cd android && ./gradlew bundleRelease` 로 부른다.
+
+**올릴 때마다 `versionCode` 를 올려야 한다** (`android/app/build.gradle`). 같은 번호는
+콘솔이 거부한다. `versionName` 은 사람이 읽는 것이라 아무 때나 바꿔도 된다.
+
 ### 올리기 전에 반드시
 
 - **`capacitor.config.js` 의 `appId` 는 영원하다.** 한 번 올리면 못 바꾼다
