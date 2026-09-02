@@ -116,6 +116,7 @@ assets/tileset/ 원본 그림 (0x72 Dungeon Tileset II v1.7)
 node tools/make-icons.js       # → assets/icons/ (팩에 없는 갑옷·장신구 18장)
 node tools/slice-atlas.js      # → assets/tileset-sewers/frames/ (아틀라스에서 쓸 칸만)
 node tools/cut-npc.js          # → assets/npc/cut/ (NPC 팩의 여백을 잘라 격자에 맞춘다)
+node tools/make-splash.js      # → assets/splash/ (홈 화면에서 열 때 뜨는 그림 36장)
 node tools/pack-sprites.js     # → js/sprites.js (162KB, 378장)
 ```
 
@@ -1580,6 +1581,7 @@ node tools/test-story.js    # 되짚기 — 결말보다 먼저 흐르는지, �
                             #          그리고 리자드의 독
 node tools/test-potion.js   # 물약 — 회복량·소지 한도·주머니가 매대에 나오고 늘어나는지
 node tools/test-tags.js     # 층 성격 — 문구만이 아니라 판이 실제로 바뀌는지
+node tools/test-splash.js   # 홈 화면 스플래시 — 기기마다 정확히 한 장이 걸리는지
 node tools/test-fit.js      # 작은 폰 — 고르는 창이 잘리지 않는지(나가는 줄이 특히),
                             #          확성기를 닫아도 한 마디가 남는지
 node tools/test-reach.js    # 무기 갈래 — 검이 셋을 쓸고, 창이 두 칸을 찌르고,
