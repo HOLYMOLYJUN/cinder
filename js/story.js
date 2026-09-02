@@ -466,10 +466,18 @@ const Story = {
         this.put(c, hero, cx - T * 0.6, feet, T, f4);
         break;
 
-      case 'small':                           // 어른 앞에 선 아주 작은 하나
+      /* 어른 앞에 선 아주 작은 하나.
+
+         예전에는 주인공을 0.62배로 줄여 세웠다. 그러면 아이가 나와 똑같이
+         생기는데, 그건 「작아진 나」이지 다른 사람이 아니다. 게다가 이 게임에는
+         **당신의 얼굴을 한 것이 이미 하나 있다** — 최종 보스 등불지기다.
+         아이까지 내 얼굴이면 그 장치가 묽어진다.
+
+         이제는 실루엣이 다른 그림을 줄인다. 크기보다 그게 먼저다. */
+      case 'small':
         this.put(c, 'stairs', cx + T * 2.4, floorTop + T, T);
         this.put(c, hero, cx - T * 1.4, feet, T, f4);
-        this.put(c, hero, cx + T * 1.1, feet, T * 0.62, f4, 0.92);
+        this.put(c, 'child.idle', cx + T * 1.1, feet, T * 0.62, f4, 0.92);
         this.glow(c, cx + T * 1.1, feet - T * 0.6, T * 1.8, 0.12);
         break;
 

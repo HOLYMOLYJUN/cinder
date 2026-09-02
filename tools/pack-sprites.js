@@ -110,6 +110,8 @@ const CHARACTERS = {
   /* 오래 여기사(knight_f)가 서 있었다 — 팩에 대장장이가 없어서였다.
      NPC 팩이 생기면서 진짜 대장장이로 갈았다 (tools/cut-npc.js 가 잘라 둔 것). */
   smith:       'blacksmith',
+  // 되짚기의 「첫 번째 이름」 — 왜 연금술사인지는 tools/cut-npc.js 참고
+  child:       'child',
 };
 
 const MANIFEST = {};
