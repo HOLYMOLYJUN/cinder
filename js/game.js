@@ -107,6 +107,8 @@ function startRun() {
   state.usedMelee = false;
   state.usedRanged = false;
   state.couldRanged = false;     // 쏠 수 있는 상태가 한 번이라도 됐는가
+  state.usedPotion = false;      // 「맨정신으로」
+  state.forged = false;          // 「두드리지 않고」 — 대장장이에게 맡긴 적이 있는가
   state.seenMonsters = new Set();
   state.ember = 0;
   state.hasKey = false;
@@ -321,8 +323,6 @@ function enterFloor(depth) {
       (bossDef ? ' · 주인이 있다' : '') + (map.vault ? ' · 잠긴 문이 있다' : '');
   }
 
-  grantThrowIfDue(depth);
-
   UI.showFloorIntro(depth, FLOOR_LINES[depth] || '', hint, () => {
     state.running = true;
     state.awaitingInput = true;
@@ -524,6 +524,21 @@ function playerAction(dir, intent) {
     return;
   }
 
+  /* 손가락의 「공격」. 그 사람이 쓰는 싸움으로 갈라진다 —
+     원거리 사람은 쏘고, 근접 사람은 닿는 곳을 스스로 찾아 친다.
+     둘 다 방향을 안 받으므로 버튼 하나로 끝난다. */
+  if (intent === 'attack') {
+    if (!currentHero().melee) {
+      if (rangedAttack(dir)) spendPlayerTurn();
+      return;
+    }
+    const md = (dir && DIRS[dir] && meleeReachTarget(DIRS[dir])) ? DIRS[dir] : meleeAutoDir();
+    if (!md) { UI.log('닿는 곳에 아무것도 없습니다.', 'sys'); return; }
+    meleeSwing(md);
+    spendPlayerTurn();
+    return;
+  }
+
   const d = DIRS[dir];
   if (!d) return;
   const tx = p.x + d.dx, ty = p.y + d.dy;
@@ -697,6 +712,7 @@ function drinkPotion() {
   if (p.hp >= p.maxHp) { UI.log('아직 다치지 않았습니다.', 'sys'); return; }
 
   state.potions--;
+  state.usedPotion = true;       // 「맨정신으로」가 이걸 본다
   const heal = Math.min(POTION_HEAL, p.maxHp - p.hp);
   p.hp += heal;
   Sound.play('potion');
@@ -742,31 +758,8 @@ function tryRecallMemory() {
   checkCollectionAchievements();
 }
 
-/* 「던지던 손」만은 확률에 맡기지 않는다.
-
-   다른 기억은 세지는 것이지만 이건 조작 하나를 여는 것이다.
-   운이 나쁘면 원거리를 한 번도 못 써보고 판이 끝나는데,
-   그러면 게임의 절반을 못 본 채로 "이거 그냥 부딪히는 게임이네"가 된다.
-   그래서 3층에 닿으면 무조건 준다.
-
-   한 판에 하나라는 제한과 pity 는 건드리지 않는다 —
-   이건 보상이 아니라 조작이므로 기억의 경제와 따로 논다. */
-function grantThrowIfDue(depth) {
-  // 기사에겐 열어줄 조작이 없다 — 보장은 조작을 위한 것이므로 기사는 건너뛴다.
-  // 기억 자체는 여전히 확률로 얻을 수 있고, 그때는 완력(공격)으로 붙는다.
-  if (currentHero().melee) return;
-  if (depth < CFG.THROW_FLOOR) return;
-  if (MEM.has('throw')) return;
-  const def = MEM.def('throw');
-  state.memories.add('throw');
-  recalcStats(state.player);
-  state.pendingMemory = def;
-  persist();
-  checkCollectionAchievements();
-}
-
 /* =========================================================
-   원거리 — 「던지던 손」
+   원거리 — 고른 사람이 정한다
    ========================================================= */
 
 /* 무엇이 날아가는지는 손에 든 것이 정한다.
@@ -779,18 +772,21 @@ function grantThrowIfDue(depth) {
    줄을 맞추려 한 칸 옮기는 동안 두 대를 맞는다. 그 한 칸이 재미있는 판단이었으면
    모르겠는데, 실제로는 그냥 손해만 보는 절차였다.
    그래서 방향은 힌트로만 쓰고, 맞힐 수 있는 것 중 가장 가까운 것을 고른다. */
-/* 원거리를 쓸 수 있는가.
-   기사는 못 쓴다 — 근거리만 남긴 사람이다.
-   활을 들었으면 기억 없이도 쏜다. 활이 곧 그 조작이므로.
-   나머지는 「던지던 손」을 되찾아야 한다. */
+/* 원거리를 쓸 수 있는가 — **고른 사람이 정한다.**
+
+   예전에는 「던지던 손」을 되찾아야 열렸다. 그러면 같은 사람으로 시작해도
+   어떤 판은 원거리가 있고 어떤 판은 없어서, 「이 사람은 이렇게 싸운다」가
+   판마다 달라졌다 — 고르는 순간에 무엇을 고르는지 모르는 셈이다.
+
+   이젠 **마법사와 엘프만** 쓴다. 둘 다 첫 칸부터 손에 지팡이와 활을 들고
+   시작하므로 1층에서부터 그 사람의 싸움이 난다.
+   기사·리자드·드워프에게는 아예 없는 조작이다 (heroes.js 의 melee). */
 function canRanged() {
   if (!state.player) return false;               // 판 밖(타이틀)에서도 불릴 수 있다
   if (currentHero().melee) return false;
-  const w = state.player.gear.weapon;
-  const ok = !!(w && w.bow) || MEM.has('throw');
   // 「손으로만」은 쓸 수 있었는데 안 쓴 사람에게만 준다 (achievements.js 참고)
-  if (ok && state.running) state.couldRanged = true;
-  return ok;
+  if (state.running) state.couldRanged = true;
+  return true;
 }
 
 // 지금 이 턴에 쏠 수 있는가 — 쓸 줄 아는 것(canRanged)과 손이 돌아왔는가는 다른 물음이다
@@ -1049,6 +1045,7 @@ function noteKey() {
   if (m && !m.mine) {
     if (Marks.nodded.has(m.id)) { UI.log('이미 끄덕였습니다.', 'sys'); return; }
     Marks.nod(m);
+    bumpMarkCount('nodsGiven');   // 판을 넘어 쌓인다 — 업적이 이걸 본다
     Sound.play('good' in Sound ? 'good' : 'gearCommon');
     UI.log('끄덕였습니다. 쓴 사람이 다음에 올라올 때 알게 됩니다.', 'good');
     paintTouch();                 // 턴을 쓰지 않으므로 버튼은 여기서 직접 거둔다
@@ -1093,6 +1090,7 @@ function writeNote(a, b) {
   // 내 판에도 바로 보이게 — 서버 응답을 기다리면 남긴 실감이 안 난다
   Marks.list.push({ id: 'mine-' + Date.now(), kind: 'note', x: wall.x, y: wall.y,
                     a: a, b: b, by: Marks.who(), nods: 0, mine: true, read: true });
+  bumpMarkCount('notesLeft');
   Sound.play('key');
   UI.log('벽에 「' + noteText(a, b) + '」라고 긁어 두었습니다.', 'good');
   paintTouch();
@@ -1146,6 +1144,18 @@ function campOptions() {
               : '담글 무기가 없다' },
     { id: 'ash', name: '재를 삼킨다',
       desc: '최대 체력 +6 — 이 판 내내 남는다' },
+    /* 「그냥 지나간다」.
+
+       예전에는 이 자리가 없었다. 불 앞에서 아무것도 안 하고 지나갈 수 있으면
+       그건 선택이 아니라 무시해도 되는 창이 된다는 이유였다.
+
+       그런데 「불을 쬐지 않고」 업적을 노리는 사람에게는 그 규칙이 벽이었다 —
+       모르고 한 칸 잘못 밟으면 그 판의 업적이 그 자리에서 끝난다. 되돌릴 방법이
+       없는 실수는 판단이 아니라 사고다.
+
+       불은 그대로 남는다. 그래서 지나가는 것이 포기가 아니라 미루는 것이 된다. */
+    { id: 'leave', name: '그냥 지나간다',
+      desc: '불은 그대로 남는다' },
   ];
 }
 
@@ -1173,7 +1183,9 @@ function pickPet(id) {
 
 function openCamp(x, y) {
   state.campSpot = { x, y };
-  UI.showCamp(campOptions(), pickCamp);
+  // canLeave — Esc 와 뒤로가기로도 나갈 수 있다.
+  // 창 안에 「그냥 지나간다」가 있는데 키로는 못 나가면 그게 더 이상하다.
+  UI.showCamp(campOptions(), pickCamp, undefined, undefined, true);
 }
 
 function pickCamp(id) {
@@ -1182,6 +1194,15 @@ function pickCamp(id) {
   const spot = state.campSpot;
   if (!spot) return;
   state.campSpot = null;
+
+  /* 지나간다 — 쓴 것으로 치지 않는다.
+     usedCamp 를 안 건드리므로 「불을 쯐지 않고」가 그대로 살아 있고,
+     타일을 안 지우므로 마음이 바뀌면 다시 밟으면 된다. */
+  if (id === 'leave') {
+    Sound.play('ui');
+    UI.log('불을 그대로 두고 지나갑니다.', 'sys');
+    return;
+  }
 
   if (id === 'warm') {
     const healed = p.maxHp - p.hp;
@@ -1380,6 +1401,7 @@ function forgeGear(slot) {
      recalcStats 가 자동으로 따라오고 이어하기·관전에도 장비째로 실려 간다. */
   g.mod[key] = (g.mod[key] || 0) + amount;
   g.forged = forgeTimes(g) + 1;
+  state.forged = true;           // 「두드리지 않고」가 이걸 본다
   recalcStats(p);
 
   Sound.play('gearAncient');
@@ -1523,16 +1545,41 @@ function meleeReachTarget(dir) {
   return null;
 }
 
+/* 직접 견누지 않고 치기 — 닿는 곳을 스스로 찾는다.
+
+   손가락으로는 「어느 쪽을 친다」를 따로 말하기가 번거롭다. 원거리를
+   이미 그렇게 만들어 두었으므로(버튼 한 번 = 스스로 견눈다) 근접도 같은
+   규칙을 따른다 — 두 버튼이 다르게 굴면 그것만으로 손이 헛된다.
+
+   보는 쪽을 먼저 본다. 그쪽에 없으면 네 방향을 둘러본다. */
+function meleeAutoDir() {
+  const p = state.player;
+  if (!p || !state.map) return null;             // 판 밖(타이틀)에서도 paintTouch 가 부른다
+  const first = p.face < 0 ? 'left' : 'right';
+  const order = [first, first === 'left' ? 'right' : 'left', 'up', 'down'];
+  for (const k of order) {
+    const d = DIRS[k];
+    if (meleeReachTarget(d)) return d;
+  }
+  return null;
+}
+
 /* 한 번 휘두른다. 닿는 칸에 있는 것을 **전부** 친다.
    피해는 칸마다 배율이 다르다 — 정면이 온전한 값이고 쓸리는 자리는 얕다. */
 function meleeSwing(dir) {
   const p = state.player;
+  const tiles = meleeReach(dir);
   const hits = [];
-  for (const t of meleeReach(dir)) {
+  for (const t of tiles) {
     const m = monsterAt(t.x, t.y);
     if (m && m.alive) hits.push({ m, mult: t.mult });
   }
   if (!hits.length) return false;
+
+  /* 자국은 **맞은 칸이 아니라 닿은 칸 전부**에 남긴다.
+     맞은 데만 그으면 옆칸이 비었을 때 그냥 한 칸짜리 무기로 보인다 —
+     빈 칸에도 그어야 「검은 양옆까지 쓴다」가 눈에 남는다. */
+  for (const t of tiles) Render.addSwing(t.x, t.y, dir.dx, dir.dy, t.mult);
 
   // 앞의 것부터 친다. 뒤엣것이 먼저 죽으면 로그가 거꾸로 읽힌다.
   for (const h of hits) {
@@ -2314,10 +2361,13 @@ function paintTouch() {
   const bagN = document.getElementById('t-bag');
   if (bagN) bagN.textContent = (state.bag || []).length;
   if (aim) {
-    // 기사에겐 원거리가 아예 없는 조작이다 — 잠긴 버튼이 아니라 없는 버튼
-    aim.hidden = !!currentHero().melee;
-    aim.classList.toggle('locked', !canRanged());
-    aim.textContent = '원거리';
+    /* 누구에게나 보이는 버튼이다. 원거리 사람은 쉬는 동안 잠기고(rangedCd),
+       근접 사람은 닿는 것이 없을 때 잠긴다 — 눌러보고 아무 일도 안 일어나는
+       것보다 미리 흐리게 보이는 편이 낫다. */
+    aim.hidden = false;
+    const meleeHero = !!currentHero().melee;
+    aim.classList.toggle('locked', meleeHero ? !meleeAutoDir() : !rangedReady());
+    aim.textContent = '공격';
   }
   if (ember) ember.classList.toggle('locked', !MEM.has('douse'));
 
@@ -2346,9 +2396,11 @@ function setupTouch() {
     Sound.unlock();
     switch (btn.dataset.act) {
       case 'potion': drinkPotion(); break;
-      // 겨누기 → 방향, 두 번 두드리던 것을 한 번으로 줄였다.
-      // 스스로 겨누게 된 뒤로는 방향을 물을 이유가 없다.
-      case 'aim': playerAction(null, 'ranged'); break;
+      /* 「공격」 하나다. 예전에는 「원거리」라 적혀 있어서 근접 사람에게는 아예
+         안 보이는 버튼이었고, 그러니 폰에서 근접 공격은 오직 몸으로 밀고
+         들어가는 것뿐이었다.
+         이젠 누가 누르든 같은 버튼이고, 무엇이 나가는지는 그 사람이 정한다. */
+      case 'attack': playerAction(null, 'attack'); break;
       case 'ember': toggleEmber(); break;
       case 'mark': noteKey(); break;
       case 'bag': openBag(); break;

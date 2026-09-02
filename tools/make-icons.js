@@ -209,6 +209,42 @@ const STAFF_ASH = [                     // 재의 지팡이 — 팩에 지팡이
   '..oooo..',
 ];
 
+const STAFF_WOOD = [                    // 나무 지팡이 — 팩의 그림이 가시 박힌 몽둥이라 새로 그렸다
+  // 일부러 머리를 안 얹었다. 둥근 머리를 얹는 순간 다시 몽둥이가 된다 —
+  // 지팡이를 지팡이로 만드는 것은 휘어진 끝과 옹이지 무게가 아니다.
+  '.....oo.',
+  '....oBLo',
+  '...oBLo.',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '.ooBLo..',
+  'oBoBLo..',
+  '.ooBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oBLo..',
+  '..oooo..',
+];
+
 const BOW_ASH = [                       // 재의 활 — 팩의 활(14x26)과 같은 틀. 시위는 왼쪽, 몸통은 오른쪽으로 휜다
   '..............',
   '..oo..........',
@@ -269,6 +305,7 @@ const ICONS = {
   icon_pouch: [POUCH, { X: 'L', H: 'l', s: 'k' }],
 
   icon_staff_ash: [STAFF_ASH, { X: 'C', H: 'b' }],   // E/F 는 그대로 불씨 색
+  icon_staff_wood: [STAFF_WOOD, { B: 'B', L: 'L' }],  // 자루는 같은 규칙, 색만 나무로
   icon_bow_ash:   [BOW_ASH, {}],                     // 색을 직접 적었으므로 바꿔 낄 것이 없다
 };
 

@@ -32,8 +32,14 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     ends: Object.keys(STORY_END),
   }));
   check(shape.n === 9, `장면 아홉 개 (${shape.n})`);
-  check(shape.keys.every(k => shape.memKeys.includes(k)),
-        '장면마다 짝이 되는 기억이 있다');
+  /* 예전에는 장면과 기억이 1:1 이었다. 「던지던 손」 기억을 없애면서
+     그 짝이 하나 끊어졌다 — 장은 남겨 두었다. 붓을 던진 밤의 이야기는
+     조작과 상관이 없고, STORY 는 되찾은 기억과 무관하게 전부 흐른다.
+
+     그래도 **기억은 전부 제 장을 가져야 한다** — 되찾았는데 그 이야기가
+     없으면 그건 빠뜨린 것이다. 방향을 뒤집어 그쪽을 재다. */
+  check(shape.memKeys.every(k => shape.keys.includes(k)),
+        '되찾는 기억은 전부 제 장이 있다');
   check(shape.memKeys.every(k => shape.keys.includes(k)),
         '기억 아홉 개가 하나도 빠짐없이 장면을 갖는다');
   check(shape.allHaveArt && shape.allHaveLines, '전부 그림과 글을 갖고 있다');

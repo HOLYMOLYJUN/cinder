@@ -15,10 +15,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
 
   console.log('\n[ 무기에 따라 원거리가 달라진다 ]');
   const res = await p.evaluate(() => {
-    // 기사는 원거리가 통째로 없다 — 던지기/불덩이는 물리 기반인 리자드로 본다
-    chooseHero('lizard');
+    /* 원거리를 쓰는 사람은 둘뿐이다. 물리 기반 던지기를 보려면
+       활을 든 엘프가 맞다 — 리자드는 근접만 남긴 사람이 됐다. */
+    chooseHero('elf');
     startRun();
-    state.memories = new Set(['throw']);
     const pl = state.player;
     // 직선 통로를 찾아 표적 셋을 뭉쳐 놓는다
     let dir = null, spot = null, dvec = null;
@@ -99,7 +99,6 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
       for (let x = cx - 9; x <= cx + 9; x++) m.tiles[y][x] = T.FLOOR;
     state.player.x = cx; state.player.y = cy;
     state.player.rx = cx; state.player.ry = cy;
-    state.memories = new Set(['throw']);
     state.player.gear = { weapon: null, armor: null, trinket: null };
     recalcStats(state.player);
     state.fovRadius = 12;
@@ -189,18 +188,21 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(healed > 10, `체력도 실제로 올랐다 (10 → ${healed})`);
   check(after.label === String(after.potions), '버튼의 개수 표시가 따라간다: ' + after.label);
 
+  /* 「공격」은 이젠 누구에게나 보이는 버튼이다. 근접 사람은 닿는 것이 없을 때
+     잠기므로, 주위에 아무것도 없는 지금은 잠겨 있어야 한다.
+     불씨는 여전히 기억이 열어 준다. */
   const lock = await mp.evaluate(() => ({
     aim: document.getElementById('t-aim').classList.contains('locked'),
     ember: document.getElementById('t-ember').classList.contains('locked'),
+    aimShown: !document.getElementById('t-aim').hidden,
   }));
-  check(lock.aim && lock.ember, '아직 기억하지 못한 기능은 잠겨 보인다');
+  check(lock.aimShown, '공격 버튼은 누구에게나 보인다');
+  check(lock.aim && lock.ember, '닿지 않는 것·아직 모르는 것은 잠겨 보인다');
 
-  // 겨누기 → 방향, 두 번 두드리던 것이 한 번으로 줄었다.
-  // 버튼 한 번에 실제로 나가야 한다. 기사는 원거리가 없으므로 리자드로 본다.
-  await mp.evaluate(() => { chooseHero('lizard'); startRun(); UI.closeIntro(); });
+  // 버튼 한 번에 실제로 나가야 한다. 원거리를 쓰는 사람으로 본다.
+  await mp.evaluate(() => { chooseHero('elf'); startRun(); UI.closeIntro(); });
   await mp.waitForFunction(() => state.running === true, null, { timeout: 8000 });
   const aim = await mp.evaluate(() => {
-    state.memories = new Set(['throw']);
     recalcStats(state.player);
     paintTouch();
     // 대각선에 한 마리 세워 둔다 — 예전이라면 겨눌 수 없던 자리다
@@ -210,11 +212,11 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     if (walkable) state.monsters.push(makeMonster(MONSTERS[1], spot.x, spot.y));
     refreshFov();
     const hpBefore = walkable ? state.monsters[0].hp : 0;
-    document.querySelector('[data-act="aim"]').click();
+    document.querySelector('[data-act="attack"]').click();
     return { walkable, label: document.getElementById('t-aim').textContent,
              hpBefore, hpAfter: walkable ? state.monsters[0].hp : 0 };
   });
-  check(aim.label === '원거리', '원거리 버튼은 늘 「원거리」 하나뿐: ' + aim.label);
+  check(aim.label === '공격', '버튼은 늘 「공격」 하나뿐: ' + aim.label);
   if (aim.walkable) {
     check(aim.hpAfter < aim.hpBefore,
           `버튼 한 번으로 대각선의 것을 맞힘 (${aim.hpBefore} → ${aim.hpAfter})`);

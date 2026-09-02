@@ -43,6 +43,15 @@ const ACHIEVEMENTS = [
   { id: 'meleeOnly',name: '손으로만',       desc: '원거리를 쓸 수 있는 채로, 한 번도 쓰지 않고 오른다' },
   { id: 'rangedOnly',name: '닿지 않고',     desc: '맞붙어 때리는 일 없이 탑을 오른다' },
   { id: 'allHeroes',name: '모두의 탑',      desc: '다섯 사람 모두로 탑을 오른다' },
+  { id: 'noForge',  name: '두드리지 않고', desc: '대장장이에게 한 번도 벼리지 않고 탑을 오른다' },
+  { id: 'noPotion', name: '맨정신으로',    desc: '물약을 한 번도 마시지 않고 탑을 오른다' },
+
+  /* ---------- 벽에 남기는 것에 붙는 것들 ----------
+     이 둘만 판을 넘어 쌓인다. 다른 업적은 한 판 안에서 끝나는데,
+     흔적은 애초에 「여러 번 올라온 사람」을 전제로 하는 기능이라
+     한 판으로 끝내라고 하면 그건 그냥 못 하는 일이 된다. */
+  { id: 'nod10',    name: '고개를 끄덕여',  desc: '남의 말에 열 번 끄덕인다' },
+  { id: 'note10',   name: '벽에 남기는 손', desc: '벽에 열 번 긁어 둔다' },
 ];
 
 function hasAch(id) {
@@ -78,11 +87,23 @@ function checkLevelAchievements() {
   if (state.level >= 10) unlockAch('level10');
 }
 
+/* 벽에 남기는 일을 센다. 판을 넘어 쌓이므로 save 에 둔다 —
+   state 에 두면 죽는 순간 사라져서, 여러 판에 걸친 업적을 만들 수가 없다. */
+function bumpMarkCount(key) {
+  const save = loadData() || {};
+  save[key] = (save[key] || 0) + 1;
+  saveData(save);
+  if ((save.nodsGiven || 0) >= 10) unlockAch('nod10');
+  if ((save.notesLeft || 0) >= 10) unlockAch('note10');
+}
+
 /* 탑 끝까지 오른 순간에 한 번. chooseEnding 이 부른다 —
    끝을 본 사람에게만 주는 것이라 「도달」이 아니라 「결말」이 기준이다. */
 function checkClearAchievements() {
   if (!state.usedCamp) unlockAch('noCamp');
   if (!state.traded) unlockAch('noShop');
+  if (!state.forged) unlockAch('noForge');
+  if (!state.usedPotion) unlockAch('noPotion');
   // 쓸 수 있었는데 안 쓴 경우만. 기사에게는 애초에 열리지 않는다.
   if (state.couldRanged && !state.usedRanged) unlockAch('meleeOnly');
   if (!state.usedMelee) unlockAch('rangedOnly');

@@ -75,8 +75,11 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(withAll.stats.spd === fresh.want.spd + 2, `「오르던 발」 속도 +2 반영 (${withAll.stats.spd})`);
   check(withAll.maxHp === fresh.base.maxHp + 10, `「첫 번째 이름」 최대 체력 +10 반영 (${withAll.maxHp})`);
 
-  /* ---------- 4. 원거리가 실제로 맞는가 ---------- */
+  /* ---------- 4. 원거리가 실제로 맞는가 ----------
+     원거리는 더 이상 기억이 열지 않는다 — 쓰는 사람으로 본다. */
   const setup = await page.evaluate(() => {
+    chooseHero('elf'); startRun(); UI.closeIntro();
+    state.running = true; state.awaitingInput = true;
     const p = state.player;
     for (const [k, d] of Object.entries(DIRS)) {
       let clear = true;
@@ -97,22 +100,23 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     await page.waitForTimeout(200);
     const after = await page.evaluate(() =>
       state.monsters[state.monsters.length - 1].hp);
-    check(after < setup.hp, `「던지던 손」 3칸 밖 트롤에게 명중 (${setup.hp} → ${after})`);
+    check(after < setup.hp, `3칸 밖 트롤에게 명중 (${setup.hp} → ${after})`);
     await page.screenshot({ path: SHOT + '/11-ranged.png' });
   } else {
     check(false, '원거리를 시험할 직선 통로를 못 찾음');
   }
 
-  /* ---------- 4b. 기사에게는 같은 기억이 완력으로 붙는다 ---------- */
+  /* ---------- 4b. 기억을 다 되찾아도 근접은 근접이다 ----------
+     예전에는 「던지던 손」이 기사에게 완력(공격 +2)으로 붙는 것을 재었다.
+     그 기억을 없앨으므로 이젠 물을 것이 다르다 — **기억으로는 원거리가
+     열리지 않는가**이다. 조작이 기억에 달려 있지 않다는 것이 새 규칙이므로,
+     하나도 빠짐없이 되찾은 기사도 여전히 못 쏴야 한다. */
   const kn = await page.evaluate(() => {
     chooseHero('knight');
     startRun();
-    state.memories = new Set([]);
+    UI.closeIntro();
+    state.memories = new Set(MEMORIES.map(m => m.id));
     recalcStats(state.player);
-    const base = state.player.stats.atk;
-    state.memories = new Set(['throw']);
-    recalcStats(state.player);
-    const withMem = state.player.stats.atk;
     const can = canRanged();
     // 다음 절을 위해 리자드로 되돌린다
     chooseHero('lizard');
@@ -120,9 +124,9 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     UI.closeIntro();
     state.memories = new Set(MEMORIES.map(m => m.id));
     recalcStats(state.player);
-    return { base, withMem, can };
+    return { can };
   });
-  check(kn.withMem === kn.base + 2, `기사의 「던지던 손」은 공격 +2 (${kn.base} → ${kn.withMem})`);
+  check(kn.can === false, '기억을 다 되찾아도 기사는 못 쏴다');
   check(kn.can === false, '기사는 기억이 있어도 원거리를 못 쓴다');
 
   /* ---------- 5. 불씨 밝기 ---------- */
@@ -166,7 +170,7 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   /* ---------- 8. 저장과 복원 ---------- */
   await page.evaluate(() => {
     UI.closeIntro();
-    state.memories = new Set(['throw', 'douse']);
+    state.memories = new Set(['climb', 'douse']);
     state.pity = 3;
     persist();
   });
@@ -186,13 +190,15 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   await page.evaluate(() => { UI.showCodex('memories'); });
   await page.waitForTimeout(300);
   await page.screenshot({ path: SHOT + '/13-memory-list.png' });
+  // 기억 수는 속에서 직접 세어 온다 — 숫자를 박아 두면 늘릴 때마다 시험이 깨진다
+  const MEMORIES_N = await page.evaluate(() => MEMORIES.length);
   const shown = await page.$$eval('.mem-row', els => ({
     total: els.length,
     got: els.filter(e => e.classList.contains('got')).length,
     hidden: els.filter(e => !e.classList.contains('got'))
               .map(e => e.textContent.trim())[0],
   }));
-  check(shown.total === 9 && shown.got === 2, `기억 목록 9개 중 2개 해금 (${shown.got})`);
+  check(shown.total === MEMORIES_N && shown.got === 2, `기억 목록 ${MEMORIES_N}개 중 2개 해금 (${shown.got})`);
   check(/기억나지 않/.test(shown.hidden), '못 얻은 기억은 내용이 가려짐');
 
   console.log('\n=== 에러 ===');

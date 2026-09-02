@@ -211,13 +211,19 @@ const Story = {
     this.at = 0; this.page = 0; this.t = 0; this.sceneT = 0;
     this.typed = 0; this.fast = false;
 
-    /* 건너뛰기는 **한 번 끝까지 본 사람에게만** 보인다.
-       처음 보는 사람에게 내밀면, 읽을 만한 것이 아니라 넘겨도 되는 것으로 먼저 읽힌다.
-       두 번째부터는 반대다 — 아는 이야기를 다시 앉아서 보게 하는 것은 벌이다. */
+    /* 건너뛰기는 **언제나** 보인다.
+
+       예전에는 한 번 끝까지 본 사람에게만 내밀었다. 처음 보는 사람에게 내밀면
+       「읽을 만한 것」이 아니라 「넘겨도 되는 것」으로 먼저 읽힌다는 이유였다.
+       그럴듯했지만 값이 컸다 — 처음 온 사람이 이 이야기에 관심이 없으면
+       갇힌 채로 끝날 때까지 기다려야 하고, 그건 이야기를 아끼는 것이 아니라
+       사람을 붙잡아 두는 것이다.
+
+       읽게 만드는 것은 나가는 문을 잠그는 일이 아니라 이야기 자체가 할 일이다. */
     const skip = document.getElementById('story-skip');
     if (skip) {
-      skip.hidden = !storySeen();
-      skip.classList.toggle('hidden', !storySeen());
+      skip.hidden = false;
+      skip.classList.remove('hidden');
       skip.onclick = () => this.finish();
     }
 

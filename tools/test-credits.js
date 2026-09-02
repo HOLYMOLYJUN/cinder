@@ -146,7 +146,10 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     UI.hideCredits();
     return { storyFirst, storyAgain, creditsFirst, creditsAgain, stopped };
   });
-  check(!skip.storyFirst, '처음 보는 사람에게는 되짚기 건너뛰기가 없다');
+  /* 예전에는 한 번 끝까지 본 사람에게만 내밀었다. 지금은 언제나 보인다 —
+     처음 온 사람이 이 이야기에 관심이 없으면 갇힌 채로 끝날 때까지 기다려야
+     했고, 그건 이야기를 아끼는 것이 아니라 사람을 붙잡아 두는 일이다. */
+  check(skip.storyFirst, '처음 보는 사람에게도 되짚기 건너뛰기가 보인다');
   check(skip.storyAgain, '한 번 본 뒤에는 나타난다');
   check(!skip.creditsFirst, '크레딧도 처음에는 없다');
   check(skip.creditsAgain, '크레딧도 한 번 본 뒤에는 나타난다');

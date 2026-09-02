@@ -158,7 +158,12 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     return { opened, labels };
   });
   check(camp.opened, '모닥불을 밟으면 선택창이 뜬다');
-  check(camp.labels.length === 3, '고를 것이 셋: ' + camp.labels.join(' / '));
+  /* 예전에는 셋이었다. 「그냥 지나간다」를 더해 넷이 됐다 —
+     모르고 한 칸 잘못 밟았다고 「불을 쬐지 않고」가 그 자리에서 끝나면
+     그건 판단이 아니라 사고다. */
+  check(camp.labels.length === 4, '고를 것이 넷: ' + camp.labels.join(' / '));
+  // 이름 뒤에 숫자키가 붙으므로(「그냥 지나간다 4」) 앞부분으로 본다
+  check(camp.labels.some(l => l.startsWith('그냥 지나간다')), '쓰지 않고 지나갈 길이 있다');
 
   const temper = await p.evaluate(() => {
     const before = state.player.stats.atk;

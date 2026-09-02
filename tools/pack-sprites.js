@@ -230,7 +230,8 @@ const GEAR_ICONS = {
   '긴 활':       'weapon_bow_2',
   '재의 활':     'icon_bow_ash',
   '낡은 지팡이': 'weapon_green_magic_staff',
-  '나무 지팡이': 'weapon_baton_with_spikes',
+  // 팩의 weapon_baton_with_spikes 는 가시 박힌 목둥이라 지팡이로 안 읽혔다
+  '나무 지팡이': 'icon_staff_wood',
   '주술 지팡이': 'weapon_red_magic_staff',
   '재의 지팡이': 'icon_staff_ash',
   // ---- 투구 (새 자리) ----

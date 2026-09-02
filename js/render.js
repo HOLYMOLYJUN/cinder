@@ -134,6 +134,17 @@ const Render = {
     this.beams.push({ x0, y0, x1, y1, color, t: 0, life: 0.22 });
   },
 
+  swings: [],
+  /* 휘두른 자국. 근접은 지금까지 몸이 살짝 튀어나갔다 오는 것이 전부였다.
+     그러면 **무기가 어디까지 닿았는지가 안 보인다** — 검은 앞과 양옆 세 칸,
+     창은 두 칸을 치는데 화면에는 숨은 규칙이었다.
+
+     친 칸마다 호를 하나씩 그어 둔다. 깊게 친 칸은 진하고 쓸린 칸은 연하다 —
+     배율이 그대로 보이므로 「정면이 제일 아프다」를 말로 안 적어도 된다. */
+  addSwing(x, y, dx, dy, mult) {
+    this.swings.push({ x, y, dx, dy, mult: mult == null ? 1 : mult, t: 0, life: 0.19 });
+  },
+
   orbs: [],
   blasts: [],
   arrows: [],
@@ -168,6 +179,9 @@ const Render = {
 
     for (const b of this.beams) b.t += dt;
     this.beams = this.beams.filter(b => b.t < b.life);
+
+    for (const w of this.swings) w.t += dt;
+    this.swings = this.swings.filter(w => w.t < w.life);
 
     for (const o of this.orbs) o.t += dt;
     this.orbs = this.orbs.filter(o => o.t < o.life);
@@ -499,6 +513,30 @@ const Render = {
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(cx2, cy2, rad * 0.85, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+
+    /* ----- 휘두른 자국 -----
+       몬스터보다 위에 그린다. 밑에 깔면 맞은 몸에 가려서, 정작 맞은 칸에서만
+       안 보이는 표시가 된다.
+
+       호는 **친 방향을 등지고** 굽는다 — 사람 쪽에서 상대 쪽으로 스치고 지나간
+       모양이라야 「베었다」로 읽힌다. 반대로 굽히면 막은 것처럼 보인다. */
+    for (const w of this.swings) {
+      const p = w.t / w.life;
+      const cx3 = (w.x + 0.5) * TS, cy3 = (w.y + 0.5) * TS;
+      const ang = Math.atan2(w.dy, w.dx);
+      // 얕게 쓸린 칸은 호도 짧고 옅다. 배율이 그대로 눈에 보이게 한다.
+      const span = (0.75 + w.mult * 0.45);
+      const r = TS * (0.30 + p * 0.26);
+      ctx.save();
+      ctx.globalAlpha = (1 - p) * (0.35 + w.mult * 0.5);
+      ctx.strokeStyle = '#FFE9C6';
+      ctx.lineWidth = Math.max(1.2, TS * 0.10 * (1 - p * 0.55) * w.mult);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx3, cy3, r, ang - span / 2, ang + span / 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     /* ----- 피해 숫자 ----- */

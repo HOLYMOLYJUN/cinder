@@ -28,7 +28,9 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
     for (let y = cy - 6; y <= cy + 6; y++)
       for (let x = cx - 9; x <= cx + 9; x++) m.tiles[y][x] = T.FLOOR;
     state.player.x = cx; state.player.y = cy; state.player.rx = cx; state.player.ry = cy;
-    state.memories = new Set(['throw']);
+    /* 원거리는 이젠 기억이 아니라 고른 사람이 정한다.
+       엘프는 활을 들고 시작하므로 첫 칸부터 쓴다. */
+    chooseHero('elf');
     state.fovRadius = 12;
     state.monsters.length = 0;
     const mon = makeMonster(MONSTERS[5], cx + 3, cy + 2);   // 대각선
