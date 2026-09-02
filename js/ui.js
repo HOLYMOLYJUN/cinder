@@ -854,6 +854,11 @@ const UI = {
     this.renderMemories(new Set(save.memories || []));
     this.renderAchievements(new Set(save.achievements || []));
     this.codexTab(tab || 'keys');
+    /* 내려가는 문은 판을 하는 중에만 된다.
+       타이틀에서 도감을 열었을 때도 띄우면 이미 나와 있는 사람에게
+       「나가기」를 내뮸는 셈이다. */
+    const foot = document.getElementById('codex-foot');
+    if (foot) foot.classList.toggle('hidden', !state.running);
     document.getElementById('codex-screen').classList.remove('hidden');
   },
   hideCodex() { document.getElementById('codex-screen').classList.add('hidden'); },

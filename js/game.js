@@ -1995,6 +1995,28 @@ function backToTitle() {
   updateRecordText(loadData() || {});
 }
 
+/* 판을 **두고** 나간다 — 위의 backToTitle 과 반대다.
+
+   저쪽은 끝난 판을 지우고 나가는 것이고, 이쪽은 하던 판을 그대로 둔 채
+   첫 화면으로 돌아가는 것이다. 그래서 clearRun 을 안 부르고 오히려 한 번 더
+   저장한다 — 첫 화면에서 「n층부터 이어서 오른다」로 그대로 돌아온다.
+
+   폰에는 Esc 가 없어서 이 길이 없으면 판에서 나올 방법이 아예 없었다.
+   안드로이드 뒤로가기는 앱을 끄는 것이지 판에서 나오는 것이 아니다. */
+function leaveToTitle() {
+  if (!state.running) return;
+  saveRun();
+  state.running = false;
+  state.awaitingInput = false;
+  UI.hideCodex();
+  UI.hideBag(); UI.hideShop(); UI.hideCamp();
+  if (UI.hideForge) UI.hideForge();
+  UI.clearLog();
+  UI.showTitle();
+  repaintTitle();
+  updateRecordText(loadData() || {});
+}
+
 // 되찾은 기억과 본 것들을 남긴다.
 // 저장은 이 함수와 loadData 만 거치므로, 나중에 클라우드로 옮길 때 여기만 바꾸면 된다.
 function persist(extra) {
@@ -2547,6 +2569,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (bagBtn) bagBtn.addEventListener('click', () => openBag());
   document.getElementById('btn-codex').addEventListener('click', () => UI.showCodex('monsters'));
   document.getElementById('codex-close').addEventListener('click', () => UI.hideCodex());
+  const leaveBtn = document.getElementById('codex-leave');
+  if (leaveBtn) leaveBtn.addEventListener('click', () => leaveToTitle());
   document.getElementById('codex-tabs').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');
     if (b) UI.codexTab(b.dataset.tab);

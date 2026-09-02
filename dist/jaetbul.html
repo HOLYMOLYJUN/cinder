@@ -1220,10 +1220,24 @@ canvas#view {
   height: min(86vh, 660px);
   display: flex; flex-direction: column;
   background: var(--panel);
-  border: 1px solid var(--line);
+  /* 다른 창과 같은 재료 — 모서리 색은 가방 판에서 떠 온 것이다 */
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
+  box-shadow: 0 0 0 1px #000;
   border-radius: 0;
   overflow: hidden;
 }
+
+/* 내려가는 문. 판을 하는 중에만 뜼고(ui.js 의 showCodex),
+   탭과 반대쪽 끝에 둔다 — 읽으러 열었다가 실수로 누를 자리가 아니다. */
+.codex-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.codex-foot-note { font-size: 11.5px; color: var(--muted); order: -1; }
 
 .codex-tabs {
   display: flex; gap: 2px;
@@ -1884,13 +1898,13 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
           <table class="help-table">
             <tr><td><kbd>← ↑ → ↓</kbd> <span class="or">/</span> <kbd>W A S D</kbd></td><td>이동 — 진행 방향에 적이 있으면 공격</td></tr>
             <tr><td><kbd>X</kbd> + 방향 <span class="or">/</span> <kbd>K</kbd></td><td>공격하지 않고 이동 (통과 · 도망)</td></tr>
-            <tr><td><kbd>Z</kbd> + 방향 <span class="or">/</span> <kbd>J</kbd></td><td>원거리 — 「던지던 손」을 되찾아야 열립니다. <b>지팡이를 들면 불덩이</b>가 나가 주변까지 태웁니다. <b>활을 들면(엘프) 기억 없이도</b> 화살이 나갑니다. 기사는 쓰지 못하고, 한 번 쏘면 한 턴 쉬어야 합니다</td></tr>
+            <tr><td><kbd>Z</kbd> + 방향 <span class="or">/</span> <kbd>J</kbd></td><td>원거리 — <b>마법사와 엘프만</b> 씁니다. 둘 다 첫 칸부터 손에 들고 시작합니다. 가장 가까운 것을 <b>스스로 겨눠</b> 대각선도 맞힙니다. <b>지팡이를 들면 불덩이</b>가 나가 주변까지 태웁니다. 한 번 쏘면 한 턴 쉬어야 합니다</td></tr>
             <tr><td><kbd>Space</kbd></td><td>한 턴 대기. 상인 앞에서는 다시 말을 겁니다</td></tr>
-            <tr><td><kbd>1</kbd></td><td>물약 마시기 — 10개까지 들 수 있습니다</td></tr>
+            <tr><td><kbd>1</kbd></td><td>물약 마시기 — 5개까지 들고, 상인의 주머니로 9개까지 늘립니다</td></tr>
             <tr><td><kbd>Space</kbd></td><td>상인·대장장이 앞에서 다시 말을 겁니다</td></tr>
             <tr><td><kbd>F</kbd></td><td>불씨 밝기 — 「끄던 손」을 되찾아야 열립니다</td></tr>
             <tr><td><kbd>N</kbd></td><td><b>벽 옆에 서서</b> 한 줄 긁어 둡니다 (한 층에 하나). 남이 긁어 둔 말 옆에서는 <b>끄덕입니다</b> — 쓴 사람이 다음에 올라올 때 알게 됩니다. 손가락으로 할 때는 <b>같은 벽을 두 번 밀면</b> 「남기기」 버튼이 나타납니다</td></tr>
-            <tr><td><kbd>Z</kbd> <span class="or">/</span> <kbd>X</kbd></td><td>장비 비교창에서 교체 / 그대로 두기</td></tr>
+            <tr><td><kbd>I</kbd> <span class="or">/</span> <kbd>B</kbd></td><td>가방 — 주운 것을 들고 다니며, 칸을 두드려 끼거나 벗거나 내려놓습니다</td></tr>
             <tr><td><kbd>M</kbd></td><td>소리 켜고 끄기</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>이 창 열고 닫기</td></tr>
           </table>
@@ -1936,6 +1950,16 @@ img.cx-thumb, img.heart { image-rendering: pixelated; }
           <p class="codex-say">몇 개는 일부러 어렵습니다.</p>
           <div id="ach-list" class="ach-list"></div>
         </section>
+      </div>
+
+      <!-- 판을 하는 중에만 뜬다. 폰에는 Esc 가 없어서, 여기 말고는 판을 멈추고
+           첫 화면으로 돌아갈 길이 아예 없었다 — 뒤로가기는 앱을 끄는 것이지
+           판에서 나오는 것이 아니다.
+           지우고 나가는 것이 아니라 **두고 나가는** 것이라, 첫 화면에서
+           「n층부터 이어서 오른다」로 그대로 돌아온다. -->
+      <div class="codex-foot hidden" id="codex-foot">
+        <button id="codex-leave" class="btn-ghost">탑에서 내려간다</button>
+        <span class="codex-foot-note">여기까지는 저장됩니다</span>
       </div>
     </div>
   </div>
@@ -7636,6 +7660,11 @@ const UI = {
     this.renderMemories(new Set(save.memories || []));
     this.renderAchievements(new Set(save.achievements || []));
     this.codexTab(tab || 'keys');
+    /* 내려가는 문은 판을 하는 중에만 된다.
+       타이틀에서 도감을 열었을 때도 띄우면 이미 나와 있는 사람에게
+       「나가기」를 내뮸는 셈이다. */
+    const foot = document.getElementById('codex-foot');
+    if (foot) foot.classList.toggle('hidden', !state.running);
     document.getElementById('codex-screen').classList.remove('hidden');
   },
   hideCodex() { document.getElementById('codex-screen').classList.add('hidden'); },
@@ -11337,6 +11366,28 @@ function backToTitle() {
   updateRecordText(loadData() || {});
 }
 
+/* 판을 **두고** 나간다 — 위의 backToTitle 과 반대다.
+
+   저쪽은 끝난 판을 지우고 나가는 것이고, 이쪽은 하던 판을 그대로 둔 채
+   첫 화면으로 돌아가는 것이다. 그래서 clearRun 을 안 부르고 오히려 한 번 더
+   저장한다 — 첫 화면에서 「n층부터 이어서 오른다」로 그대로 돌아온다.
+
+   폰에는 Esc 가 없어서 이 길이 없으면 판에서 나올 방법이 아예 없었다.
+   안드로이드 뒤로가기는 앱을 끄는 것이지 판에서 나오는 것이 아니다. */
+function leaveToTitle() {
+  if (!state.running) return;
+  saveRun();
+  state.running = false;
+  state.awaitingInput = false;
+  UI.hideCodex();
+  UI.hideBag(); UI.hideShop(); UI.hideCamp();
+  if (UI.hideForge) UI.hideForge();
+  UI.clearLog();
+  UI.showTitle();
+  repaintTitle();
+  updateRecordText(loadData() || {});
+}
+
 // 되찾은 기억과 본 것들을 남긴다.
 // 저장은 이 함수와 loadData 만 거치므로, 나중에 클라우드로 옮길 때 여기만 바꾸면 된다.
 function persist(extra) {
@@ -11889,6 +11940,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (bagBtn) bagBtn.addEventListener('click', () => openBag());
   document.getElementById('btn-codex').addEventListener('click', () => UI.showCodex('monsters'));
   document.getElementById('codex-close').addEventListener('click', () => UI.hideCodex());
+  const leaveBtn = document.getElementById('codex-leave');
+  if (leaveBtn) leaveBtn.addEventListener('click', () => leaveToTitle());
   document.getElementById('codex-tabs').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');
     if (b) UI.codexTab(b.dataset.tab);

@@ -153,6 +153,41 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   check(kept.ach === 3 && kept.codex === kept.total,
         `새로고침 뒤에도 남음 (업적 ${kept.ach}, 도감 ${kept.codex})`);
 
+  /* 폰에는 Esc 가 없어서, 도감의 이 문 말고는 판을 멈추고 첫 화면으로
+     돌아갈 길이 아예 없었다. 안드로이드 뒤로가기는 앱을 끄는 것이지
+     판에서 나오는 것이 아니다.
+
+     지우고 나가는 것이 아니라 **두고 나가는** 것이므로, 첫 화면에서
+     「n층부터 이어서 오른다」로 그대로 돌아와야 한다. */
+  console.log('\n[ 판 중에 내려가기 ]');
+  const leave = await page.evaluate(() => {
+    // 타이틀에서 열었을 때는 나가는 문이 없어야 한다
+    UI.showCodex('keys');
+    const atTitle = !document.getElementById('codex-foot').classList.contains('hidden');
+    UI.hideCodex();
+
+    chooseHero('knight'); startRun(); UI.closeIntro();
+    state.running = true; state.awaitingInput = true;
+    enterFloor(3); UI.closeIntro(); state.running = true;
+    const depth = state.depth;
+
+    UI.showCodex('keys');
+    const inRun = !document.getElementById('codex-foot').classList.contains('hidden');
+    document.getElementById('codex-leave').click();
+
+    const d = savedRun();
+    return { atTitle, inRun, depth, saved: d && d.depth,
+             onTitle: !document.getElementById('title-screen').classList.contains('hidden'),
+             gameHidden: document.getElementById('game-screen').classList.contains('hidden'),
+             codexClosed: !UI.codexOpen(), running: state.running };
+  });
+  check(!leave.atTitle, '타이틀에서는 내려가는 문이 안 보인다');
+  check(leave.inRun, '판을 하는 중에는 보인다');
+  check(leave.onTitle && leave.gameHidden && leave.codexClosed && !leave.running,
+        '누르면 창을 닫고 첫 화면으로 돌아간다');
+  check(leave.saved === leave.depth,
+        `판은 지워지지 않는다 — ${leave.depth}층이 그대로 남는다 (${leave.saved})`);
+
   console.log('\n=== 에러 ===');
   console.log(errors.length ? errors.join('\n') : '없음');
   if (errors.length) fails++;

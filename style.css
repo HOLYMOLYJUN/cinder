@@ -1214,10 +1214,24 @@ canvas#view {
   height: min(86vh, 660px);
   display: flex; flex-direction: column;
   background: var(--panel);
-  border: 1px solid var(--line);
+  /* 다른 창과 같은 재료 — 모서리 색은 가방 판에서 떠 온 것이다 */
+  border: 2px solid var(--edge-hi);
+  border-right-color: var(--edge-lo);
+  border-bottom-color: var(--edge-lo);
+  box-shadow: 0 0 0 1px #000;
   border-radius: 0;
   overflow: hidden;
 }
+
+/* 내려가는 문. 판을 하는 중에만 뜼고(ui.js 의 showCodex),
+   탭과 반대쪽 끝에 둔다 — 읽으러 열었다가 실수로 누를 자리가 아니다. */
+.codex-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.codex-foot-note { font-size: 11.5px; color: var(--muted); order: -1; }
 
 .codex-tabs {
   display: flex; gap: 2px;
