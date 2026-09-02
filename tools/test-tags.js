@@ -121,6 +121,65 @@ const check = (ok, m) => { console.log((ok ? '  O ' : '  X ') + m); if (!ok) fai
   });
   check(early.length === 0, `1~2층에는 험한 성격이 안 걸린다 (200일 × 2층 검사)`);
 
+  /* ---------- 첫 판 안내 ----------
+     유료로 파는 게임이라 처음 3분이 전부다. 처음 켠 사람이 목표도 조작도
+     모르는 채 빈 로그를 보고 있으면 그 판은 거기서 끝난다. */
+  console.log('\n[ 첫 판에만 길을 알려준다 ]');
+  await p.evaluate(() => { localStorage.clear(); chooseHero('knight'); startRun(); });
+  // 커튼이 스스로 닫히면서 running 이 켜지고 그때 목표 줄이 붙는다
+  await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+  await p.waitForTimeout(200);
+  const g = await p.evaluate(() => {
+    const out = { first: [...document.querySelectorAll('#log div')].map(d => d.textContent) };
+    const s = state, m = s.map, pl = s.player;
+    s.monsters.length = 0;
+    for (const [dx, dy] of [[1,0],[2,0],[0,1],[-1,0]]) {
+      const x = pl.x + dx, y = pl.y + dy;
+      if (isWalkable(m, x, y)) { s.monsters.push(makeMonster(MONSTERS[0], x, y)); break; }
+    }
+    refreshFov(); guideLook();
+    pl.hp = Math.floor(pl.maxHp * 0.4); guideLook();
+    s.map.stairs = { x: pl.x + 1, y: pl.y }; s.fovRadius = 12; refreshFov(); guideLook();
+    out.all = [...document.querySelectorAll('#log div')].map(d => d.textContent);
+    // 여러 번 불러도 늘지 않아야 한다 — 안내는 한 번씩이다
+    guideLook(); guideLook(); guideLook();
+    out.after = document.querySelectorAll('#log div').length;
+
+    // 불씨는 못 쓸 때 이유를 말한다 (예전에는 조용히 아무 일도 안 했다)
+    UI.clearLog(); toggleEmber();
+    out.ember = [...document.querySelectorAll('#log div')].map(d => d.textContent)[0] || '';
+
+    // 두 번째 판인 사람에게는 한 줄도 안 나온다
+    const d = loadData() || {}; d.runs = 3; saveData(d);
+    s.guided = null; UI.clearLog();
+    guide('goal'); guideLook();
+    out.second = document.querySelectorAll('#log div').length;
+    return out;
+  });
+  check(g.first.some(l => /계단을 찾아/.test(l)), `1층에 들어서면 목표를 말한다 — 「${g.first[0]}」`);
+  check(g.all.some(l => /부딪히면/.test(l)), '몬스터를 처음 보면 치는 법을 말한다');
+  check(g.all.some(l => /물약/.test(l)), '처음 다치면 물약을 알려준다');
+  check(g.all.some(l => /계단입니다/.test(l)), '계단을 처음 보면 밟으라고 말한다');
+  check(g.after === g.all.length, `한 번씩만 말한다 (여러 번 불러도 ${g.after}줄)`);
+  check(/기억나지/.test(g.ember), `못 쓰는 버튼이 이유를 말한다 — 「${g.ember}」`);
+  check(g.second === 0, '두 번째 판부터는 한 줄도 안 나온다');
+
+  /* 성격 이름표는 두드리면 뜻을 말한다 — 「고요」 두 글자는 처음 보는 사람에게
+     아무 뜻도 아니라, 그러면 화면에 있을 이유가 없다. */
+  console.log('\n[ 성격을 두드리면 뜻을 말한다 ]');
+  await p.evaluate(() => {
+    const orig = window.choice;
+    window.choice = a => (a === FLOOR_TAGS ? FLOOR_TAGS.find(t => t.id === 'hoard') : orig(a));
+    try { enterFloor(7); } finally { window.choice = orig; }
+  });
+  await p.waitForFunction(() => state.running === true, null, { timeout: 10000 });
+  const say = await p.evaluate(() => {
+    UI.clearLog();
+    document.getElementById('stat-tag').click();
+    return [...document.querySelectorAll('#log div')].map(d => d.textContent)[0] || '';
+  });
+  check(/금이 아주 많/.test(say), `두드리면 그 층이 어떤지 말한다 — 「${say}」`);
+
   await b.close(); srv.close();
   console.log('\n에러:', errs.length ? errs.join(' | ') : '없음');
   if (errs.length) fails++;

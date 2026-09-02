@@ -119,6 +119,10 @@ function startRun() {
   state.pet = null;       // 판을 넘어 남지 않는다 — 이번 판의 동행이다
   state.level = 1;
   state.xp = 0;
+  /* 안내를 한 번씩 했는지의 표. 판마다 비운다 — 「첫 판인가」는 firstRun() 이
+     저장된 runs 로 따로 보므로, 여기 남겨 두면 같은 창에서 새 판을 시작한
+     사람에게만 안내가 빠지는 이상한 차이가 생긴다. */
+  state.guided = null;
   Render.dawnAt = 0;      // 다시 밤부터
 
   // 되찾은 기억은 판을 넘어 남는다
@@ -136,6 +140,8 @@ function startRun() {
   recalcStats(state.player);
   state.player.hp = state.player.maxHp;
   UI.clearLog();
+  // 첫 판이면 무엇을 해야 하는지부터. 빈 로그로 시작하면 목표가 안 보인다.
+  guide('goal');
   UI.hideGearCompare();
   UI.hideShop();
   UI.showGame();
@@ -371,7 +377,13 @@ function monsterSight() {
 }
 
 function toggleEmber() {
-  if (!MEM.has('douse')) return;
+  /* 기억이 없으면 조용히 아무 일도 안 했다. 그런데 버튼은 화면에 있으므로,
+     처음 켠 사람에게는 「눌러도 안 되는 버튼」이 된다 — 고장으로 읽힌다.
+     못 하는 이유를 말해 주면 그때부터 그건 **아직 못 여는 것**이 된다. */
+  if (!MEM.has('douse')) {
+    UI.log('불씨를 다루던 손이 아직 기억나지 않습니다.', 'sys');
+    return;
+  }
   state.ember = state.ember === 1 ? -1 : state.ember + 1;
   Sound.play('ember');
   applyFov();
@@ -379,6 +391,63 @@ function toggleEmber() {
   UI.log(state.ember === 1 ? '불씨를 키웁니다. 멀리까지 보이지만, 멀리서도 보입니다.'
        : state.ember === 0 ? '불씨를 원래대로 되돌립니다.'
        : '불씨를 줄입니다. 눈앞만 보이지만, 발소리가 멀어집니다.', 'sys');
+}
+
+/* =========================================================
+   첫 판 안내
+
+   튜토리얼 화면을 만들지 않는다. 이 게임은 이미 제 화법이 있다 —
+   「벽이 손에 닿습니다. 한 번 더 밀면 여기에 남길 수 있습니다」처럼
+   **상황이 왔을 때 로그에 한 줄.** 흔적 기능을 그렇게 가르치고 있으므로
+   조작도 같은 목소리로 가르치는 것이 맞다.
+
+   그리고 **첫 판에만** 말한다. 아는 사람에게 두 번째 판부터 같은 말을 하면
+   그건 안내가 아니라 잔소리고, 건너뛰기 단추를 달아야 하는 종류의 것이 된다.
+
+   네 줄뿐이다. 더 넣고 싶은 것이 생기면 그건 대개 **화면이 스스로 말하지
+   못하고 있다는 신호**이므로, 문장을 늘리기 전에 화면을 고치는 쪽을 본다.
+   ========================================================= */
+
+const GUIDE = {
+  goal:    '계단을 찾아 오르십시오. 열다섯 층입니다.',
+  monster: '부딪히면 칩니다.',
+  hurt:    '다쳤습니다. 물약은 아래 「물약」.',
+  stairs:  '계단입니다. 밟으면 오릅니다.',
+};
+
+// 첫 판인가. 판을 끝내면 runs 가 오르므로(persist), 한 번도 안 끝낸 사람이 첫 판이다.
+function firstRun() {
+  return !((loadData() || {}).runs);
+}
+
+/* 한 번만 말한다. state.guided 에 표를 남기는데, 이어하기에는 안 싣는다 —
+   이어할 사람은 이미 그 화면을 본 사람이라 다시 말할 이유가 없다. */
+function guide(key) {
+  /* running 은 안 본다. 목표 줄은 커튼(층 진입 연출)이 걷히기 **전에** 로그에
+     들어가 있어야 한다 — 커튼 콜백에 매달았더니 startRun 의 clearLog 와 순서가
+     엇갈려 어떤 때는 지워졌다. 로그는 커튼 뒤에 그대로 남아 있으므로,
+     먼저 써 두고 커튼이 걷히면 사람이 그걸 본다. */
+  if (!firstRun()) return;
+  state.guided = state.guided || {};
+  if (state.guided[key]) return;
+  state.guided[key] = true;
+  UI.log(GUIDE[key], 'sys');
+}
+
+/* 지금 보이는 것 중에 처음 보는 것이 있으면 그때 말한다.
+   턴마다 불리므로 이미 말한 것은 위에서 곧바로 걸러진다. */
+function guideLook() {
+  if (!firstRun() || !state.running) return;
+  const s = state;
+  if (!s.guided || !s.guided.monster) {
+    if (s.monsters.some(m => m.alive && isVisible(s.visible, s.map, m.x, m.y))) guide('monster');
+  }
+  if (!s.guided || !s.guided.stairs) {
+    const st = s.map && s.map.stairs;
+    if (st && isVisible(s.visible, s.map, st.x, st.y)) guide('stairs');
+  }
+  const p = s.player;
+  if (p && p.alive && p.hp < p.maxHp * 0.6) guide('hurt');
 }
 
 /* =========================================================
@@ -1387,6 +1456,7 @@ function spendPlayerTurn() {
     if (p.hp <= 0) { UI.log('불이 옮겨붙은 채 쓰러집니다.', 'hurt'); kill(p); }
   }
   refreshFov();
+  guideLook();            // 첫 판에만 — 처음 보는 것이 있으면 한 줄
   noteSeenMonsters();
   UI.updateHud(state);
   paintTouch();
@@ -2417,6 +2487,15 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gear-drop').addEventListener('click', () => resolveGear(false));
   document.getElementById('shop-close').addEventListener('click', () => UI.hideShop());
   document.getElementById('forge-close').addEventListener('click', () => UI.hideForge());
+
+  /* 층 성격을 두드리면 뜻을 말한다. 「고요」 두 글자는 처음 보는 사람에게
+     아무 뜻도 아니고, 그러면 화면에 있는 이유가 없다. */
+  const tagChip = document.getElementById('stat-tag');
+  if (tagChip) tagChip.addEventListener('click', () => {
+    const t = state.floorTag;
+    if (!t || !t.id || !state.running) return;
+    UI.log(FLOOR_TAG_SAY[t.id] || t.hint || '', 'sys');
+  });
   document.getElementById('btn-codex').addEventListener('click', () => UI.showCodex('monsters'));
   document.getElementById('codex-close').addEventListener('click', () => UI.hideCodex());
   document.getElementById('codex-tabs').addEventListener('click', e => {

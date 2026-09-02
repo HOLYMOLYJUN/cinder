@@ -351,6 +351,7 @@ html, body {
    불씨 색을 옅게 쓴다 — 이 게임에서 「알아 둘 것」은 늘 이 색이다. */
 .floor-tag {
   padding: 0 5px;
+  cursor: pointer;              /* 두드리면 뜻을 말한다 (game.js) */
   border: 1px solid var(--ember-dim);
   color: var(--ember);
   font-size: 11px;
