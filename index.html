@@ -88,6 +88,10 @@
       </div>
       <div class="hud-right">
         <span class="stat"><i>층</i><b id="stat-floor">1</b></span>
+        <!-- 이 층의 성격. 진입 문구는 한 번 스치고 사라지므로, 층에 머무는
+             동안에도 「지금 어떤 층인가」가 남아 있어야 판단에 쓰인다.
+             성격 없는 층에서는 아예 안 보인다. -->
+        <span class="stat floor-tag hidden" id="stat-tag"></span>
         <span class="stat"><span class="ico" id="ico-potion"></span><b id="stat-potion">0</b></span>
         <span class="stat"><span class="ico" id="ico-gold"></span><b id="stat-gold">0</b></span>
       </div>

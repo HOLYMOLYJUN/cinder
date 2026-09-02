@@ -347,6 +347,18 @@ html, body {
    (그림이 없는 장비, 그리고 정체불명처럼 일부러 안 보여주는 것) */
 .gear-icon[hidden] { display: none; }
 
+/* 이 층의 성격. 눈 구석에 있을 것이라 조용해야 하지만, 있다는 것은 보여야 한다.
+   불씨 색을 옅게 쓴다 — 이 게임에서 「알아 둘 것」은 늘 이 색이다. */
+.floor-tag {
+  padding: 0 5px;
+  border: 1px solid var(--ember-dim);
+  color: var(--ember);
+  font-size: 11px;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.floor-tag.hidden { display: none; }
+
 /* 레벨 — 체력 옆에 둔다. 레벨이 곧 체력이 늘어나는 일이므로 같이 읽힌다. */
 .lv { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .lv i { font-style: normal; color: var(--muted); font-size: 11px; }

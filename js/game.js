@@ -156,7 +156,7 @@ function enterFloor(depth) {
 
   // 층 속성 — 진입 문장이 이걸 흘린다.
   // 초반 층은 튜토리얼을 겸하므로 플레이어를 몰아붙이는 속성을 뽑지 않는다.
-  const harsh = ['dense', 'dark'];
+  const harsh = ['dense', 'dark', 'elite', 'hoard'];
   const pool = depth <= 2 ? FLOOR_TAGS.filter(t => !harsh.includes(t.id)) : FLOOR_TAGS;
   const isRoof = depth >= CFG.TOP_FLOOR;
 
@@ -222,7 +222,9 @@ function enterFloor(depth) {
     if (bossDef) base = Math.round(base * 0.45);        // 보스층은 잡몹을 줄인다
     if (isRoof)  base = Math.round(base * 0.28);        // 옥상은 주인과의 자리다
     const count = Math.max(2, Math.round(base * (tag.monsterMul || 1)));
-    const ec = eliteChance(depth);
+    /* 「큰 것이 지나간 자국」 층은 수가 적은 대신 하나하나가 세다.
+       확률에 뚜껑을 씌우는 것은 배율만 곱하면 후반에 전부 엘리트가 되기 때문이다. */
+    const ec = Math.min(0.6, eliteChance(depth) * (tag.eliteMul || 1));
     for (let i = 0; i < count; i++) {
       const spot = findSpawnSpot(map, p);
       if (!spot) break;
@@ -264,7 +266,8 @@ function enterFloor(depth) {
     const s = findSpawnSpot(map, p);
     if (s) map.items.push({ x: s.x, y: s.y, type: 'gold', amount: randInt(3, 8) + depth });
   }
-  for (let i = 0; i < randInt(1, 2); i++) {
+  // 「물 흐르는 소리」 층은 물약을 더 준다 — 다친 채로 올라온 사람의 숨통이다
+  for (let i = 0; i < randInt(1, 2) + (tag.potionAdd || 0); i++) {
     const s = findSpawnSpot(map, p);
     if (s) map.items.push({ x: s.x, y: s.y, type: 'potion' });
   }

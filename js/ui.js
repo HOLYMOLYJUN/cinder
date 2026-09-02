@@ -32,6 +32,7 @@ const UI = {
       log:      $('log'),
       hpText:   $('hp-text'),
       floor:    $('stat-floor'),
+      tag:      $('stat-tag'),
       level:    $('stat-level'),
       xpFill:   $('xp-fill'),
       lvChip:   $('lv-chip'),
@@ -113,11 +114,29 @@ const UI = {
     this.updateHearts(p);
     this.el.hpText.textContent = Math.max(0, p.hp) + ' / ' + p.maxHp;
     this.el.floor.textContent = state.depth;
+    this.updateFloorTag(state);
     this.updateLevel(state);
     this.el.potion.textContent = state.potions;
     this.el.gold.textContent = state.gold;
     this.updateGearStrip(p);
     this.updateBossBar(state);
+  },
+
+  /* 이 층의 성격을 층수 옆에 남긴다.
+
+     진입 문구는 한 번 흐르고 사라진다. 그런데 「어둠」인 층에서 시야가 좁은 것을
+     세 방쯤 지나면 잊어버리고, 그러면 그건 성격이 아니라 그냥 이상한 층이 된다.
+     머무는 내내 보이면 「아 이 층이 그래서 그렇지」가 되고, 그때부터 판단에 쓰인다.
+
+     성격 없는 층에서는 아예 감춘다 — 「없음」이라고 적어 두면 그 자리가
+     늘 차 있어서, 있을 때의 눈에 띔이 사라진다. */
+  updateFloorTag(state) {
+    const el = this.el.tag;
+    if (!el) return;
+    const t = state.floorTag;
+    const name = t && t.id && typeof FLOOR_TAG_NAME !== 'undefined' ? FLOOR_TAG_NAME[t.id] : '';
+    el.textContent = name || '';
+    el.classList.toggle('hidden', !name);
   },
 
   updateLevel(state) {
