@@ -585,9 +585,13 @@ const UI = {
       acts.push('<button data-act="unequip" class="ghost">벗는다</button>');
     }
 
+    /* 값은 구르게 하고 **버튼은 바닥에 붙박이**로 둔다.
+       줄이 세 개만 돼도 끼는 버튼이 아래로 밀려 안 보였다 —
+       스크롤해야 나오는 버튼은 없는 버튼과 같다. */
     box.innerHTML =
       `<div class="bag-name r-${g.rarity}">${gearFullName(g)}</div>` +
-      `<div class="bag-slotline">${slotLine}</div>` + rows +
+      `<div class="bag-slotline">${slotLine}</div>` +
+      `<div class="bag-rows">${rows}</div>` +
       `<div class="bag-acts">${acts.join('')}</div>`;
 
     box.querySelectorAll('[data-act]').forEach(btn => {

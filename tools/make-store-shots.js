@@ -238,11 +238,22 @@ const stage = (depth, opts) => `(() => {
       if (up >= 5 && score > bestScore) { bestScore = score; best = g; }
     }
     if (!best) best = makeGear(GEAR.find(d => d.rarity === 'ancient' && d.slot === 'weapon' && !d.only));
-    UI.showGearCompare(best, p.gear[equipSlotFor(best, p)]);
+
+    /* 가방을 열고 그 물건을 골라 둔다. 예전에는 비교창을 띄우는 자리였는데
+       그 창은 없어졌다 — 지금은 가방의 설명 칸이 같은 일을 한다.
+       가방을 보여주는 편이 낫기도 하다 — 「주운 것을 들고 다닐 수 있다」가
+       한 장에 드러난다. */
+    state.bag = [best];
+    for (const n of ['재의 장화', '수정 목걸이', '사슬 갑옷', '부적']) {
+      const d = GEAR.find(g => g.name === n);
+      if (d && state.bag.length < 6) state.bag.push(makeGear(d));
+    }
+    openBag();
+    document.querySelector('#bag-slots [data-bag="0"]').click();
   });
   await page.waitForTimeout(500);
   await shot('04-gear');
-  await page.evaluate(() => { if (UI.hideGearCompare) UI.hideGearCompare(); });
+  await page.evaluate(() => { UI.hideBag(); });
   await page.waitForTimeout(300);
 
   /* ---------- 5. 상점 ----------
