@@ -100,6 +100,8 @@ ctx.UI = {
 ctx.Render = {
   init(){}, resize(){}, step(){}, draw(){},
   addFloater(){}, addShake(){}, addBeam(){}, addOrb(){}, addArrow(){}, addBlast(){},
+  // 휘두른 자국 — 붙이기를 빼먹으면 meleeSwing 이 그 자리에서 죽는다
+  addSwing(){},
   setBiome(){}, biomeKey: k => k,
   img: {}, ready: false,
 };
