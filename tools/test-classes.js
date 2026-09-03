@@ -66,9 +66,13 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
       // 쏜 직후에는 손이 돌아오지 않았다
       spendPlayerTurn();                       // 쏜 턴의 소비
       cdBlocked = rangedAttack(null) === false && (100 - m.hp) === hit;
-      // 한 턴 다른 일을 하면 돌아온다
+      /* 간격이 3 이라 두 턴을 쉬어야 돌아온다 (예전에는 2 — 한 턴이었다).
+         원거리 둘과 근접 셋의 간격을 좁힌 것이 이 숫자였다 —
+         사거리도 위력도 거의 안 움직였고 간격만 움직였다. */
       spendPlayerTurn();
-      cdBack = rangedAttack(null) === true && (100 - m.hp) > hit;
+      const cdStill = rangedAttack(null) === false;
+      spendPlayerTurn();
+      cdBack = cdStill && rangedAttack(null) === true && (100 - m.hp) > hit;
     }
     /* 검으로 바꿔도 여전히 쏜다 — 원거리는 이제 손에 든 것이 아니라
        고른 사람이 정하므로, 무기를 바꿨다고 조작이 사라지지 않는다.

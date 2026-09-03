@@ -171,7 +171,11 @@ const GEAR = [
   { slot:'weapon', kind:'bow', name:'긴 활',   min:5,  rarity:'fine',    mod:{ atk:6, spd:1 },  bow:true, only:'elf' },
   { slot:'weapon', kind:'bow', name:'재의 활', min:9,  rarity:'ancient', mod:{ atk:9, spd:2 },  bow:true, only:'elf' },
   // ---- 무기 : 마법 ----
-  // 지팡이의 주문은 반드시 기본 공격(5)보다 확실히 높아야 한다.
+  /* 지팡이의 주문은 반드시 **기사의 기본 공격(6)보다 높아야** 한다.
+     같기만 해도 물리 판정이 유지되어 주울 이유가 없는 함정 아이템이 된다.
+     성장(grow.pow)은 공격과 주문에 같이 붙으므로 레벨이 올라도 차이는 그대로다 —
+     그래서 1레벨에서 넘기면 끝까지 넘고, 같으면 끝까지 막힌다.
+     (tools/test-levels.js 가 다섯 레벨에서 이걸 재고 있다) */
   // 같거나 낮으면 들어도 물리 판정이 유지되어 주울 이유가 없는 함정 아이템이 된다.
   /* 마법사가 손에 쥐고 시작하는 것. 나무 지팡이(주문 9)를 그대로 쥐여 주면
      1층부터 주문 17 로 출발하는데, 마법사는 이미 다섯 중 제일 순한 사람이라
@@ -181,10 +185,20 @@ const GEAR = [
      주문이 4 뿐이라 「주문은 기본 공격(5)보다 높아야 한다」는 아래 규칙에
      어긋난다 — 그래서 활처럼 only 로 마법사에게만 묶는다. 남에게는 애초에
      안 나오므로 함정이 될 일이 없고, 마법사는 기본 주문(4)에 얹어 쓴다. */
+  /* 지팡이는 4·9·12·18 이었다(지금 4·7·9·13). 검이 4·6·8·10, 도끼가 5·7·11·14 인 것을 생각하면
+     꼭대기가 거의 두 배다. 그런데 몸스터의 마방(평균 2.9)과 방어(2.8)는 같아서
+     **그 두 배를 막아 주는 것이 없었다.**
+
+     마법사 200판 클리어 66.5%가 여기서 나왔다. 사거리를 줄이고 위력을 깎아 봤는데
+     소수점도 안 움직였다 — 원거리가 아니라 그냥 더 세게 때렸던 것이다.
+
+     도끼(최고 14) 밑으로 내린다. 지팡이는 멀리서도 쓰고 번지기까지 하므로
+     순수 수치로 제일 높을 이유가 없다. 시작 지팡이(4)는 그대로 둔다 —
+     첫 칸의 세기는 맞게 맞춰져 있었다. */
   { slot:'weapon', kind:'staff', name:'낡은 지팡이', min:1,  rarity:'common',  mod:{ sp:4 }, only:'wizard' },
-  { slot:'weapon', kind:'staff', name:'나무 지팡이', min:2,  rarity:'common',  mod:{ sp:9 } },
-  { slot:'weapon', kind:'staff', name:'주술 지팡이', min:5,  rarity:'fine',    mod:{ sp:12, md:1 } },
-  { slot:'weapon', kind:'staff', name:'재의 지팡이', min:9,  rarity:'ancient', mod:{ sp:18, md:3 } },
+  { slot:'weapon', kind:'staff', name:'나무 지팡이', min:2,  rarity:'common',  mod:{ sp:7 } },   // 6 은 기사 공격과 같아서 함정이 됐다
+  { slot:'weapon', kind:'staff', name:'주술 지팡이', min:5,  rarity:'fine',    mod:{ sp:9, md:1 } },
+  { slot:'weapon', kind:'staff', name:'재의 지팡이', min:9,  rarity:'ancient', mod:{ sp:13, md:3 } },
 
   /* ---- 투구 ----
      새로 생긴 자리다. 몸 하나로 덮던 것을 머리와 몸으로 나눈 셈이므로
