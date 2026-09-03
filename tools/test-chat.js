@@ -6,7 +6,7 @@
 
    먼저 두 가지를 띄워 놓고 실행한다:
      cd server && npx wrangler dev          (127.0.0.1:8787)
-     python3 -m http.server 3000            (저장소 뿌리에서)
+     python3 -m http.server 8123            (저장소 뿌리에서)
 
      node tools/test-chat.js
 
@@ -20,7 +20,7 @@
 
 const { chromium } = require('playwright');
 
-const GAME  = process.env.GAME  || 'http://127.0.0.1:3000/index.html';
+const GAME  = process.env.GAME  || 'http://127.0.0.1:8123/index.html';
 const PARTY = process.env.PARTY || 'http://127.0.0.1:8787';
 
 const ok = [], bad = [];

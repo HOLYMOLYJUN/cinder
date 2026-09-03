@@ -6,14 +6,14 @@
    폰에 올려 봐야 아는 코드를 만들지 않으려고 그렇게 짰다.
 
    먼저 정적 서버를 띄우고 실행한다 (저장소 뿌리에서):
-     python3 -m http.server 3000
+     python3 -m http.server 8123
      node build.js --app
      node tools/test-app.js
    ========================================================= */
 
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'http://127.0.0.1:3000';
+const BASE = process.env.BASE || 'http://127.0.0.1:8123';
 const APP  = BASE + '/dist/app/index.html';
 const WEB  = BASE + '/index.html';
 
