@@ -375,6 +375,12 @@ function playRun() {
    기억은 판을 넘어 쌓이므로, 그냥 이어서 돌리면 뒤로 갈수록 쉬워진다.
    "처음 잡는 사람"과 "다 모은 사람"의 난이도는 완전히 다른 숫자다. */
 
+/* 기억이 몇 개인지를 박아 두면 늘리거나 줄일 때마다 여기가 말없이 샌다.
+   실제로 한 번 샜다 — 「던지던 손」을 없앴더니 아홉 개에 영영 못 닿아서
+   열 명이 전부 40판을 끝까지 돌고 「41판」이라는 뜻 없는 값을 냈다.
+   재는 데 40분이 들고 그 답은 틀렸다. 그래서 게임에서 직접 세어 온다. */
+const ALL_MEM = vm.runInContext('MEMORIES.length', ctx);
+
 function runCohort(n, fresh) {
   const out = [];
   if (fresh) {
@@ -385,7 +391,7 @@ function runCohort(n, fresh) {
   } else {
     ctx.localStorage.clear();
     // 기억을 다 모을 때까지 예열한 뒤 측정한다
-    for (let i = 0; i < 40 && vm.runInContext('(loadData()||{}).memories||[]', ctx).length < 9; i++) {
+    for (let i = 0; i < 40 && vm.runInContext('(loadData()||{}).memories||[]', ctx).length < ALL_MEM; i++) {
       playRun();
     }
     for (let i = 0; i < n; i++) out.push(playRun());
@@ -437,7 +443,7 @@ if (FRESH_ONLY) {
 const fullRuns  = runCohort(RUNS, false);
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
 report('처음 오르는 사람 — 기억 0개', freshRuns);
-report('다 되찾은 사람 — 기억 9개', fullRuns);
+report('다 되찾은 사람 — 기억 ' + ALL_MEM + '개', fullRuns);
 /* 이어서 하는 사람 — 기억이 몇 판 만에 모이고 언제 처음 끝을 보는가.
    한 번만 재면 운에 휘둘리므로 여러 번 돌려 중앙값을 본다.
    메타 진행의 속도가 이 게임의 수명을 정한다. */
@@ -451,9 +457,9 @@ for (let t = 0; t < JOURNEYS; t++) {
     const r = playRun();
     const got = vm.runInContext('(loadData()||{}).memories||[]', ctx).length;
     j.push({ run: i, depth: r.depth, mem: got, cleared: r.cleared });
-    if (got >= 9 && j.some(x => x.cleared)) break;
+    if (got >= ALL_MEM && j.some(x => x.cleared)) break;
   }
-  const fc = j.find(x => x.cleared), fm = j.find(x => x.mem >= 9), f1 = j.find(x => x.mem >= 1);
+  const fc = j.find(x => x.cleared), fm = j.find(x => x.mem >= ALL_MEM), f1 = j.find(x => x.mem >= 1);
   firstClears.push(fc ? fc.run : MAXRUN + 1);
   fullMems.push(fm ? fm.run : MAXRUN + 1);
   firstMems.push(f1 ? f1.run : MAXRUN + 1);
@@ -465,7 +471,7 @@ console.log('첫 판 예시: ' +
   sample.slice(0, 14).map(j => `${j.run}판 ${j.depth}층/기억${j.mem}${j.cleared ? '★' : ''}`).join('  '));
 console.log(`첫 기억까지      중앙값 ${med(firstMems)}판   (${firstMems.join(',')})`);
 console.log(`첫 클리어까지    중앙값 ${med(firstClears)}판   (${firstClears.join(',')})`);
-console.log(`기억 아홉 개까지 중앙값 ${med(fullMems)}판   (${fullMems.join(',')})`);
+console.log(`기억 ${ALL_MEM}개까지    중앙값 ${med(fullMems)}판   (${fullMems.join(',')})`);
 console.log(`\n(${secs}초)`);
 process.exit(0);
 
