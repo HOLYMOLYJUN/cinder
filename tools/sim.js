@@ -260,7 +260,19 @@ function playRun() {
   runIndex++;
   ctx.__result = null; ctx.__ending = false; ctx.__gearPending = false; ctx.__shopOpen = false;
   declined = new Set();
-  if (HERO) G.chooseHero(HERO);   // localStorage 를 매 판 비우므로 매 판 다시 고른다
+  /* localStorage 를 매 판 비우므로 매 판 다시 고른다.
+     잠긴 사람(도둑)은 chooseHero 가 안 받으므로 열쇠부터 넣는다 —
+     안 그러면 조용히 기사를 재 놓고 도둑이라고 적게 된다. */
+  if (HERO) {
+    const h = G.HEROES.find(x => x.id === HERO);
+    if (h && h.hidden) {
+      // 저장 열쇠 이름을 여기서 다시 적지 않는다 — 게임 쪽 함수를 그대로 부른다
+      vm.runInContext("(() => { const s = loadData() || {};" +
+        " s.achievements = [...new Set([...(s.achievements || []), 'allHeroes'])];" +
+        " saveData(s); })()", ctx);
+    }
+    G.chooseHero(HERO);
+  }
   G.startRun();
   /* 지형은 이제 날짜로 고정된다(오늘의 탑). 그대로 두면 수백 판이 전부
      같은 열다섯 층을 오르게 되어, 재는 것이 「이 게임의 난이도」가 아니라

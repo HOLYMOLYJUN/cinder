@@ -83,6 +83,9 @@ const CHARACTERS = {
   'hero.wizard': 'wizzard_m',
   'hero.lizard': 'lizard_m',
   'hero.dwarf':  'dwarf_f',
+  /* 여섯 번째는 팩이 아니라 NPC 쪽에서 온다 — 탑 안에 서 있던 것이
+     밖으로 나와 고를 수 있게 된 첫 번째 사람이다. */
+  'hero.thief':  'thief',
   player:      'knight_m',
   // 몬스터 12종
   rat:         'tiny_zombie',

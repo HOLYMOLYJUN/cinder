@@ -42,7 +42,12 @@ const ACHIEVEMENTS = [
   { id: 'noShop',   name: '빚 없이',        desc: '상인과 한 번도 거래하지 않고 탑을 오른다' },
   { id: 'meleeOnly',name: '손으로만',       desc: '원거리를 쓸 수 있는 채로, 한 번도 쓰지 않고 오른다' },
   { id: 'rangedOnly',name: '닿지 않고',     desc: '맞붙어 때리는 일 없이 탑을 오른다' },
-  { id: 'allHeroes',name: '모두의 탑',      desc: '다섯 사람 모두로 탑을 오른다' },
+  /* reveal 은 **열고 나서야** 보이는 줄이다.
+     이 업적이 여섯 번째 사람을 여는데, 그걸 desc 에 적으면 잠긴 채로도 읽혀서
+     히든이 히든이 아니게 된다. 무엇을 향해 가는지(desc)는 보이고,
+     무엇이 나오는지(reveal)는 연 뒤에 보인다. */
+  { id: 'allHeroes',name: '모두의 탑',      desc: '다섯 사람 모두로 탑을 오른다',
+    reveal: '여섯 번째 사람이 열렸습니다 — 도둑.' },
   { id: 'noForge',  name: '두드리지 않고', desc: '대장장이에게 한 번도 벼리지 않고 탑을 오른다' },
   { id: 'noPotion', name: '맨정신으로',    desc: '물약을 한 번도 마시지 않고 탑을 오른다' },
 
@@ -69,7 +74,7 @@ function unlockAch(id) {
   saveData(save);
 
   const def = ACHIEVEMENTS.find(a => a.id === id);
-  if (def) { Sound.play('ach'); UI.toast(def.name, def.desc); }
+  if (def) { Sound.play('ach'); UI.toast(def.name, def.reveal || def.desc); }
 }
 
 /* ---------- 판 도중에 확인하는 것들 ---------- */
@@ -114,7 +119,9 @@ function checkClearAchievements() {
   done.add(currentHero().id);
   save.clearedHeroes = [...done];
   saveData(save);
-  if (done.size >= HEROES.length) unlockAch('allHeroes');
+  /* 다섯만 센다. HEROES.length 로 세면 여섯 번째(도둑)까지 들어가는데,
+     그 도둑이 이 업적으로 열리므로 영원히 안 열린다 — heroes.js 의 BASE_HEROES. */
+  if (BASE_HEROES.every(h => done.has(h.id))) unlockAch('allHeroes');
 }
 
 // 수집 관련 — 도감이 채워질 때마다

@@ -901,6 +901,8 @@ function rangedAttack(dir) {
 
   const fire = isMagicAttack(p);
   const bow = !fire && p.gear.weapon && p.gear.weapon.bow;
+  // 표창은 손에 든 것과 따로 논다 (heroes.js 의 star)
+  const star = !fire && !bow && !!currentHero().star;
   const to = target || blindEnd;
 
   // 던지는 쪽을 바라보게 한다
@@ -921,13 +923,37 @@ function rangedAttack(dir) {
     return true;
   }
 
-  const { dmg } = rollDamage(p, target);
+  /* 표창의 위력은 **손에 든 것을 안 탄다.**
+
+     엘프는 활이 무기 칸을 차지해서 붙는 것과 던지는 것이 같은 무기다.
+     도둑은 단검을 쥔 채로 따로 던지므로 둘이 갈려야 한다 — 안 그러면
+     단검을 벼릴수록 표창도 같이 세져서 「단검을 든 엘프」가 된다.
+
+     벼린 값도 g.mod 에 직접 얹히므로(forgeGear) 무기 칸의 공격을 통째로
+     빼면 그만큼도 같이 빠진다 — 뺄 곳이 한 곳이라 어긋날 데가 없다.
+
+     대신 깎지 않는다. 던지기 0.7배·활 0.85배인데 표창은 1.0배다.
+     무기를 안 얹는 대신 값을 안 깎는 거래라, 초반에는 남들만큼 나가고
+     무기가 좋아질수록 뒤처진다. 그래서 표창이 주력이 되지 않는다. */
+  const thrower = star
+    ? { stats: { ...p.stats,
+                 atk: Math.max(1, p.stats.atk - (((p.gear.weapon || {}).mod || {}).atk || 0)) } }
+    : p;
+  const { dmg } = rollDamage(thrower, target);
 
   if (bow) {
     // 활은 이 사람의 본업이라 던지기보다 덜 깎인다. 그래도 근접보다는 약하다.
     const hit = Math.max(1, Math.round(dmg * 0.85));
     hurtMonster(target, hit, COLORS.damage);
     UI.log(target.name + '에게 화살이 꽂힙니다. ' + hit + '의 피해.', 'hit');
+    UI.updateHud(state);
+    return true;
+  }
+
+  if (star) {
+    // 무기를 안 얹은 값이라 여기서는 안 깎는다 — 위의 thrower 참고
+    hurtMonster(target, dmg, COLORS.damage);
+    UI.log(target.name + '에게 표창이 박힙니다. ' + dmg + '의 피해.', 'hit');
     UI.updateHud(state);
     return true;
   }
@@ -1657,6 +1683,23 @@ function attack(attacker, defender, dir, mult) {
       weaponKind(attacker.gear.weapon) === 'dagger') {
     const v = currentHero().poison || DAGGER_POISON;
     poisonMonster(defender, v.turns, v.amount);
+  }
+
+  /* 도둑은 때린 것에게서 금을 가져간다 (heroes.js 의 steal).
+
+     **한 마리에서 한 번만**이다. 잡을 때가 아니라 때릴 때인 것과 한 짝인데,
+     그래야 같은 것을 계속 패는 것보다 여럿을 한 대씩 돌아가며 치는 것이
+     이득이 된다 — 「하나를 끝까지」가 언제나 옳던 판에 다른 답이 생긴다.
+     얇은 몸으로 무리 속을 도는 것이라 공짜는 아니다.
+
+     쓰러진 뒤에는 안 나온다. 시체를 뒤지는 것이 아니라 스치며 빼는 것이다. */
+  if (attacker.kind === 'player' && defender.alive &&
+      currentHero().steal && !defender.robbed) {
+    defender.robbed = true;
+    const took = 2 + Math.floor(state.depth / 3);
+    state.gold += took;
+    Render.addFloater(defender.x, defender.y - 1, '+' + took, COLORS.gold);
+    Sound.play('gold');
   }
 
   const verb = magic ? '마법으로' : '';

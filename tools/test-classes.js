@@ -107,6 +107,13 @@ const check = (c, m) => { console.log((c ? '  O ' : '  X ') + m); if (!c) fails+
   const KIND_NAME = { dagger:'단검', sword:'검', spear:'창', axe:'도끼', bow:'활', staff:'지팡이' };
   const drop = await p.evaluate((kinds) => {
     const out = {};
+    /* 잠긴 사람(도둑)은 chooseHero 가 안 받는다. 그대로 돌리면 기사의 드랍을
+       재 놓고 도둑이라고 적게 되므로, 여기서 먼저 열어 둔다.
+       실제로 한 번 그렇게 나왔다 — 도둑의 단검이 2%로 찍혔는데 그건
+       기사의 숫자였다. */
+    const save = loadData() || {};
+    save.achievements = [...new Set([...(save.achievements || []), 'allHeroes'])];
+    saveData(save);
     for (const h of HEROES) {
       chooseHero(h.id);
       const c = {};

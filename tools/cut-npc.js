@@ -44,6 +44,8 @@ const WANT = {
   'Executioner':       'executioner',
   'Archer':            'hunter',
   'Butcher':           'butcher',
+  // 여섯 번째 사람 — 다섯을 다 깨야 열린다 (js/heroes.js)
+  'Thief':             'thief',
 };
 
 /* 파일 이름이 폴더 이름과 다른 것들.

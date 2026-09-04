@@ -828,7 +828,7 @@ const UI = {
     const cur = currentHero();
     box.innerHTML = '';
 
-    for (const h of HEROES) {
+    for (const h of pickableHeroes()) {
       const b = document.createElement('button');
       b.className = 'hero' + (h.id === cur.id ? ' on' : '');
       b.dataset.hero = h.id;
@@ -1028,7 +1028,7 @@ const UI = {
       row.className = 'ach-row' + (has ? ' got' : '');
       row.innerHTML = `<span class="ach-mark">${has ? '✦' : '·'}</span>` +
         `<span class="ach-name">${a.name}</span>` +
-        `<span class="ach-desc">${a.desc}</span>`;
+        `<span class="ach-desc">${has && a.reveal ? a.reveal : a.desc}</span>`;
       box.appendChild(row);
     }
     document.getElementById('codex-tabs')
