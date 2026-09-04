@@ -413,7 +413,7 @@ function report(label, runs) {
     const hps = runs.flatMap(r => r.perFloor.filter(f => f.depth === d).map(f => f.hpPct));
     const avg = hps.length ? (hps.reduce((a, b) => a + b, 0) / hps.length * 100).toFixed(0) + '%' : '—';
     const bar = '█'.repeat(Math.round(rc / RUNS * 24));
-    const mark = [5,10,15].includes(d) ? ' ← 보스' : (G.CFG.REST_FLOORS.includes(d) ? ' ← 안식처' : '');
+    const mark = CFGBOSS(d) ? ' ← 보스' : (G.CFG.REST_FLOORS.includes(d) ? ' ← 안식처' : '');
     console.log(String(d).padStart(2) + '   ' + (rc / RUNS * 100).toFixed(0).padStart(3) + '%   ' +
       String(deaths[d]).padStart(3) + '판   ' + avg.padStart(4) + '   ' + bar + mark);
   }
@@ -489,7 +489,7 @@ for (let d = 1; d <= 15; d++) {
   const hps = runs.flatMap(r => r.perFloor.filter(f => f.depth === d).map(f => f.hpPct));
   const avg = hps.length ? (hps.reduce((a, b) => a + b, 0) / hps.length * 100).toFixed(0) + '%' : '—';
   const bar = '█'.repeat(Math.round(rc / RUNS * 30));
-  const mark = [5,10,15].includes(d) ? ' ← 보스' : (CFGREST(d) ? ' ← 안식처' : '');
+  const mark = CFGBOSS(d) ? ' ← 보스' : (CFGREST(d) ? ' ← 안식처' : '');
   console.log(
     String(d).padStart(2) + '   ' +
     (rc / RUNS * 100).toFixed(0).padStart(3) + '%   ' +
@@ -497,6 +497,8 @@ for (let d = 1; d <= 15; d++) {
     avg.padStart(4) + '   ' + bar + mark);
 }
 function CFGREST(d) { return G.CFG.REST_FLOORS.includes(d); }
+// 보스가 있는 층은 js/bosses.js 가 안다 (용을 13층으로 올린 뒤로 [5,10,15] 는 틀렸다)
+function CFGBOSS(d) { return Object.keys(G.BOSSES || {}).map(Number).includes(d); }
 
 const cleared = runs.filter(r => r.cleared).length;
 console.log(`\n클리어 ${cleared}판 (${(cleared / RUNS * 100).toFixed(1)}%)`);

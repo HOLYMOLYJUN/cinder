@@ -118,6 +118,13 @@ const CHARACTERS = {
   smith:       'blacksmith',
   // 되짚기의 「첫 번째 이름」 — 왜 연금술사인지는 tools/cut-npc.js 참고
   child:       'child',
+  /* 탑을 오르다 돌아오지 못한 사람들. NPC 팩에서 온다 —
+     짐승만 있는 탑보다 사람이 섞인 탑이 무섭다. */
+  fallenknight: 'fallenknight',
+  heavyknight:  'heavyknight',
+  executioner:  'executioner',
+  hunter:       'hunter',
+  butcher:      'butcher',
 };
 
 const MANIFEST = {};

@@ -33,6 +33,33 @@ const WANT = {
      예전에는 주인공을 줄여 썼는데, 그러면 아이가 나와 똑같이 생겼고
      「등불지기가 당신의 얼굴을 하고 있다」는 장치까지 묽어진다. */
   'Alchemist': 'child',
+
+  /* ---- 몸스터 ----
+     팩 스물여섯 종 중 둘만 쓰고 있었다. 이 팩은 「사람」을 그린 것이라
+     탑을 오르다 죽은 것들로 쓰기에 딱 맞는다 — 먼저 오른 사람이 벍에 말을
+     남기는 게임인데, 그 중 돌아오지 못한 사람이 있어야 그 말이 무거워진다.
+     짐승보다 사람이 무서운 것도 그 때문이다. */
+  'Knight - Standard': 'fallenknight',
+  'Knight - Heavy':    'heavyknight',
+  'Executioner':       'executioner',
+  'Archer':            'hunter',
+  'Butcher':           'butcher',
+};
+
+/* 파일 이름이 폴더 이름과 다른 것들.
+
+   대부분은 `Blacksmith/Blacksmith_Idle_1.png` 처럼 둘이 같은데, 기사들만
+   폴더는 「Knight - Heavy」이고 파일은 「HeavyKnight_」로 시작한다.
+   처음에는 폴더 이름을 그대로 썼는데 그러면 파일을 못 찾고
+   **아무 말도 없이 건너뛴다** — 안 나오는 이유를 모른 채로 끝난다.
+   그래서 예외를 적고, 아래에서 못 찾은 것은 소리를 낸다. */
+const PREFIX = {
+  'Knight - Standard': 'Knight',
+  'Knight - Heavy':    'HeavyKnight',
+  'Knight - Elite':    'EliteKnight',
+  'Large Knight - Elite':    'LargeEliteKnight',
+  'Large Knight - Standard': 'LargeKnight',
+  'Mountain King':     'MountainKing',
 };
 
 /* ---------- PNG 읽기 ----------
@@ -149,9 +176,12 @@ if (!fs.existsSync(SRC)) {
 fs.mkdirSync(OUT, { recursive: true });
 
 for (const [folder, name] of Object.entries(WANT)) {
+  const prefix = PREFIX[folder] || folder;
+  let got = 0;
   for (const kind of ['Idle', 'Walk']) {
-    const files = [1, 2, 3, 4].map(i => path.join(SRC, folder, `${folder}_${kind}_${i}.png`));
+    const files = [1, 2, 3, 4].map(i => path.join(SRC, folder, `${prefix}_${kind}_${i}.png`));
     if (!files.every(f => fs.existsSync(f))) continue;
+    got++;
     const frames = files.map(decode);
     const box = unionBox(frames);
     frames.forEach((d, i) => {
@@ -161,4 +191,6 @@ for (const [folder, name] of Object.entries(WANT)) {
     });
     console.log(`${name} ${kind.toLowerCase()} — ${box.w}x${box.h} 로 잘라 4장`);
   }
+  // 조용히 건너뛰면 왜 그림이 안 뜼는지를 끝내 못 찾는다
+  if (!got) console.error(`  ! ${name} — ${folder}/${prefix}_Idle_1.png 을 못 찾았다`);
 }

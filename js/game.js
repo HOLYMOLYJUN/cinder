@@ -1902,23 +1902,23 @@ function monsterTurn(m) {
         p.hp -= dmg;
         p.flash = CFG.FLASH_TIME;
         state.hurtThisFloor = true;
-        Sound.play('spell');
-        Render.addFloater(p.x, p.y, String(dmg), COLORS.cast);
+        Sound.play(m.bow ? 'hit' : 'spell');
+        Render.addFloater(p.x, p.y, String(dmg), m.bow ? COLORS.bad : COLORS.cast);
         Render.addShake(6);
-        UI.log(m.name + '의 주문이 적중해 ' + dmg + '의 피해를 입었습니다.', 'hurt');
+        UI.log(m.name + (m.bow ? '의 화살이 박혀 ' : '의 주문이 적중해 ') + dmg + '의 피해를 입었습니다.', 'hurt');
         UI.updateHud(state);
         if (p.hp <= 0) kill(p);
       } else {
         Sound.play('miss');
         Render.addFloater(m.x, m.y, '빗나감', COLORS.cast);
-        UI.log(josa(m.name, '의', '의') + ' 주문이 빗나갔습니다.', 'good');
+        UI.log(josa(m.name, '의', '의') + (m.bow ? ' 화살이' : ' 주문이') + ' 빗나갔습니다.', 'good');
       }
       return;
     }
     if (canSee && dist <= CFG.MONSTER_RANGE && dist >= 2) {
       m.casting = 1;
       Sound.play('cast');
-      UI.log(josa(m.name, '이', '가') + ' 주문을 준비합니다. 사거리를 벗어나면 빗나갑니다.', 'hit');
+      UI.log(josa(m.name, '이', '가') + (m.bow ? ' 시위를 당깁니다' : ' 주문을 준비합니다') + '. 사거리를 벗어나면 빗나갑니다.', 'hit');
       return;
     }
   }

@@ -43,6 +43,22 @@ const BOSSES = {
     skills: ['curse', 'pin', 'lunge'], interval: 3,
     intro: '그것은 당신을 알아봅니다.',
   },
+  /* 13층 — 중간 주인. 보스 자리가 5·10·15 셋뿐이라 10층에서 15층까지
+     다섯 층이 매둔했다. 용은 원래 12층부터 나오는 보통 몸스터였는데,
+     테스터 말로 「개 나약함」이었다 — 용이 그냥 지나가는 것이면 그건 용이 아니다.
+
+     12층이 안식처라 거기서 준비하고 13층에서 맞붙고 14층에서 숨을 고른 뒤
+     15층으로 간다. 12층에 둘 수는 없었다 — 거기가 마지막 안식처라,
+     닫으면 10층부터 끝까지 쉬는 자리가 하나도 안 남는다. */
+  13: {
+    id: 'dragon', name: '용', g: 'D', c: '#D9542F',
+    hp: 150, atk: 12, sp: 18, def: 9, md: 6, spd: 8, gold: 130,
+    // 크기를 두 배로. 보스는 기본 1.25배인데 용은 그것만으로 부족하다
+    scale: 2,
+    burn: true,
+    skills: ['breath', 'lunge', 'slam'], interval: 3,
+    intro: '재 속에서 무언가가 머리를 듭니다. 숨을 들이켜는 소리가 방을 울립니다.',
+  },
   15: {
     id: 'keeper', name: '등불지기', g: '@', c: '#E9954A',
     hp: 230, atk: 15, sp: 14, def: 8, md: 8, spd: 12, gold: 0,
@@ -143,6 +159,26 @@ const BOSS_SKILL = {
     },
   },
 
+  /* 불길 — 용이 뿜는 줄기. 결을 따라 **여섯 칸까지** 계속 간다.
+     뒤로 물러나는 것으로는 못 벗어난다 — 줄기가 그 끝까지 따라오므로
+     **옆으로 비켜야** 한다. 잡은 결은 여전히 직선 하나라 빠져나갈 길은 둘 남는다. */
+  breath: {
+    warn: (b) => josa(b.name, '이', '가') + ' 숨을 깊이 들이켜니다. 목이 붉게 달아오릅니다.',
+    fire: (b) => josa(b.name, '이', '가') + ' 불을 토해냅니다.',
+    magic: true,
+    bonus: 6,
+    burn: true,
+    tiles(b, player) {
+      const dx = player.x - b.x, dy = player.y - b.y;
+      const ax = Math.abs(dx) >= Math.abs(dy) ? 1 : 0;
+      const ux = ax ? (Math.sign(dx) || 1) : 0;
+      const uy = ax ? 0 : (Math.sign(dy) || 1);
+      const out = [];
+      for (let i = 1; i <= 6; i++) out.push([b.x + ux * i, b.y + uy * i]);
+      return out;
+    },
+  },
+
   /* 달려든다 — 보스와 나 사이의 결을 통째로 친 뒤 **그 끝까지 옥겨 온다.**
 
      이 게임의 보스가 한 대도 못 때린 진짜 이유는 기술이 약해서가 아니라
@@ -188,6 +224,8 @@ function makeBoss(def, x, y) {
 
   m.boss = true;
   m.bossDef = def;
+  if (def.scale) m.scale = def.scale;      // 그리는 쪽이 읽는다 (render.js)
+  if (def.burn) m.burn = true;
   m.charge = 0;
   m.skillIndex = 0;
   m.pending = null;      // { skill, tiles }
@@ -237,6 +275,12 @@ function bossTurn(b) {
     Render.addFloater(p.x, p.y, String(dmg), S.magic ? COLORS.cast : COLORS.damage);
     Render.addShake(16);
     UI.log(dmg + '의 피해를 입었습니다.', 'hurt');
+    /* 불길은 맞는 순간보다 맞고 난 뒤가 길다 — 용의 본업이다.
+       「식은 것」의 얼음과 같은 자리의 같은 규칙이라 숫자도 그쪽을 따른다 (game.js 의 attack). */
+    if (S.burn && state.burn < 4) {
+      state.burn = 4;
+      UI.log('불이 옆아붙었습니다. 몇 걸음은 계속 탑니다.', 'hurt');
+    }
     UI.updateHud(state);
     if (p.hp <= 0) kill(p);
     if (S.onFire) S.onFire(b, p, tiles);

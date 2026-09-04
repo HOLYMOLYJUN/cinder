@@ -939,10 +939,14 @@ const UI = {
         continue;
       }
       const magic = m.sp > m.atk;
+      /* 멀리서 오는 것이 곧 주문은 아니다 — 활은 방어로 막힌다.
+         그 차이는 어느 칸에 불이 들어오는가로 이미 보이므로(공격 vs 주문),
+         이름표에는 「활」 한 마디만 더 붙인다. */
+      const far = magic || m.bow;
       // 마주치기만 하고 아직 못 잡은 것도 있다 — 그때는 숫자 대신 가운뎃점
       const n = killed[m.id] || 0;
       rows.push(`<tr><td>${this.thumb(m.id + '.idle')}</td>` +
-        `<td class="cx-name">${m.name}${magic ? ' <span class="cx-tag">원거리</span>' : ''}</td>` +
+        `<td class="cx-name">${m.name}${far ? ' <span class="cx-tag">' + (magic ? '원거리' : '원거리 · 활') + '</span>' : ''}</td>` +
         `<td>${m.min}</td><td>${m.hp}</td>` +
         `<td${magic ? '' : ' class="hi"'}>${m.atk}</td>` +
         `<td${magic ? ' class="hi mag"' : ''}>${m.sp}</td>` +

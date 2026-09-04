@@ -613,7 +613,7 @@ const Render = {
                  : (e.defId === 'keeper' ? [COLORS.ember, 0.5]
                  : (e.eliteTint ? [e.eliteTint, 0.36] : null));
       this.sprite(ctx, key + (moving ? '.run' : '.idle'), px, py,
-                  e.boss ? 1.25 : 1, 1, tint, e.face, f);
+                  e.scale || (e.boss ? 1.25 : 1), 1, tint, e.face, f);
 
       // 주운 무기는 손에 들려 보인다 — 장비창을 열지 않아도 지금 뭘 들었는지 읽히게
       if (e.kind === 'player' && e.gear && e.gear.weapon) {
